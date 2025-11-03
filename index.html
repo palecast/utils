@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raoul's Utilities Hub</title>
+    <title>Utilities Hub</title>
     <style>
         * {
             margin: 0;
@@ -104,7 +104,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🛠️ Raoul's Utilities Hub</h1>
+            <h1 id="page-title">🛠️ Utilities Hub</h1>
             <p class="subtitle">A collection of useful web tools and utilities</p>
         </header>
 
@@ -113,7 +113,7 @@
         </div>
 
         <footer>
-            <p>These utilities have been built for my own learning and experimentation. Hope you find them useful.</p>
+            <p>Add more utilities by updating the utilities array in the script</p>
         </footer>
     </div>
 
@@ -135,6 +135,20 @@
             // }
         ];
 
+        // Set page title based on hostname
+        function setPageTitle() {
+            const hostname = window.location.hostname.toLowerCase();
+            const titleElement = document.getElementById('page-title');
+            
+            if (hostname.includes('duplessis')) {
+                titleElement.textContent = "🛠️ Raoul's Utilities Hub";
+            } else if (hostname.includes('sandestin')) {
+                titleElement.textContent = "🛠️ Sandestin Utilities Hub";
+            } else {
+                titleElement.textContent = "🛠️ Utilities Hub";
+            }
+        }
+
         // Render utilities
         function renderUtilities() {
             const container = document.getElementById('utilities-container');
@@ -155,7 +169,10 @@
         }
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', renderUtilities);
+        document.addEventListener('DOMContentLoaded', function() {
+            setPageTitle();
+            renderUtilities();
+        });
     </script>
 </body>
 </html>
