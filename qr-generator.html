@@ -116,6 +116,18 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
+        .download-btn {
+            margin-top: 20px;
+            background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .download-btn:hover {
+            box-shadow: 0 10px 20px rgba(67, 160, 71, 0.3);
+        }
+
         .field-hint {
             font-size: 12px;
             color: #888;
@@ -161,6 +173,10 @@
 
         <div id="qrcode-container">
             <div id="qrcode"></div>
+            <br>
+            <button class="download-btn" onclick="downloadQRCode()">
+                📥 Download QR Code
+            </button>
         </div>
     </div>
 
@@ -251,10 +267,12 @@
         };
 
         let qrcode = null;
+        let currentQRType = 'url';
 
         // Initialize form
         function updateForm() {
             const qrType = document.getElementById('qr-type').value;
+            currentQRType = qrType;
             const dynamicForm = document.getElementById('dynamic-form');
             dynamicForm.innerHTML = formTemplates[qrType];
             
@@ -398,6 +416,38 @@
 
             // Show QR code container
             qrcodeWrapper.classList.add('show');
+        }
+
+        function downloadQRCode() {
+            // Get the canvas element from the QR code
+            const canvas = document.querySelector('#qrcode canvas');
+            
+            if (!canvas) {
+                alert('Please generate a QR code first');
+                return;
+            }
+
+            // Convert canvas to blob and download
+            canvas.toBlob(function(blob) {
+                // Create a temporary link element
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                
+                // Generate filename based on type and timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                const filename = `qrcode-${currentQRType}-${timestamp}.png`;
+                
+                link.download = filename;
+                link.href = url;
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up
+                URL.revokeObjectURL(url);
+            });
         }
 
         // Event listener for type selection
