@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cost Splitter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .cost-item,
+        .group-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .cost-item {
+            cursor: move;
+            border: 2px solid transparent;
+        }
+
+        .cost-item:hover {
+            background: #e9ecef;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .cost-item.dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+        }
+
+        .cost-item.assigned {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .group-item {
+            border: 2px dashed transparent;
+        }
+
+        .group-item.drag-over {
+            border-color: #667eea;
+            background: #e7f3ff;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+
+        .item-subtitle {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        .item-amount {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            margin-right: 10px;
+        }
+
+        .total-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .total-row.grand-total {
+            font-size: 20px;
+            font-weight: 700;
+            padding-top: 10px;
+            border-top: 2px solid rgba(255,255,255,0.3);
+            margin-top: 10px;
+        }
+
+        .tip-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .tip-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tip-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .tip-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .person-list {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .person-item {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .person-name {
+            color: #2c3e50;
+        }
+
+        .person-amount {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .group-total {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #95a5a6;
+        }
+
+        .assigned-label {
+            display: inline-block;
+            background: #ffc107;
+            color: #856404;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .drag-instructions {
+            background: #e7f3ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #0c5460;
+            border-left: 4px solid #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Cost Splitter</h1>
+
+        <div class="main-grid">
+            <!-- Costs Panel -->
+            <div class="panel">
+                <h2>Costs</h2>
+                
+                <div class="drag-instructions">
+                    💡 Drag a cost to a group to assign it exclusively to that group
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="costDescription" placeholder="Description (e.g., Pizza)">
+                    <input type="number" id="costAmount" placeholder="Amount" step="0.01" min="0">
+                    <button onclick="addCost()">Add Cost</button>
+                </div>
+
+                <div id="costList"></div>
+
+                <div class="total-section">
+                    <div class="total-row">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">$0.00</span>
+                    </div>
+                    <div class="total-row">
+                        <span>Tip:</span>
+                        <span id="tipAmount">$0.00</span>
+                    </div>
+                    <div class="tip-buttons">
+                        <button class="tip-btn" onclick="setTip(0)">No Tip</button>
+                        <button class="tip-btn" onclick="setTip(10)">10%</button>
+                        <button class="tip-btn" onclick="setTip(15)">15%</button>
+                        <button class="tip-btn" onclick="setTip(20)">20%</button>
+                    </div>
+                    <div class="total-row grand-total">
+                        <span>Grand Total:</span>
+                        <span id="grandTotal">$0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Groups Panel -->
+            <div class="panel">
+                <h2>Groups</h2>
+
+                <div class="drag-instructions">
+                    💡 Enter comma-separated names (e.g., Alice, Bob) to auto-create a group with individual names
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="groupName" placeholder="Group name or comma-separated names (e.g., Alice, Bob, Carol)">
+                    <input type="number" id="groupSize" placeholder="# of people" min="1" value="1">
+                    <button onclick="addGroup()">Add Group</button>
+                </div>
+
+                <div id="groupList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let costs = [];
+        let groups = [];
+        let tipPercent = 0;
+        let nextCostId = 1;
+        let nextGroupId = 1;
+
+        function addCost() {
+            const description = document.getElementById('costDescription').value.trim();
+            const amount = parseFloat(document.getElementById('costAmount').value);
+
+            if (!description || !amount || amount <= 0) {
+                alert('Please enter a valid description and amount');
+                return;
+            }
+
+            costs.push({
+                id: nextCostId++,
+                description,
+                amount,
+                assignedToGroup: null
+            });
+
+            document.getElementById('costDescription').value = '';
+            document.getElementById('costAmount').value = '';
+            document.getElementById('costDescription').focus();
+
+            render();
+        }
+
+        function removeCost(id) {
+            costs = costs.filter(c => c.id !== id);
+            render();
+        }
+
+        function addGroup() {
+            const nameInput = document.getElementById('groupName').value.trim();
+            const size = parseInt(document.getElementById('groupSize').value);
+
+            if (!nameInput) {
+                alert('Please enter a group name or comma-separated list of names');
+                return;
+            }
+
+            let people = [];
+            let groupName = nameInput;
+
+            // Check if input contains commas (comma-separated list of names)
+            if (nameInput.includes(',')) {
+                const names = nameInput.split(',').map(n => n.trim()).filter(n => n);
+                
+                if (names.length === 0) {
+                    alert('Please enter valid names separated by commas');
+                    return;
+                }
+
+                // Create individual people from the list
+                people = names.map(name => ({ name }));
+                groupName = names.join(', '); // Use formatted list as group name
+            } else {
+                // Single name or generic group
+                if (!size || size < 1) {
+                    alert('Please enter a valid number of people');
+                    return;
+                }
+
+                for (let i = 0; i < size; i++) {
+                    people.push({ name: size === 1 ? nameInput : `${nameInput} (Person ${i + 1})` });
+                }
+                groupName = nameInput;
+            }
+
+            groups.push({
+                id: nextGroupId++,
+                name: groupName,
+                people
+            });
+
+            document.getElementById('groupName').value = '';
+            document.getElementById('groupSize').value = '1';
+            document.getElementById('groupName').focus();
+
+            render();
+        }
+
+        function removeGroup(id) {
+            // Unassign any costs assigned to this group
+            costs.forEach(cost => {
+                if (cost.assignedToGroup === id) {
+                    cost.assignedToGroup = null;
+                }
+            });
+            
+            groups = groups.filter(g => g.id !== id);
+            render();
+        }
+
+        function setTip(percent) {
+            tipPercent = percent;
+            render();
+        }
+
+        function calculateTotals() {
+            const sharedCosts = costs.filter(c => c.assignedToGroup === null);
+            const subtotal = sharedCosts.reduce((sum, c) => sum + c.amount, 0);
+            const tip = subtotal * (tipPercent / 100);
+            const sharedTotal = subtotal + tip;
+
+            const totalPeople = groups.reduce((sum, g) => sum + g.people.length, 0);
+
+            return {
+                subtotal,
+                tip,
+                sharedTotal,
+                totalPeople
+            };
+        }
+
+        function calculateGroupShare(group) {
+            const { sharedTotal, totalPeople } = calculateTotals();
+            
+            // Calculate share of shared costs
+            const sharedShare = totalPeople > 0 
+                ? (group.people.length / totalPeople) * sharedTotal 
+                : 0;
+
+            // Add any costs assigned directly to this group
+            const assignedCosts = costs
+                .filter(c => c.assignedToGroup === group.id)
+                .reduce((sum, c) => sum + c.amount, 0);
+
+            return sharedShare + assignedCosts;
+        }
+
+        function handleDragStart(e, costId) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', costId);
+            e.target.classList.add('dragging');
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => {
+                el.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e, groupId) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e, groupId) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            const costId = parseInt(e.dataTransfer.getData('text/plain'));
+            const cost = costs.find(c => c.id === costId);
+
+            if (cost) {
+                // Toggle assignment: if already assigned to this group, unassign
+                if (cost.assignedToGroup === groupId) {
+                    cost.assignedToGroup = null;
+                } else {
+                    cost.assignedToGroup = groupId;
+                }
+                render();
+            }
+        }
+
+        function render() {
+            renderCosts();
+            renderGroups();
+            renderTotals();
+        }
+
+        function renderCosts() {
+            const costList = document.getElementById('costList');
+            
+            if (costs.length === 0) {
+                costList.innerHTML = '<div class="empty-state">No costs added yet</div>';
+                return;
+            }
+
+            costList.innerHTML = costs.map(cost => {
+                const assignedGroup = cost.assignedToGroup 
+                    ? groups.find(g => g.id === cost.assignedToGroup)
+                    : null;
+
+                return `
+                    <div class="cost-item ${cost.assignedToGroup ? 'assigned' : ''}" 
+                         draggable="true"
+                         ondragstart="handleDragStart(event, ${cost.id})"
+                         ondragend="handleDragEnd(event)">
+                        <div class="item-details">
+                            <div class="item-title">
+                                ${cost.description}
+                                ${assignedGroup ? `<span class="assigned-label">→ ${assignedGroup.name}</span>` : ''}
+                            </div>
+                            ${assignedGroup ? '<div class="item-subtitle">Assigned exclusively to this group</div>' : '<div class="item-subtitle">Shared cost</div>'}
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <div class="item-amount">$${cost.amount.toFixed(2)}</div>
+                            <button class="btn-small btn-danger" onclick="removeCost(${cost.id})">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderGroups() {
+            const groupList = document.getElementById('groupList');
+            
+            if (groups.length === 0) {
+                groupList.innerHTML = '<div class="empty-state">No groups added yet</div>';
+                return;
+            }
+
+            groupList.innerHTML = groups.map(group => {
+                const groupTotal = calculateGroupShare(group);
+                const perPerson = groupTotal / group.people.length;
+
+                return `
+                    <div class="group-item"
+                         ondragover="handleDragOver(event)"
+                         ondragenter="handleDragEnter(event, ${group.id})"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event, ${group.id})">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div>
+                                    <div class="item-title">${group.name}</div>
+                                    <div class="item-subtitle">${group.people.length} ${group.people.length === 1 ? 'person' : 'people'}</div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="group-total">$${groupTotal.toFixed(2)}</div>
+                                    <button class="btn-small btn-danger" onclick="removeGroup(${group.id})">✕</button>
+                                </div>
+                            </div>
+                            <div class="person-list">
+                                ${group.people.map(person => `
+                                    <div class="person-item">
+                                        <span class="person-name">${person.name}</span>
+                                        <span class="person-amount">$${perPerson.toFixed(2)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTotals() {
+            const { subtotal, tip, sharedTotal } = calculateTotals();
+            const grandTotal = costs.reduce((sum, c) => sum + c.amount, 0) + tip;
+
+            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('tipAmount').textContent = `$${tip.toFixed(2)}`;
+            document.getElementById('grandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+
+            // Update tip button states
+            document.querySelectorAll('.tip-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeTipBtn = Array.from(document.querySelectorAll('.tip-btn'))
+                .find(btn => btn.textContent.includes(tipPercent + '%') || (tipPercent === 0 && btn.textContent === 'No Tip'));
+            if (activeTipBtn) {
+                activeTipBtn.classList.add('active');
+            }
+        }
+
+        // Allow Enter key to add costs
+        document.getElementById('costAmount').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addCost();
+        });
+
+        document.getElementById('costDescription').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('costAmount').focus();
+            }
+        });
+
+        // Allow Enter key to add groups
+        document.getElementById('groupSize').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addGroup();
+        });
+
+        document.getElementById('groupName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('groupSize').focus();
+            }
+        });
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
