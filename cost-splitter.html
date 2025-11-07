@@ -278,6 +278,51 @@
             border-left: 4px solid #667eea;
         }
 
+        .group-selector {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 200px;
+            margin-top: 5px;
+        }
+
+        .cost-item {
+            position: relative;
+        }
+
+        .group-selector-title {
+            padding: 12px;
+            font-weight: 600;
+            color: #667eea;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+
+        .group-selector-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        .group-selector-item:hover {
+            background: #f0f0f0;
+        }
+
+        .group-selector-item:last-child {
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .group-selector-cancel {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
         @media (max-width: 768px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -303,7 +348,7 @@
                 <h2>Costs</h2>
                 
                 <div class="drag-instructions">
-                    💡 Drag a cost to a group to assign it exclusively to that group
+                    💡 Drag a cost to a group OR click "Allocate" to assign it exclusively to that group
                 </div>
 
                 <div class="input-group">
@@ -361,6 +406,62 @@
         let tipPercent = 0;
         let nextCostId = 1;
         let nextGroupId = 1;
+
+        function toggleAllocation(costId) {
+            const cost = costs.find(c => c.id === costId);
+            if (!cost) return;
+
+            // If already allocated, make it shared
+            if (cost.assignedToGroup) {
+                cost.assignedToGroup = null;
+                render();
+            } else {
+                // Show group selection for allocation
+                showGroupSelector(costId);
+            }
+        }
+
+        function showGroupSelector(costId) {
+            if (groups.length === 0) {
+                alert('Please add at least one group first');
+                return;
+            }
+
+            // Hide any existing selector
+            document.querySelectorAll('.group-selector').forEach(el => el.remove());
+
+            const costElement = document.querySelector(`[data-cost-id="${costId}"]`);
+            if (!costElement) return;
+
+            const selector = document.createElement('div');
+            selector.className = 'group-selector';
+            selector.innerHTML = `
+                <div class="group-selector-title">Allocate to which group?</div>
+                ${groups.map(group => `
+                    <div class="group-selector-item" onclick="event.stopPropagation(); allocateCostToGroup(${costId}, ${group.id})">
+                        ${group.name}
+                    </div>
+                `).join('')}
+                <div class="group-selector-item group-selector-cancel" onclick="event.stopPropagation(); closeGroupSelector()">
+                    Cancel
+                </div>
+            `;
+
+            costElement.appendChild(selector);
+        }
+
+        function closeGroupSelector() {
+            document.querySelectorAll('.group-selector').forEach(el => el.remove());
+        }
+
+        function allocateCostToGroup(costId, groupId) {
+            const cost = costs.find(c => c.id === costId);
+            if (cost) {
+                cost.assignedToGroup = groupId;
+                closeGroupSelector();
+                render();
+            }
+        }
 
         function addCost() {
             const description = document.getElementById('costDescription').value.trim();
@@ -553,9 +654,13 @@
                     ? groups.find(g => g.id === cost.assignedToGroup)
                     : null;
 
+                const allocateButtonText = cost.assignedToGroup ? 'Make Shared' : 'Allocate';
+                const allocateButtonClass = cost.assignedToGroup ? 'btn-small' : 'btn-small';
+
                 return `
                     <div class="cost-item ${cost.assignedToGroup ? 'assigned' : ''}" 
                          draggable="true"
+                         data-cost-id="${cost.id}"
                          ondragstart="handleDragStart(event, ${cost.id})"
                          ondragend="handleDragEnd(event)">
                         <div class="item-details">
@@ -565,9 +670,10 @@
                             </div>
                             ${assignedGroup ? '<div class="item-subtitle">Assigned exclusively to this group</div>' : '<div class="item-subtitle">Shared cost</div>'}
                         </div>
-                        <div style="display: flex; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
                             <div class="item-amount">$${cost.amount.toFixed(2)}</div>
-                            <button class="btn-small btn-danger" onclick="removeCost(${cost.id})">✕</button>
+                            <button class="${allocateButtonClass}" onclick="event.stopPropagation(); toggleAllocation(${cost.id});">${allocateButtonText}</button>
+                            <button class="btn-small btn-danger" onclick="event.stopPropagation(); removeCost(${cost.id})">✕</button>
                         </div>
                     </div>
                 `;
@@ -655,6 +761,13 @@
         document.getElementById('groupName').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 document.getElementById('groupSize').focus();
+            }
+        });
+
+        // Close group selector when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.group-selector') && !e.target.closest('button')) {
+                closeGroupSelector();
             }
         });
 
