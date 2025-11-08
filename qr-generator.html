@@ -404,15 +404,43 @@
             // Clear previous QR code
             qrcodeContainer.innerHTML = '';
 
-            // Create new QR code
-            qrcode = new QRCode(qrcodeContainer, {
-                text: data,
-                width: 256,
-                height: 256,
-                colorDark: '#000000',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
+            // Try to create QR code with fallback error correction levels
+            // Start with highest quality (H) and reduce if data is too large
+            // H = High (30% error correction, best quality, least data capacity)
+            // Q = Quartile (25% error correction)
+            // M = Medium (15% error correction)
+            // L = Low (7% error correction, most data capacity)
+            const errorLevels = [
+                QRCode.CorrectLevel.H,  // Try highest quality first
+                QRCode.CorrectLevel.Q,
+                QRCode.CorrectLevel.M,
+                QRCode.CorrectLevel.L   // Fallback to lowest for maximum data capacity
+            ];
+
+            let qrCreated = false;
+            let lastError = null;
+
+            for (let level of errorLevels) {
+                try {
+                    qrcode = new QRCode(qrcodeContainer, {
+                        text: data,
+                        width: 256,
+                        height: 256,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: level
+                    });
+                    qrCreated = true;
+                    break;
+                } catch (error) {
+                    lastError = error;
+                    qrcodeContainer.innerHTML = ''; // Clear failed attempt
+                }
+            }
+
+            if (!qrCreated) {
+                throw new Error('QR code data is too large. Please reduce the amount of information.');
+            }
 
             // Show QR code container
             qrcodeWrapper.classList.add('show');
