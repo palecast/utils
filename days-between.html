@@ -336,6 +336,7 @@
         let publicHolidays = [];
         let isEditingDays = false;
         let selectedSubdivision = null;
+        let currentCountryCode = null;
 
         // Get today's date in YYYY-MM-DD format
         function getTodayString() {
@@ -629,14 +630,17 @@
         }
 
         // Fetch public holidays for a country
-        async function fetchPublicHolidays(countryCode) {
+        async function fetchPublicHolidays(countryCode, updateSubdivisionSelector = true) {
             if (!countryCode) {
                 publicHolidays = [];
                 selectedSubdivision = null;
+                currentCountryCode = null;
                 document.getElementById('subdivisionSelector').style.display = 'none';
                 updateDisplay();
                 return;
             }
+
+            currentCountryCode = countryCode;
 
             try {
                 const startDate = document.getElementById('startDate').value;
@@ -659,40 +663,43 @@
                 const holidayArrays = await Promise.all(holidayPromises);
                 publicHolidays = holidayArrays.flat();
                 
-                // Check if any holidays have counties/subdivisions
-                const subdivisions = new Set();
-                publicHolidays.forEach(holiday => {
-                    if (holiday.counties && holiday.counties.length > 0) {
-                        holiday.counties.forEach(county => subdivisions.add(county));
-                    }
-                });
+                // Only update subdivision selector if requested (when country changes, not when refetching for new years)
+                if (updateSubdivisionSelector) {
+                    // Check if any holidays have counties/subdivisions
+                    const subdivisions = new Set();
+                    publicHolidays.forEach(holiday => {
+                        if (holiday.counties && holiday.counties.length > 0) {
+                            holiday.counties.forEach(county => subdivisions.add(county));
+                        }
+                    });
 
-                // Show subdivision selector if subdivisions exist
-                const subdivisionSelector = document.getElementById('subdivisionSelector');
-                const subdivisionSelect = document.getElementById('subdivisionSelect');
-                
-                if (subdivisions.size > 0) {
-                    // Sort subdivisions alphabetically by display name
-                    const sortedSubdivisions = Array.from(subdivisions).sort((a, b) => {
-                        return getSubdivisionName(a).localeCompare(getSubdivisionName(b));
-                    });
+                    // Show subdivision selector if subdivisions exist
+                    const subdivisionSelector = document.getElementById('subdivisionSelector');
+                    const subdivisionSelect = document.getElementById('subdivisionSelect');
                     
-                    // Create dropdown options with proper names
-                    let html = '<option value="">All regions</option>';
-                    sortedSubdivisions.forEach(subdivision => {
-                        const displayName = getSubdivisionName(subdivision);
-                        html += `<option value="${subdivision}">${displayName}</option>`;
-                    });
-                    
-                    subdivisionSelect.innerHTML = html;
-                    subdivisionSelector.style.display = 'block';
-                    
-                    // Reset selection
-                    subdivisionSelect.value = '';
-                    selectedSubdivision = null;
-                } else {
-                    subdivisionSelector.style.display = 'none';
-                    selectedSubdivision = null;
+                    if (subdivisions.size > 0) {
+                        // Sort subdivisions alphabetically by display name
+                        const sortedSubdivisions = Array.from(subdivisions).sort((a, b) => {
+                            return getSubdivisionName(a).localeCompare(getSubdivisionName(b));
+                        });
+                        
+                        // Create dropdown options with proper names
+                        let html = '<option value="">All regions</option>';
+                        sortedSubdivisions.forEach(subdivision => {
+                            const displayName = getSubdivisionName(subdivision);
+                            html += `<option value="${subdivision}">${displayName}</option>`;
+                        });
+                        
+                        subdivisionSelect.innerHTML = html;
+                        subdivisionSelector.style.display = 'block';
+                        
+                        // Reset selection
+                        subdivisionSelect.value = '';
+                        selectedSubdivision = null;
+                    } else {
+                        subdivisionSelector.style.display = 'none';
+                        selectedSubdivision = null;
+                    }
                 }
                 
                 updateDisplay();
@@ -700,6 +707,7 @@
                 console.error('Error fetching public holidays:', error);
                 publicHolidays = [];
                 selectedSubdivision = null;
+                currentCountryCode = null;
                 document.getElementById('subdivisionSelector').style.display = 'none';
                 updateDisplay();
             }
@@ -774,9 +782,50 @@
             }
         }
 
+        // Check if we need to refetch holidays based on date range
+        async function checkAndRefetchHolidays() {
+            if (!currentCountryCode) {
+                return;
+            }
+
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                return;
+            }
+
+            const startYear = new Date(startDate).getFullYear();
+            const endYear = new Date(endDate).getFullYear();
+            
+            // Get the years we currently have holidays for
+            const currentYears = new Set();
+            publicHolidays.forEach(holiday => {
+                const year = new Date(holiday.date).getFullYear();
+                currentYears.add(year);
+            });
+            
+            // Check if we need any years that we don't have
+            let needsRefetch = false;
+            for (let year = startYear; year <= endYear; year++) {
+                if (!currentYears.has(year)) {
+                    needsRefetch = true;
+                    break;
+                }
+            }
+            
+            if (needsRefetch) {
+                // Don't update subdivision selector when refetching for additional years
+                await fetchPublicHolidays(currentCountryCode, false);
+            }
+        }
+
         // Update the display
-        function updateDisplay() {
+        async function updateDisplay() {
             if (isEditingDays) return;
+
+            // Check if we need to refetch holidays for new years
+            await checkAndRefetchHolidays();
 
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
@@ -812,12 +861,12 @@
             input.focus();
             input.select();
 
-            const finishEdit = () => {
+            const finishEdit = async () => {
                 const newValue = parseInt(input.value) || 0;
                 isEditingDays = false;
 
                 if (newValue !== currentValue) {
-                    recalculateEndDate(newValue, type);
+                    await recalculateEndDate(newValue, type);
                 } else {
                     element.textContent = currentValue;
                 }
@@ -832,7 +881,7 @@
         }
 
         // Recalculate end date based on new day count
-        function recalculateEndDate(newDays, type) {
+        async function recalculateEndDate(newDays, type) {
             const startDate = document.getElementById('startDate').value;
             let newEndDate;
 
@@ -843,7 +892,7 @@
             }
 
             document.getElementById('endDate').value = newEndDate;
-            updateDisplay();
+            await updateDisplay();
         }
 
         // Initialize
@@ -861,13 +910,13 @@
             document.getElementById('countrySelect').addEventListener('change', (e) => {
                 fetchPublicHolidays(e.target.value);
             });
-            document.getElementById('subdivisionSelect').addEventListener('change', (e) => {
+            document.getElementById('subdivisionSelect').addEventListener('change', async (e) => {
                 selectedSubdivision = e.target.value || null;
-                updateDisplay();
+                await updateDisplay();
             });
 
             // Initial calculation
-            updateDisplay();
+            await updateDisplay();
         });
     </script>
 </body>
