@@ -56,13 +56,32 @@
 
         .date-card {
             flex: 1;
-            min-width: 250px;
+            min-width: 300px;
         }
 
         .date-card h2 {
             color: #667eea;
             font-size: 1.2em;
             margin-bottom: 15px;
+        }
+
+        .date-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .date-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .date-input-group label {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 0.95em;
         }
 
         .date-card input[type="date"] {
@@ -80,12 +99,40 @@
             border-color: #667eea;
         }
 
-        .day-of-week {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #e0e0e0;
-            color: #666;
+        .date-card select {
+            width: 100%;
+            padding: 10px;
             font-size: 0.95em;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .date-card select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .selector-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .selector-group label {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .day-of-week {
+            margin-top: 8px;
+            color: #666;
+            font-size: 0.9em;
             font-weight: 500;
         }
 
@@ -96,73 +143,6 @@
             min-width: 280px;
             flex-shrink: 0;
             max-height: fit-content;
-        }
-
-        .country-selector {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        .country-selector select {
-            width: 100%;
-            padding: 10px;
-            font-size: 0.95em;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.15);
-            color: white;
-            font-family: inherit;
-            cursor: pointer;
-        }
-
-        .country-selector select option {
-            background: #667eea;
-            color: white;
-        }
-
-        .country-selector label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-
-        .subdivision-selector {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.3);
-        }
-
-        .subdivision-selector label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-
-        .subdivision-options {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .subdivision-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
-        }
-
-        .subdivision-option input[type="radio"] {
-            cursor: pointer;
-        }
-
-        .subdivision-option label {
-            cursor: pointer;
-            margin: 0;
-            opacity: 1;
         }
 
         .result-card .label {
@@ -293,6 +273,10 @@
                 width: 100%;
                 min-width: auto;
             }
+
+            .date-inputs {
+                gap: 15px;
+            }
         }
     </style>
 </head>
@@ -302,23 +286,38 @@
         
         <div class="cards-container">
             <div class="card date-card">
-                <h2>Start Date</h2>
-                <input type="date" id="startDate">
-                <div class="day-of-week" id="startDayOfWeek"></div>
-            </div>
-
-            <div class="card result-card">
-                <div class="country-selector">
+                <h2>Date Selection</h2>
+                
+                <div class="selector-group">
                     <label for="countrySelect">Country:</label>
                     <select id="countrySelect">
                         <option value="">Loading countries...</option>
                     </select>
-                    <div class="subdivision-selector" id="subdivisionSelector" style="display: none;">
-                        <label>Subdivision:</label>
-                        <div class="subdivision-options" id="subdivisionOptions"></div>
+                </div>
+
+                <div class="selector-group" id="subdivisionSelector" style="display: none;">
+                    <label for="subdivisionSelect">Subdivision:</label>
+                    <select id="subdivisionSelect">
+                        <option value="">All regions</option>
+                    </select>
+                </div>
+
+                <div class="date-inputs">
+                    <div class="date-input-group">
+                        <label for="startDate">Start Date:</label>
+                        <input type="date" id="startDate">
+                        <div class="day-of-week" id="startDayOfWeek"></div>
+                    </div>
+
+                    <div class="date-input-group">
+                        <label for="endDate">End Date:</label>
+                        <input type="date" id="endDate">
+                        <div class="day-of-week" id="endDayOfWeek"></div>
                     </div>
                 </div>
-                
+            </div>
+
+            <div class="card result-card">
                 <div class="label">Days Between</div>
                 <div class="editable-number" id="daysBetween" onclick="makeEditable('daysBetween', 'total')" title="Click to edit">0</div>
                 
@@ -328,12 +327,6 @@
                 </div>
 
                 <div class="holidays-list" id="holidaysList"></div>
-            </div>
-
-            <div class="card date-card">
-                <h2>End Date</h2>
-                <input type="date" id="endDate">
-                <div class="day-of-week" id="endDayOfWeek"></div>
             </div>
         </div>
     </div>
@@ -455,6 +448,155 @@
             return date.toISOString().split('T')[0];
         }
 
+        // Get proper name for subdivision code
+        function getSubdivisionName(code) {
+            // Common subdivision mappings (ISO 3166-2 codes)
+            const subdivisionMap = {
+                // United Kingdom
+                'GB-ENG': 'England',
+                'GB-SCT': 'Scotland',
+                'GB-WLS': 'Wales',
+                'GB-NIR': 'Northern Ireland',
+                
+                // Germany
+                'DE-BW': 'Baden-Württemberg',
+                'DE-BY': 'Bavaria',
+                'DE-BE': 'Berlin',
+                'DE-BB': 'Brandenburg',
+                'DE-HB': 'Bremen',
+                'DE-HH': 'Hamburg',
+                'DE-HE': 'Hesse',
+                'DE-MV': 'Mecklenburg-Vorpommern',
+                'DE-NI': 'Lower Saxony',
+                'DE-NW': 'North Rhine-Westphalia',
+                'DE-RP': 'Rhineland-Palatinate',
+                'DE-SL': 'Saarland',
+                'DE-SN': 'Saxony',
+                'DE-ST': 'Saxony-Anhalt',
+                'DE-SH': 'Schleswig-Holstein',
+                'DE-TH': 'Thuringia',
+                
+                // Switzerland
+                'CH-AG': 'Aargau',
+                'CH-AI': 'Appenzell Innerrhoden',
+                'CH-AR': 'Appenzell Ausserrhoden',
+                'CH-BE': 'Bern',
+                'CH-BL': 'Basel-Landschaft',
+                'CH-BS': 'Basel-Stadt',
+                'CH-FR': 'Fribourg',
+                'CH-GE': 'Geneva',
+                'CH-GL': 'Glarus',
+                'CH-GR': 'Graubünden',
+                'CH-JU': 'Jura',
+                'CH-LU': 'Lucerne',
+                'CH-NE': 'Neuchâtel',
+                'CH-NW': 'Nidwalden',
+                'CH-OW': 'Obwalden',
+                'CH-SG': 'St. Gallen',
+                'CH-SH': 'Schaffhausen',
+                'CH-SO': 'Solothurn',
+                'CH-SZ': 'Schwyz',
+                'CH-TG': 'Thurgau',
+                'CH-TI': 'Ticino',
+                'CH-UR': 'Uri',
+                'CH-VD': 'Vaud',
+                'CH-VS': 'Valais',
+                'CH-ZG': 'Zug',
+                'CH-ZH': 'Zurich',
+                
+                // Austria
+                'AT-1': 'Burgenland',
+                'AT-2': 'Carinthia',
+                'AT-3': 'Lower Austria',
+                'AT-4': 'Upper Austria',
+                'AT-5': 'Salzburg',
+                'AT-6': 'Styria',
+                'AT-7': 'Tyrol',
+                'AT-8': 'Vorarlberg',
+                'AT-9': 'Vienna',
+                
+                // Canada
+                'CA-AB': 'Alberta',
+                'CA-BC': 'British Columbia',
+                'CA-MB': 'Manitoba',
+                'CA-NB': 'New Brunswick',
+                'CA-NL': 'Newfoundland and Labrador',
+                'CA-NS': 'Nova Scotia',
+                'CA-NT': 'Northwest Territories',
+                'CA-NU': 'Nunavut',
+                'CA-ON': 'Ontario',
+                'CA-PE': 'Prince Edward Island',
+                'CA-QC': 'Quebec',
+                'CA-SK': 'Saskatchewan',
+                'CA-YT': 'Yukon',
+                
+                // United States
+                'US-AL': 'Alabama',
+                'US-AK': 'Alaska',
+                'US-AZ': 'Arizona',
+                'US-AR': 'Arkansas',
+                'US-CA': 'California',
+                'US-CO': 'Colorado',
+                'US-CT': 'Connecticut',
+                'US-DE': 'Delaware',
+                'US-FL': 'Florida',
+                'US-GA': 'Georgia',
+                'US-HI': 'Hawaii',
+                'US-ID': 'Idaho',
+                'US-IL': 'Illinois',
+                'US-IN': 'Indiana',
+                'US-IA': 'Iowa',
+                'US-KS': 'Kansas',
+                'US-KY': 'Kentucky',
+                'US-LA': 'Louisiana',
+                'US-ME': 'Maine',
+                'US-MD': 'Maryland',
+                'US-MA': 'Massachusetts',
+                'US-MI': 'Michigan',
+                'US-MN': 'Minnesota',
+                'US-MS': 'Mississippi',
+                'US-MO': 'Missouri',
+                'US-MT': 'Montana',
+                'US-NE': 'Nebraska',
+                'US-NV': 'Nevada',
+                'US-NH': 'New Hampshire',
+                'US-NJ': 'New Jersey',
+                'US-NM': 'New Mexico',
+                'US-NY': 'New York',
+                'US-NC': 'North Carolina',
+                'US-ND': 'North Dakota',
+                'US-OH': 'Ohio',
+                'US-OK': 'Oklahoma',
+                'US-OR': 'Oregon',
+                'US-PA': 'Pennsylvania',
+                'US-RI': 'Rhode Island',
+                'US-SC': 'South Carolina',
+                'US-SD': 'South Dakota',
+                'US-TN': 'Tennessee',
+                'US-TX': 'Texas',
+                'US-UT': 'Utah',
+                'US-VT': 'Vermont',
+                'US-VA': 'Virginia',
+                'US-WA': 'Washington',
+                'US-WV': 'West Virginia',
+                'US-WI': 'Wisconsin',
+                'US-WY': 'Wyoming',
+                'US-DC': 'District of Columbia',
+                
+                // Australia
+                'AU-ACT': 'Australian Capital Territory',
+                'AU-NSW': 'New South Wales',
+                'AU-NT': 'Northern Territory',
+                'AU-QLD': 'Queensland',
+                'AU-SA': 'South Australia',
+                'AU-TAS': 'Tasmania',
+                'AU-VIC': 'Victoria',
+                'AU-WA': 'Western Australia'
+            };
+            
+            return subdivisionMap[code] || code;
+        }
+
         // Fetch available countries
         async function fetchCountries() {
             try {
@@ -527,40 +669,26 @@
 
                 // Show subdivision selector if subdivisions exist
                 const subdivisionSelector = document.getElementById('subdivisionSelector');
-                const subdivisionOptions = document.getElementById('subdivisionOptions');
+                const subdivisionSelect = document.getElementById('subdivisionSelect');
                 
                 if (subdivisions.size > 0) {
-                    // Sort subdivisions alphabetically
-                    const sortedSubdivisions = Array.from(subdivisions).sort();
-                    
-                    // Create radio buttons
-                    let html = `
-                        <div class="subdivision-option">
-                            <input type="radio" id="subdiv-all" name="subdivision" value="" checked>
-                            <label for="subdiv-all">All regions</label>
-                        </div>
-                    `;
-                    
-                    sortedSubdivisions.forEach(subdivision => {
-                        html += `
-                            <div class="subdivision-option">
-                                <input type="radio" id="subdiv-${subdivision}" name="subdivision" value="${subdivision}">
-                                <label for="subdiv-${subdivision}">${subdivision}</label>
-                            </div>
-                        `;
+                    // Sort subdivisions alphabetically by display name
+                    const sortedSubdivisions = Array.from(subdivisions).sort((a, b) => {
+                        return getSubdivisionName(a).localeCompare(getSubdivisionName(b));
                     });
                     
-                    subdivisionOptions.innerHTML = html;
+                    // Create dropdown options with proper names
+                    let html = '<option value="">All regions</option>';
+                    sortedSubdivisions.forEach(subdivision => {
+                        const displayName = getSubdivisionName(subdivision);
+                        html += `<option value="${subdivision}">${displayName}</option>`;
+                    });
+                    
+                    subdivisionSelect.innerHTML = html;
                     subdivisionSelector.style.display = 'block';
                     
-                    // Add event listeners to radio buttons
-                    document.querySelectorAll('input[name="subdivision"]').forEach(radio => {
-                        radio.addEventListener('change', (e) => {
-                            selectedSubdivision = e.target.value || null;
-                            updateDisplay();
-                        });
-                    });
-                    
+                    // Reset selection
+                    subdivisionSelect.value = '';
                     selectedSubdivision = null;
                 } else {
                     subdivisionSelector.style.display = 'none';
@@ -624,7 +752,7 @@
                             month: 'short', 
                             year: 'numeric' 
                         })}</div>
-                        <div class="holiday-name">${holiday.localName}</div>
+                        <div class="holiday-name">${holiday.name}</div>
                     </div>
                 `;
             });
@@ -732,6 +860,10 @@
             document.getElementById('endDate').addEventListener('change', updateDisplay);
             document.getElementById('countrySelect').addEventListener('change', (e) => {
                 fetchPublicHolidays(e.target.value);
+            });
+            document.getElementById('subdivisionSelect').addEventListener('change', (e) => {
+                selectedSubdivision = e.target.value || null;
+                updateDisplay();
             });
 
             // Initial calculation
