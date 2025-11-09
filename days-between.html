@@ -278,6 +278,23 @@
                 gap: 15px;
             }
         }
+
+        .attribution {
+            text-align: center;
+            color: rgba(255,255,255,0.8);
+            margin-top: 30px;
+            font-size: 0.9em;
+        }
+
+        .attribution a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .attribution a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -328,6 +345,10 @@
 
                 <div class="holidays-list" id="holidaysList"></div>
             </div>
+        </div>
+
+        <div class="attribution">
+            Makes use of the public holiday API at <a href="https://date.nager.at" target="_blank">date.nager.at</a>
         </div>
     </div>
 
@@ -750,7 +771,7 @@
                 return;
             }
 
-            let html = '<h3>Public Holidays:</h3>';
+            let html = `<h3>Public Holidays (${holidays.length})</h3>`;
             holidays.forEach(holiday => {
                 html += `
                     <div class="holiday-item">
