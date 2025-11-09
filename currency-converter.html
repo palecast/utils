@@ -368,7 +368,8 @@
             }
             
             if (from === to) {
-                result.innerHTML = `<span class="result-amount">${amount.toFixed(2)} ${to}</span>`;
+                const formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                result.innerHTML = `<span class="result-amount">${formattedAmount} ${to}</span>`;
                 return;
             }
             
@@ -376,12 +377,16 @@
                 const response = await fetch(`${API_BASE}/latest?base=${from}&symbols=${to}`);
                 const data = await response.json();
                 const rate = data.rates[to];
-                const converted = (amount * rate).toFixed(2);
+                const converted = amount * rate;
+                const inverseRate = 1 / rate;
+                
+                const formattedConverted = converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 
                 result.innerHTML = `
-                    <span class="result-amount">${converted} ${to}</span>
+                    <span class="result-amount">${formattedConverted} ${to}</span>
                     <div style="font-size: 0.8em; margin-top: 10px; color: #666;">
-                        1 ${from} = ${rate.toFixed(4)} ${to}
+                        1 ${from} = ${rate.toFixed(4)} ${to}<br>
+                        1 ${to} = ${inverseRate.toFixed(4)} ${from}
                     </div>
                 `;
             } catch (error) {
