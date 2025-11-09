@@ -35,15 +35,6 @@
             font-size: 2.5em;
         }
 
-        footer {
-            text-align: center;
-            color: white;
-            margin-top: 60px;
-            opacity: 0.8;
-            font-size: 0.9rem;
-        }
-
-
         .converter-section {
             background: #f8f9fa;
             padding: 30px;
@@ -199,6 +190,15 @@
             border-left: 4px solid #c33;
         }
 
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            font-size: 0.9em;
+            color: #666;
+            font-style: italic;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -273,10 +273,11 @@
             <div class="chart-container">
                 <canvas id="rateChart"></canvas>
             </div>
+            
+            <div class="footer">
+                Uses exchange rates from the European Central Bank. As served by the API at frankfurter.dev.
+            </div>
         </div>
-        <footer>
-            <p>Uses the exchange rates from the ECB as served by the Frankfurter API (see https://frankfurter.dev/ for details)</p>
-        </footer>
     </div>
 
     <script>
