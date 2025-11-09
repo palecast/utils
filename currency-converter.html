@@ -190,13 +190,12 @@
             border-left: 4px solid #c33;
         }
 
-        .footer {
-            text-align: center;
+        .attribution {
             margin-top: 20px;
-            padding: 15px;
-            font-size: 0.9em;
-            color: #666;
-            font-style: italic;
+            padding: 15px 0;
+            font-size: 0.85em;
+            color: #888;
+            line-height: 1.5;
         }
 
         @media (max-width: 768px) {
@@ -224,23 +223,6 @@
             .chart-container {
                 height: 300px;
             }
-        }
-        
-        .attribution {
-            text-align: center;
-            color: rgba(255,255,255,0.8);
-            margin-top: 30px;
-            font-size: 0.9em;
-        }
-
-        .attribution a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .attribution a:hover {
-            text-decoration: underline;
         }
     </style>
 </head>
@@ -291,10 +273,10 @@
                 <canvas id="rateChart"></canvas>
             </div>
             
-       <div class="attribution">
-            Makes use of the ECB exchange rate API at <a href="https://frankfurter.dev" target="_blank">dfrankfurter.dev</a>
-        </div> 
-            
+            <p class="attribution">
+                Uses exchange rates from the European Central Bank. As served by the API at frankfurter.dev.
+            </p>
+        </div>
     </div>
 
     <script>
