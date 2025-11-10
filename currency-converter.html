@@ -438,6 +438,13 @@
                     chart.data.labels = dates;
                     chart.data.datasets[0].data = rates;
                     chart.data.datasets[0].label = `${from} to ${to}`;
+                    
+                    // Update x-axis configuration based on current period
+                    const xAxisConfig = getXAxisConfig();
+                    chart.options.scales.x.ticks.maxTicksLimit = xAxisConfig.maxTicksLimit;
+                    chart.options.scales.x.ticks.autoSkip = xAxisConfig.autoSkip;
+                    chart.options.scales.x.ticks.callback = xAxisConfig.callback;
+                    
                     chart.update();
                 } else {
                     createChart(dates, rates, from, to);
@@ -448,9 +455,107 @@
             }
         }
 
+        // Get appropriate x-axis configuration based on period
+        function getXAxisConfig() {
+            let maxTicksLimit, autoSkip, callback;
+            
+            switch(currentPeriod) {
+                case 30: // Last 30 days - show every 5 days
+                    maxTicksLimit = 7;
+                    autoSkip = true;
+                    callback = function(value, index, values) {
+                        const date = new Date(this.getLabelForValue(value));
+                        return date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                    };
+                    break;
+                    
+                case 90: // Last 90 days - show every 2 weeks
+                    maxTicksLimit = 7;
+                    autoSkip = true;
+                    callback = function(value, index, values) {
+                        const date = new Date(this.getLabelForValue(value));
+                        return date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                    };
+                    break;
+                    
+                case 180: // 6 months - show monthly
+                    maxTicksLimit = 12;
+                    autoSkip = false;
+                    callback = function(value, index, values) {
+                        const date = new Date(this.getLabelForValue(value));
+                        const day = date.getDate();
+                        // Only show labels for first few days of month
+                        if (day <= 3 || index === 0 || index === values.length - 1) {
+                            return date.toLocaleDateString('en-US', { 
+                                month: 'short',
+                                year: '2-digit'
+                            });
+                        }
+                        return '';
+                    };
+                    break;
+                    
+                case 365: // 1 year - show every 2 months
+                    maxTicksLimit = 12;
+                    autoSkip = false;
+                    callback = function(value, index, values) {
+                        const date = new Date(this.getLabelForValue(value));
+                        const day = date.getDate();
+                        const month = date.getMonth();
+                        // Show labels for first few days of even months (Jan, Mar, May, etc.)
+                        if ((day <= 3 && month % 2 === 0) || index === 0 || index === values.length - 1) {
+                            return date.toLocaleDateString('en-US', { 
+                                month: 'short',
+                                year: '2-digit'
+                            });
+                        }
+                        return '';
+                    };
+                    break;
+                    
+                case 1825: // 5 years - show yearly
+                    maxTicksLimit = 12;
+                    autoSkip = false;
+                    callback = function(value, index, values) {
+                        const date = new Date(this.getLabelForValue(value));
+                        const day = date.getDate();
+                        const month = date.getMonth();
+                        // Show labels for first few days of January
+                        if ((day <= 3 && month === 0) || index === 0 || index === values.length - 1) {
+                            return date.toLocaleDateString('en-US', { 
+                                month: 'short',
+                                year: 'numeric'
+                            });
+                        }
+                        return '';
+                    };
+                    break;
+                    
+                default:
+                    maxTicksLimit = 8;
+                    autoSkip = true;
+                    callback = function(value, index, values) {
+                        const date = new Date(this.getLabelForValue(value));
+                        return date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                    };
+            }
+            
+            return { maxTicksLimit, autoSkip, callback };
+        }
+
         // Create chart
         function createChart(dates, rates, from, to) {
             const ctx = document.getElementById('rateChart').getContext('2d');
+            const xAxisConfig = getXAxisConfig();
             
             chart = new Chart(ctx, {
                 type: 'line',
@@ -504,14 +609,9 @@
                                 display: false
                             },
                             ticks: {
-                                maxTicksLimit: 8,
-                                callback: function(value, index, values) {
-                                    const date = new Date(this.getLabelForValue(value));
-                                    return date.toLocaleDateString('en-US', { 
-                                        month: 'short', 
-                                        day: 'numeric' 
-                                    });
-                                }
+                                maxTicksLimit: xAxisConfig.maxTicksLimit,
+                                autoSkip: xAxisConfig.autoSkip,
+                                callback: xAxisConfig.callback
                             }
                         },
                         y: {
