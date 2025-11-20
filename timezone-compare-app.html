@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>World Timezone Comparator</title>
+    <title>World Time Zone Comparison</title>
     <style>
         * {
             margin: 0;
@@ -12,21 +12,25 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
             background: #f5f5f5;
             padding: 20px;
-            font-size: 12px;
+        }
+
+        .container {
+            max-width: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
         }
 
         .search-container {
@@ -36,14 +40,15 @@
 
         .search-input {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 14px;
         }
 
-        .search-input::placeholder {
-            color: #999;
+        .search-input:focus {
+            outline: none;
+            border-color: #4285f4;
         }
 
         .search-results {
@@ -52,47 +57,48 @@
             left: 0;
             right: 0;
             background: white;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
             border-top: none;
             border-radius: 0 0 4px 4px;
             max-height: 300px;
             overflow-y: auto;
+            display: none;
             z-index: 1000;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
-        .search-result-item {
-            padding: 8px 12px;
+        .search-results.show {
+            display: block;
+        }
+
+        .search-item {
+            padding: 10px 15px;
             cursor: pointer;
-            font-size: 12px;
+            border-bottom: 1px solid #f0f0f0;
         }
 
-        .search-result-item:hover {
-            background: #f0f0f0;
+        .search-item:hover {
+            background: #f5f5f5;
         }
 
         .link-button {
-            color: #0066ff;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .link-button:hover {
-            text-decoration: underline;
+            background: #3367d6;
         }
 
-        .scrollable-container {
+        .timezone-grid {
             overflow-x: auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .timezone-table {
-            display: inline-block;
-            min-width: 100%;
         }
 
         .timezone-row {
@@ -100,99 +106,71 @@
             border-bottom: 1px solid #e0e0e0;
         }
 
-        .timezone-row:last-child {
-            border-bottom: none;
-        }
-
         .city-info {
             display: flex;
             align-items: center;
-            padding: 10px 15px;
-            width: 240px;
+            min-width: 250px;
+            padding: 15px 20px;
+            border-right: 1px solid #e0e0e0;
             background: white;
             position: sticky;
             left: 0;
             z-index: 10;
-            border-right: 1px solid #e0e0e0;
-            flex-shrink: 0;
         }
 
-        .offset-col {
+        .offset {
             width: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
             font-size: 14px;
-            cursor: pointer;
-        }
-
-        .offset-col.home {
-            cursor: default;
+            font-weight: 600;
+            color: #666;
         }
 
         .home-icon {
-            font-size: 18px;
-        }
-
-        .city-details {
-            flex: 1;
-            margin: 0 12px;
+            font-size: 20px;
         }
 
         .city-name {
+            flex: 1;
+            margin-left: 15px;
+        }
+
+        .city-main {
             font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 2px;
+            font-size: 16px;
         }
 
-        .timezone-label {
-            display: inline-block;
-            background: #e8e8e8;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 10px;
-            margin-right: 4px;
-            font-weight: 500;
-        }
-
-        .country-name {
-            font-size: 11px;
+        .city-sub {
+            font-size: 12px;
             color: #666;
-            margin-top: 2px;
         }
 
         .remove-btn {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             cursor: pointer;
             color: #999;
-            font-size: 16px;
-            border-radius: 50%;
+            font-size: 20px;
+            padding: 0 10px;
         }
 
         .remove-btn:hover {
-            background: #f0f0f0;
             color: #333;
         }
 
         .time-cells {
             display: flex;
             flex: 1;
-            border-top: 1px solid #e0e0e0;
-            border-bottom: 1px solid #e0e0e0;
         }
 
         .time-cell {
-            min-width: 42px;
-            padding: 10px 6px;
+            min-width: 60px;
+            padding: 15px 10px;
             text-align: center;
-            font-size: 11px;
-            position: relative;
+            border-right: 1px solid #e0e0e0;
             cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .time-cell:last-child {
+            border-right: none;
         }
 
         .time-cell.night {
@@ -200,398 +178,403 @@
         }
 
         .time-cell.day {
-            background: #e6f2ff;
+            background: #e3f2fd;
         }
 
-        .time-cell.working {
-            background: #fffbcc;
+        .time-cell.work {
+            background: #fff9c4;
         }
 
-        .time-cell.first-of-day {
-            border-radius: 8px 0 0 8px;
+        .time-cell.highlight {
+            background: #c8e6c9 !important;
         }
 
-        .time-cell.last-of-day {
-            border-radius: 0 8px 8px 0;
+        .time-hour {
+            font-size: 14px;
+            font-weight: 500;
         }
 
-        .time-cell.highlighted {
-            background: #d4f4dd !important;
-            border-left: 2px solid #555;
-            border-right: 2px solid #555;
-        }
-
-        .time-cell.highlighted.first-highlight {
-            border-left: 2px solid #555;
-        }
-
-        .time-cell.highlighted.last-highlight {
-            border-right: 2px solid #555;
-        }
-
-        .hour-text {
-            font-weight: 600;
-            font-size: 12px;
-        }
-
-        .period-text {
-            font-size: 9px;
-            color: #666;
-            margin-top: 2px;
-        }
-
-        .day-label {
-            position: absolute;
-            top: 2px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 9px;
-            font-weight: 600;
+        .time-period {
+            font-size: 11px;
             color: #666;
         }
 
-        .date-label {
-            position: absolute;
-            top: 2px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 8px;
-            font-weight: 600;
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-buttons .copy-btn {
+            background: #4285f4;
             color: white;
-            background: #666;
-            padding: 1px 4px;
-            border-radius: 3px;
         }
 
-        .scrollable-container {
-            overflow-x: auto;
+        .modal-buttons .close-btn {
+            background: #e0e0e0;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="search-container">
-            <input type="text" class="search-input" placeholder="+ Place or timezone" id="searchInput">
-            <div class="search-results" id="searchResults" style="display: none;"></div>
+    <div class="container">
+        <div class="header">
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Place or timezone" id="searchInput">
+                <div class="search-results" id="searchResults"></div>
+            </div>
+            <button class="link-button" id="generateLink">LINK TO THIS VIEW</button>
         </div>
-        <a class="link-button" id="shareLink">LINK TO THIS VIEW</a>
+        <div class="timezone-grid" id="timezoneGrid"></div>
     </div>
 
-    <div class="scrollable-container">
-        <div class="timezone-table" id="timezoneTable"></div>
+    <div class="modal" id="linkModal">
+        <div class="modal-content">
+            <h3>Share this view</h3>
+            <input type="text" id="shareableLink" readonly>
+            <div class="modal-buttons">
+                <button class="copy-btn" id="copyLink">Copy Link</button>
+                <button class="close-btn" id="closeModal">Close</button>
+            </div>
+        </div>
     </div>
 
     <script>
         const cities = [
-            { name: 'London', country: 'United Kingdom, England', timezone: 'Europe/London' },
-            { name: 'New York', country: 'United States, New York', timezone: 'America/New_York' },
-            { name: 'Berlin', country: 'Germany', timezone: 'Europe/Berlin' },
-            { name: 'Johannesburg', country: 'South Africa', timezone: 'Africa/Johannesburg' },
-            { name: 'Tokyo', country: 'Japan', timezone: 'Asia/Tokyo' },
-            { name: 'Paris', country: 'France', timezone: 'Europe/Paris' },
-            { name: 'Sydney', country: 'Australia', timezone: 'Australia/Sydney' },
-            { name: 'Los Angeles', country: 'United States, California', timezone: 'America/Los_Angeles' },
-            { name: 'Singapore', country: 'Singapore', timezone: 'Asia/Singapore' },
-            { name: 'Hong Kong', country: 'Hong Kong', timezone: 'Asia/Hong_Kong' },
-            { name: 'Dubai', country: 'United Arab Emirates', timezone: 'Asia/Dubai' },
-            { name: 'Mumbai', country: 'India', timezone: 'Asia/Kolkata' },
-            { name: 'Moscow', country: 'Russia', timezone: 'Europe/Moscow' },
-            { name: 'Istanbul', country: 'Turkey', timezone: 'Europe/Istanbul' },
-            { name: 'Toronto', country: 'Canada, Ontario', timezone: 'America/Toronto' },
-            { name: 'Chicago', country: 'United States, Illinois', timezone: 'America/Chicago' },
-            { name: 'Houston', country: 'United States, Texas', timezone: 'America/Chicago' },
-            { name: 'San Francisco', country: 'United States, California', timezone: 'America/Los_Angeles' },
-            { name: 'Seattle', country: 'United States, Washington', timezone: 'America/Los_Angeles' },
-            { name: 'Boston', country: 'United States, Massachusetts', timezone: 'America/New_York' },
-            { name: 'Washington DC', country: 'United States', timezone: 'America/New_York' },
-            { name: 'Mexico City', country: 'Mexico', timezone: 'America/Mexico_City' },
-            { name: 'São Paulo', country: 'Brazil', timezone: 'America/Sao_Paulo' },
-            { name: 'Buenos Aires', country: 'Argentina', timezone: 'America/Argentina/Buenos_Aires' },
-            { name: 'Madrid', country: 'Spain', timezone: 'Europe/Madrid' },
-            { name: 'Rome', country: 'Italy', timezone: 'Europe/Rome' },
-            { name: 'Amsterdam', country: 'Netherlands', timezone: 'Europe/Amsterdam' },
-            { name: 'Brussels', country: 'Belgium', timezone: 'Europe/Brussels' },
-            { name: 'Zurich', country: 'Switzerland', timezone: 'Europe/Zurich' },
-            { name: 'Vienna', country: 'Austria', timezone: 'Europe/Vienna' },
-            { name: 'Copenhagen', country: 'Denmark', timezone: 'Europe/Copenhagen' },
-            { name: 'Stockholm', country: 'Sweden', timezone: 'Europe/Stockholm' },
-            { name: 'Oslo', country: 'Norway', timezone: 'Europe/Oslo' },
-            { name: 'Helsinki', country: 'Finland', timezone: 'Europe/Helsinki' },
-            { name: 'Warsaw', country: 'Poland', timezone: 'Europe/Warsaw' },
-            { name: 'Prague', country: 'Czech Republic', timezone: 'Europe/Prague' },
-            { name: 'Budapest', country: 'Hungary', timezone: 'Europe/Budapest' },
-            { name: 'Athens', country: 'Greece', timezone: 'Europe/Athens' },
-            { name: 'Cairo', country: 'Egypt', timezone: 'Africa/Cairo' },
-            { name: 'Lagos', country: 'Nigeria', timezone: 'Africa/Lagos' },
-            { name: 'Nairobi', country: 'Kenya', timezone: 'Africa/Nairobi' },
-            { name: 'Bangkok', country: 'Thailand', timezone: 'Asia/Bangkok' },
-            { name: 'Jakarta', country: 'Indonesia', timezone: 'Asia/Jakarta' },
-            { name: 'Manila', country: 'Philippines', timezone: 'Asia/Manila' },
-            { name: 'Seoul', country: 'South Korea', timezone: 'Asia/Seoul' },
-            { name: 'Beijing', country: 'China', timezone: 'Asia/Shanghai' },
-            { name: 'Shanghai', country: 'China', timezone: 'Asia/Shanghai' },
-            { name: 'Melbourne', country: 'Australia', timezone: 'Australia/Melbourne' },
-            { name: 'Auckland', country: 'New Zealand', timezone: 'Pacific/Auckland' },
-            { name: 'Vancouver', country: 'Canada, British Columbia', timezone: 'America/Vancouver' },
-            { name: 'Montreal', country: 'Canada, Quebec', timezone: 'America/Montreal' },
-            { name: 'Denver', country: 'United States, Colorado', timezone: 'America/Denver' },
-            { name: 'Phoenix', country: 'United States, Arizona', timezone: 'America/Phoenix' },
-            { name: 'Atlanta', country: 'United States, Georgia', timezone: 'America/New_York' },
-            { name: 'Miami', country: 'United States, Florida', timezone: 'America/New_York' },
-            { name: 'Stuttgart', country: 'Germany', timezone: 'Europe/Berlin' },
-            { name: 'Lisbon', country: 'Portugal', timezone: 'Europe/Lisbon' },
-            { name: 'Dublin', country: 'Ireland', timezone: 'Europe/Dublin' },
-            { name: 'Edinburgh', country: 'United Kingdom, Scotland', timezone: 'Europe/London' },
-            { name: 'Tel Aviv', country: 'Israel', timezone: 'Asia/Jerusalem' },
-            { name: 'Riyadh', country: 'Saudi Arabia', timezone: 'Asia/Riyadh' }
+            { name: 'London', country: 'United Kingdom, England', timezone: 'BST', offset: 1 },
+            { name: 'New York', country: 'United States, New York', timezone: 'EDT', offset: -4 },
+            { name: 'Berlin', country: 'Germany', timezone: 'CEST', offset: 2 },
+            { name: 'Johannesburg', country: 'South Africa', timezone: 'SAST', offset: 2 },
+            { name: 'Houston', country: 'United States, Texas', timezone: 'CDT', offset: -5 },
+            { name: 'Stuttgart', country: 'Germany', timezone: 'CEST', offset: 2 },
+            { name: 'Singapore', country: 'Singapore', timezone: 'GMT+8', offset: 8 },
+            { name: 'Tokyo', country: 'Japan', timezone: 'JST', offset: 9 },
+            { name: 'Sydney', country: 'Australia', timezone: 'AEDT', offset: 11 },
+            { name: 'Los Angeles', country: 'United States, California', timezone: 'PDT', offset: -7 },
+            { name: 'Chicago', country: 'United States, Illinois', timezone: 'CDT', offset: -5 },
+            { name: 'Paris', country: 'France', timezone: 'CEST', offset: 2 },
+            { name: 'Dubai', country: 'United Arab Emirates', timezone: 'GST', offset: 4 },
+            { name: 'Mumbai', country: 'India', timezone: 'IST', offset: 5.5 },
+            { name: 'Hong Kong', country: 'China', timezone: 'HKT', offset: 8 },
+            { name: 'Toronto', country: 'Canada', timezone: 'EDT', offset: -4 },
+            { name: 'Moscow', country: 'Russia', timezone: 'MSK', offset: 3 },
+            { name: 'São Paulo', country: 'Brazil', timezone: 'BRT', offset: -3 },
+            { name: 'Mexico City', country: 'Mexico', timezone: 'CDT', offset: -5 },
+            { name: 'Seoul', country: 'South Korea', timezone: 'KST', offset: 9 },
+            { name: 'Bangkok', country: 'Thailand', timezone: 'ICT', offset: 7 },
+            { name: 'Istanbul', country: 'Turkey', timezone: 'TRT', offset: 3 },
+            { name: 'Amsterdam', country: 'Netherlands', timezone: 'CEST', offset: 2 },
+            { name: 'Madrid', country: 'Spain', timezone: 'CEST', offset: 2 },
+            { name: 'Rome', country: 'Italy', timezone: 'CEST', offset: 2 },
+            { name: 'Auckland', country: 'New Zealand', timezone: 'NZDT', offset: 13 },
+            { name: 'Vancouver', country: 'Canada', timezone: 'PDT', offset: -7 },
+            { name: 'Zurich', country: 'Switzerland', timezone: 'CEST', offset: 2 },
+            { name: 'Copenhagen', country: 'Denmark', timezone: 'CEST', offset: 2 },
+            { name: 'Stockholm', country: 'Sweden', timezone: 'CEST', offset: 2 }
         ];
 
-        let selectedCities = [];
-        let homeIndex = 0;
-        let currentHoverColumn = -1;
+        let activeCities = [];
+        let homeCity = 'London';
+        let homeStartHour = 1; // 1am
 
-        const searchInput = document.getElementById('searchInput');
-        const searchResults = document.getElementById('searchResults');
-        const timezoneTable = document.getElementById('timezoneTable');
-        const shareLink = document.getElementById('shareLink');
+        function initializeApp() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const citiesParam = urlParams.get('cities');
+            const homeParam = urlParams.get('home');
+            const startParam = urlParams.get('start');
 
-        function getTimezoneOffset(timezone) {
-            const now = new Date();
-            const tzDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-            const localDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-            return (tzDate - localDate) / (1000 * 60 * 60);
-        }
-
-        function getTimezoneAbbr(timezone) {
-            try {
-                const abbr = new Intl.DateTimeFormat('en-US', {
-                    timeZone: timezone,
-                    timeZoneName: 'short'
-                }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value;
-                return abbr || '';
-            } catch (e) {
-                return '';
-            }
-        }
-
-        function initFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            const citiesParam = params.get('cities');
-            const homeParam = params.get('home');
-
+            // URL parameters take precedence over localStorage
             if (citiesParam) {
                 const cityNames = citiesParam.split(',');
-                selectedCities = cityNames.map(name => {
-                    return cities.find(c => c.name === decodeURIComponent(name));
-                }).filter(c => c);
+                activeCities = cities.filter(c => cityNames.includes(c.name));
+            } else {
+                // Try to load from localStorage
+                const stored = loadFromStorage();
+                if (stored) {
+                    activeCities = stored.cities;
+                    homeCity = stored.homeCity;
+                    homeStartHour = stored.homeStartHour;
+                } else {
+                    // Use defaults only if no stored data
+                    activeCities = [
+                        cities.find(c => c.name === 'London'),
+                        cities.find(c => c.name === 'New York'),
+                        cities.find(c => c.name === 'Berlin'),
+                        cities.find(c => c.name === 'Johannesburg')
+                    ];
+                }
+            }
+
+            // URL params override storage
+            if (homeParam) {
+                homeCity = homeParam;
+            }
+
+            if (startParam) {
+                homeStartHour = parseInt(startParam);
+            }
+
+            // Save initial state
+            saveToStorage();
+
+            renderTimezones();
+            setupEventListeners();
+        }
+
+        function saveToStorage() {
+            const data = {
+                cities: activeCities,
+                homeCity: homeCity,
+                homeStartHour: homeStartHour
+            };
+            localStorage.setItem('timezoneApp', JSON.stringify(data));
+        }
+
+        function loadFromStorage() {
+            try {
+                const stored = localStorage.getItem('timezoneApp');
+                if (!stored) return null;
                 
-                if (homeParam !== null) {
-                    homeIndex = parseInt(homeParam) || 0;
+                const data = JSON.parse(stored);
+                // Validate that cities still exist in our cities list
+                const validCities = data.cities.filter(storedCity => 
+                    cities.find(c => c.name === storedCity.name)
+                );
+                
+                if (validCities.length === 0) return null;
+                
+                return {
+                    cities: validCities,
+                    homeCity: data.homeCity || validCities[0].name,
+                    homeStartHour: data.homeStartHour || 1
+                };
+            } catch (e) {
+                console.error('Error loading from storage:', e);
+                return null;
+            }
+        }
+
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                if (query.length < 1) {
+                    searchResults.classList.remove('show');
+                    return;
                 }
-            } else {
-                selectedCities = [
-                    cities.find(c => c.name === 'London'),
-                    cities.find(c => c.name === 'New York'),
-                    cities.find(c => c.name === 'Berlin'),
-                    cities.find(c => c.name === 'Johannesburg')
-                ];
-                homeIndex = 0;
-            }
 
-            render();
-        }
+                const matches = cities.filter(city => 
+                    city.name.toLowerCase().includes(query) || 
+                    city.country.toLowerCase().includes(query)
+                );
 
-        function generateShareLink() {
-            const cityNames = selectedCities.map(c => encodeURIComponent(c.name)).join(',');
-            const baseUrl = window.location.href.split('?')[0];
-            const shareUrl = `${baseUrl}?cities=${cityNames}&home=${homeIndex}`;
-            
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                const originalText = shareLink.textContent;
-                shareLink.textContent = 'LINK COPIED!';
-                setTimeout(() => {
-                    shareLink.textContent = originalText;
-                }, 2000);
-            });
-        }
-
-        shareLink.addEventListener('click', generateShareLink);
-
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            
-            if (query.length === 0) {
-                searchResults.style.display = 'none';
-                return;
-            }
-
-            const filtered = cities.filter(city => 
-                city.name.toLowerCase().includes(query) ||
-                city.country.toLowerCase().includes(query) ||
-                city.timezone.toLowerCase().includes(query)
-            ).filter(city => !selectedCities.some(sc => sc.name === city.name));
-
-            if (filtered.length > 0) {
-                searchResults.innerHTML = filtered.slice(0, 10).map(city => 
-                    `<div class="search-result-item" data-city="${city.name}">
-                        <div style="font-weight: 600;">${city.name}</div>
-                        <div style="color: #666; font-size: 11px;">${city.country}</div>
-                    </div>`
-                ).join('');
-                searchResults.style.display = 'block';
-            } else {
-                searchResults.style.display = 'none';
-            }
-        });
-
-        searchResults.addEventListener('click', (e) => {
-            const item = e.target.closest('.search-result-item');
-            if (item) {
-                const cityName = item.dataset.city;
-                const city = cities.find(c => c.name === cityName);
-                if (city) {
-                    selectedCities.push(city);
-                    render();
-                    searchInput.value = '';
-                    searchResults.style.display = 'none';
-                }
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-                searchResults.style.display = 'none';
-            }
-        });
-
-        function removeCity(index) {
-            selectedCities.splice(index, 1);
-            if (homeIndex >= selectedCities.length) {
-                homeIndex = Math.max(0, selectedCities.length - 1);
-            } else if (index < homeIndex) {
-                homeIndex--;
-            }
-            render();
-        }
-
-        function setHome(index) {
-            homeIndex = index;
-            render();
-        }
-
-        function getTimeClass(hour) {
-            if (hour >= 22 || hour < 6) return 'night';
-            if (hour >= 8 && hour < 17) return 'working';
-            return 'day';
-        }
-
-        function render() {
-            if (selectedCities.length === 0) {
-                timezoneTable.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">Add cities to compare timezones</div>';
-                return;
-            }
-
-            const homeCity = selectedCities[homeIndex];
-            const homeOffset = getTimezoneOffset(homeCity.timezone);
-
-            const now = new Date();
-            const homeTime = new Date(now.toLocaleString('en-US', { timeZone: homeCity.timezone }));
-            const startHour = 0;
-            
-            const hours = [];
-            for (let i = 0; i < 24; i++) {
-                const date = new Date(homeTime);
-                date.setHours(startHour + i, 0, 0, 0);
-                hours.push(date);
-            }
-
-            const rows = selectedCities.map((city, cityIndex) => {
-                const offset = getTimezoneOffset(city.timezone);
-                const offsetDiff = offset - homeOffset;
-                const isHome = cityIndex === homeIndex;
-                const tzAbbr = getTimezoneAbbr(city.timezone);
-
-                const timeCells = hours.map((homeHour, hourIndex) => {
-                    const cityDate = new Date(homeHour.toLocaleString('en-US', { timeZone: city.timezone }));
-                    const hour = cityDate.getHours();
-                    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                    const period = hour >= 12 ? 'pm' : 'am';
-                    
-                    const isFirstOfDay = hour === 0;
-                    const isLastOfDay = hour === 23;
-                    const timeClass = getTimeClass(hour);
-
-                    const dayLabel = isFirstOfDay ? cityDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() : '';
-
-                    if (isFirstOfDay) {
-                        return `
-                            <div class="time-cell ${timeClass} first-of-day" 
-                                 data-column="${hourIndex}" data-row="${cityIndex}">
-                                <div class="hour-text">${dayLabel}</div>
-                            </div>
-                        `;
-                    }
-
-                    return `
-                        <div class="time-cell ${timeClass} ${isLastOfDay ? 'last-of-day' : ''}" 
-                             data-column="${hourIndex}" data-row="${cityIndex}">
-                            <div class="hour-text">${hour12}</div>
-                            <div class="period-text">${period}</div>
+                if (matches.length > 0) {
+                    searchResults.innerHTML = matches.map(city => `
+                        <div class="search-item" data-city="${city.name}">
+                            ${city.name} - ${city.country}
                         </div>
-                    `;
-                }).join('');
+                    `).join('');
+                    searchResults.classList.add('show');
+                } else {
+                    searchResults.classList.remove('show');
+                }
+            });
 
-                const offsetDisplay = isHome 
-                    ? '<span class="home-icon">🏠</span>' 
-                    : `${offsetDiff >= 0 ? '+' : ''}${Math.round(offsetDiff)}`;
+            searchResults.addEventListener('click', (e) => {
+                const item = e.target.closest('.search-item');
+                if (item) {
+                    const cityName = item.dataset.city;
+                    const city = cities.find(c => c.name === cityName);
+                    if (city && !activeCities.find(c => c.name === cityName)) {
+                        activeCities.push(city);
+                        saveToStorage();
+                        renderTimezones();
+                    }
+                    searchInput.value = '';
+                    searchResults.classList.remove('show');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.classList.remove('show');
+                }
+            });
+
+            document.getElementById('generateLink').addEventListener('click', generateShareableLink);
+            document.getElementById('copyLink').addEventListener('click', copyLink);
+            document.getElementById('closeModal').addEventListener('click', closeModal);
+        }
+
+        function renderTimezones() {
+            const grid = document.getElementById('timezoneGrid');
+            const homeCityData = activeCities.find(c => c.name === homeCity);
+            const homeOffset = homeCityData ? homeCityData.offset : 0;
+
+            grid.innerHTML = activeCities.map(city => {
+                const offsetDiff = city.offset - homeOffset;
+                const isHome = city.name === homeCity;
 
                 return `
                     <div class="timezone-row">
                         <div class="city-info">
-                            <div class="offset-col ${isHome ? 'home' : ''}" onclick="${isHome ? '' : `setHome(${cityIndex})`}">
-                                ${offsetDisplay}
+                            <div class="offset">
+                                ${isHome ? '<span class="home-icon">🏠</span>' : 
+                                  (offsetDiff > 0 ? `+${offsetDiff}` : offsetDiff)}
                             </div>
-                            <div class="city-details">
-                                <div class="city-name">${city.name} <span class="timezone-label">${tzAbbr}</span></div>
-                                <div class="country-name">${city.country}</div>
+                            <div class="city-name">
+                                <div class="city-main">${city.name} <span style="color: #999; font-size: 12px;">${city.timezone}</span></div>
+                                <div class="city-sub">${city.country}</div>
                             </div>
-                            <div class="remove-btn" onclick="removeCity(${cityIndex})">×</div>
+                            <div class="remove-btn" data-city="${city.name}" onclick="removeCity('${city.name}')">✕</div>
                         </div>
                         <div class="time-cells">
-                            ${timeCells}
+                            ${generateTimeCells(city, offsetDiff)}
                         </div>
                     </div>
                 `;
             }).join('');
 
-            timezoneTable.innerHTML = rows;
+            setupHoverEffects();
+        }
 
-            document.querySelectorAll('.time-cell').forEach(cell => {
-                cell.addEventListener('mouseenter', handleCellHover);
-                cell.addEventListener('mouseleave', handleCellLeave);
+        function generateTimeCells(city, offsetDiff) {
+            const cells = [];
+            for (let i = 0; i < 24; i++) {
+                const hour = (homeStartHour + i + offsetDiff + 24) % 24;
+                const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+                const period = hour < 12 ? 'am' : 'pm';
+                
+                let className = 'time-cell';
+                if (hour >= 22 || hour < 6) {
+                    className += ' night';
+                } else if (hour >= 8 && hour < 17) {
+                    className += ' work';
+                } else {
+                    className += ' day';
+                }
+
+                cells.push(`
+                    <div class="${className}" data-hour="${i}">
+                        <div class="time-hour">${displayHour}</div>
+                        <div class="time-period">${period}</div>
+                    </div>
+                `);
+            }
+            return cells.join('');
+        }
+
+        function setupHoverEffects() {
+            const cells = document.querySelectorAll('.time-cell');
+            cells.forEach(cell => {
+                cell.addEventListener('mouseenter', (e) => {
+                    const hour = e.currentTarget.dataset.hour;
+                    highlightColumn(hour, true);
+                });
+
+                cell.addEventListener('mouseleave', () => {
+                    clearHighlights();
+                });
             });
         }
 
-        function handleCellHover(e) {
-            const column = parseInt(e.target.closest('.time-cell').dataset.column);
-            currentHoverColumn = column;
-            
-            document.querySelectorAll('.time-cell').forEach(cell => {
-                const cellColumn = parseInt(cell.dataset.column);
-                if (cellColumn === column) {
-                    cell.classList.add('highlighted');
+        function highlightColumn(hour, state) {
+            const cells = document.querySelectorAll(`.time-cell[data-hour="${hour}"]`);
+            cells.forEach(cell => {
+                if (state) {
+                    cell.classList.add('highlight');
+                } else {
+                    cell.classList.remove('highlight');
                 }
             });
         }
 
-        function handleCellLeave() {
-            document.querySelectorAll('.time-cell').forEach(cell => {
-                cell.classList.remove('highlighted');
-            });
-            currentHoverColumn = -1;
+        function clearHighlights() {
+            const cells = document.querySelectorAll('.time-cell.highlight');
+            cells.forEach(cell => cell.classList.remove('highlight'));
         }
 
-        initFromURL();
+        function removeCity(cityName) {
+            if (activeCities.length <= 1) return;
+            activeCities = activeCities.filter(c => c.name !== cityName);
+            if (homeCity === cityName && activeCities.length > 0) {
+                homeCity = activeCities[0].name;
+            }
+            saveToStorage();
+            renderTimezones();
+        }
+
+        function generateShareableLink() {
+            const cityNames = activeCities.map(c => c.name).join(',');
+            const url = `${window.location.origin}${window.location.pathname}?cities=${encodeURIComponent(cityNames)}&home=${encodeURIComponent(homeCity)}&start=${homeStartHour}`;
+            
+            document.getElementById('shareableLink').value = url;
+            document.getElementById('linkModal').classList.add('show');
+        }
+
+        function copyLink() {
+            const input = document.getElementById('shareableLink');
+            input.select();
+            document.execCommand('copy');
+            
+            const btn = document.getElementById('copyLink');
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+                btn.textContent = 'Copy Link';
+            }, 2000);
+        }
+
+        function closeModal() {
+            document.getElementById('linkModal').classList.remove('show');
+        }
+
+        // Initialize on load
+        initializeApp();
     </script>
 </body>
 </html>
