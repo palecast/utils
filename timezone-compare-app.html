@@ -15,7 +15,8 @@
     --night:#e6e7ea;          /* 10pm–5am */
     --day:#edf5ff;            /* 6am–10pm */
     --work:#fff8d8;           /* 8am–5pm */
-    --hover:#e6ffe9;          /* column hover */
+    --hover:#f0fdf4;          /* column hover - light green */
+    --hover-border:#22c55e;   /* column hover border - darker green */
   }
   html,body{height:100%;}
   body{
@@ -42,18 +43,27 @@
   .dropdown div:hover{background:#f3f6ff}
 
   .grid{width:100%;border-collapse:separate;border-spacing:0 10px}
-  .row-head{display:flex;align-items:center;gap:10px;width:280px;min-width:280px}
-  .row{display:flex;align-items:stretch}
+  .board-scroll-wrapper{overflow-x:auto;overflow-y:visible}
+  .board-scroll-wrapper::-webkit-scrollbar{height:8px}
+  .board-scroll-wrapper::-webkit-scrollbar-track{background:var(--bg);border-radius:4px}
+  .board-scroll-wrapper::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .board-scroll-wrapper::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+  .board-content{display:inline-block;min-width:100%}
+  .row-head{display:flex;align-items:center;gap:10px;width:280px;min-width:280px;position:sticky;left:0;background:var(--panel);z-index:10;box-shadow:2px 0 4px rgba(0,0,0,0.05)}
+  .row{display:flex;align-items:stretch;position:relative}
   .row + .row{margin-top:6px}
   .col-city{display:flex;align-items:center;gap:10px;padding:10px 8px}
-  .offset-badge{min-width:38px;text-align:center;font-weight:600;color:var(--muted);cursor:pointer}
+  .offset-badge{min-width:38px;text-align:center;font-weight:600;color:var(--muted);cursor:pointer;flex-shrink:0}
   .offset-badge.home{color:var(--accent)}
+  .city-info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+  .city-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .city{font-weight:700}
-  .meta{font-size:12px;color:var(--muted)}
-  .x{margin-left:auto;cursor:pointer;color:#a1a1aa}
+  .tz-badge{display:inline-block;background:var(--line);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;color:var(--muted)}
+  .location{font-size:12px;color:var(--muted)}
+  .x{margin-left:auto;cursor:pointer;color:#a1a1aa;flex-shrink:0}
   .x:hover{color:#ef4444}
-  .cells{display:grid;grid-template-columns:repeat(24, 44px);border-left:1px solid var(--line)}
-  .cell{position:relative;border-right:1px solid var(--line);text-align:center;padding:6px 0 4px 0;font-size:13px}
+  .cells{display:grid;grid-template-columns:repeat(24, 44px);border-left:1px solid var(--line);position:relative}
+  .cell{position:relative;border-right:1px solid var(--line);text-align:center;padding:6px 0 4px 0;font-size:13px;z-index:2}
   .ampm{display:block;font-size:11px;color:var(--muted)}
   .datebox{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;font-weight:700}
   .datebox .mon{font-size:11px;color:#667085;line-height:12px}
@@ -61,7 +71,7 @@
   .night{background:var(--night)}
   .day{background:var(--day)}
   .work{background:var(--work)}
-  .hovercol{position:absolute;top:0;bottom:0;background:var(--hover);pointer-events:none}
+  .hovercol{position:absolute;top:0;bottom:0;background:rgba(34, 197, 94, 0.12);border-left:2px solid var(--hover-border);border-right:2px solid var(--hover-border);pointer-events:none;z-index:3}
   .hourlabel{font-weight:700}
 
   .legend{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
@@ -69,7 +79,7 @@
   .swatch.night{background:var(--night)}
   .swatch.day{background:var(--day)}
   .swatch.work{background:var(--work)}
-  .swatch.hover{background:var(--hover)}
+  .swatch.hover{background:rgba(34, 197, 94, 0.12);border:1px solid var(--hover-border)}
 
   .saved-indicator{
     position:fixed;
@@ -88,9 +98,11 @@
   .saved-indicator.show{opacity:1}
 
   @media (max-width:900px){
-    .row-head{min-width:220px;width:220px}
+    .row-head{min-width:200px;width:200px}
     .cells{grid-template-columns:repeat(24, 38px)}
+    .city-line{flex-wrap:wrap}
   }
+</style>
 </style>
 </head>
 <body>
@@ -175,6 +187,22 @@ function atTZ(date, tz){
   const dtf = new Intl.DateTimeFormat('en-US', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour12:false, hour:'2-digit'});
   const p = Object.fromEntries(dtf.formatToParts(date).map(x=>[x.type,x.value]));
   return { y:+p.year, m:+p.month, d:+p.day, h:+p.hour };
+}
+
+function getTZAbbr(tz){
+  // Get timezone abbreviation like GMT, EST, PST, etc.
+  try {
+    const date = new Date();
+    const dtf = new Intl.DateTimeFormat('en-US', { 
+      timeZone: tz, 
+      timeZoneName: 'short'
+    });
+    const parts = dtf.formatToParts(date);
+    const tzPart = parts.find(p => p.type === 'timeZoneName');
+    return tzPart ? tzPart.value : '';
+  } catch (e) {
+    return '';
+  }
 }
 
 // ------- Data: timezones & city labels -------
@@ -318,6 +346,14 @@ function render(){
   const instants = Array.from({length:24}, (_,i)=> colDate(home.tz, state.startHour, i));
 
   board.innerHTML = '';
+  
+  // Create scroll wrapper
+  const scrollWrapper = document.createElement('div');
+  scrollWrapper.className = 'board-scroll-wrapper';
+  
+  const boardContent = document.createElement('div');
+  boardContent.className = 'board-content';
+  
   state.rows.forEach((row, idx)=>{
     const wrap = document.createElement('div');
     wrap.className = 'row';
@@ -333,13 +369,36 @@ function render(){
     offEl.innerHTML = row.home ? '🏠' : (off>0? '+'+off: off);
     offEl.addEventListener('click', ()=> setHome(idx));
 
-    const city = document.createElement('div');
-    city.className = 'city';
-    city.textContent = row.label.split('|')[0] || row.label;
+    // Split label into city and location
+    const labelParts = row.label.split(',').map(s => s.trim());
+    const cityName = labelParts[0] || row.label;
+    const location = labelParts.slice(1).join(', ');
+    const tzAbbr = getTZAbbr(row.tz);
 
-    const tzSpan = document.createElement('div');
-    tzSpan.className = 'meta';
-    tzSpan.textContent = row.tz;
+    const cityInfo = document.createElement('div');
+    cityInfo.className = 'city-info';
+
+    const cityLine = document.createElement('div');
+    cityLine.className = 'city-line';
+
+    const city = document.createElement('span');
+    city.className = 'city';
+    city.textContent = cityName;
+
+    const tzBadge = document.createElement('span');
+    tzBadge.className = 'tz-badge';
+    tzBadge.textContent = tzAbbr || row.tz;
+
+    cityLine.append(city, tzBadge);
+
+    if (location) {
+      const locSpan = document.createElement('div');
+      locSpan.className = 'location';
+      locSpan.textContent = location;
+      cityInfo.append(cityLine, locSpan);
+    } else {
+      cityInfo.appendChild(cityLine);
+    }
 
     const close = document.createElement('div');
     close.className = 'x';
@@ -347,9 +406,9 @@ function render(){
     close.title = 'Remove row';
     close.addEventListener('click', ()=> removeRow(idx));
 
-    head.append(offEl, city, tzSpan, close);
+    head.append(offEl, cityInfo, close);
 
-    // Cells section
+    // Cells section (no wrapper)
     const cells = document.createElement('div');
     cells.className = 'cells';
 
@@ -387,9 +446,12 @@ function render(){
     });
 
     wrap.append(head, cells);
-    board.appendChild(wrap);
+    boardContent.appendChild(wrap);
   });
 
+  scrollWrapper.appendChild(boardContent);
+  board.appendChild(scrollWrapper);
+  
   drawHover();
 }
 
@@ -402,9 +464,9 @@ function drawHover(){
   document.querySelectorAll('.cells').forEach(cells=>{
     const col = document.createElement('div');
     col.className = 'hovercol';
-    col.style.left = (hoverIdx* (cells.clientWidth/24)) + 'px';
-    col.style.width = (cells.clientWidth/24) + 'px';
-    cells.style.position='relative';
+    const cellWidth = cells.clientWidth / 24;
+    col.style.left = (hoverIdx * cellWidth) + 'px';
+    col.style.width = cellWidth + 'px';
     cells.appendChild(col);
   });
 }
