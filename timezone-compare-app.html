@@ -71,6 +71,22 @@
   .swatch.work{background:var(--work)}
   .swatch.hover{background:var(--hover)}
 
+  .saved-indicator{
+    position:fixed;
+    bottom:20px;
+    right:20px;
+    background:var(--accent);
+    color:#fff;
+    padding:8px 16px;
+    border-radius:8px;
+    font-size:13px;
+    opacity:0;
+    transition:opacity 0.3s;
+    pointer-events:none;
+    box-shadow:0 4px 12px rgba(37,99,235,.3);
+  }
+  .saved-indicator.show{opacity:1}
+
   @media (max-width:900px){
     .row-head{min-width:220px;width:220px}
     .cells{grid-template-columns:repeat(24, 38px)}
@@ -102,6 +118,8 @@
 
   <div id="board"></div>
 </div>
+
+<div id="savedIndicator" class="saved-indicator">✓ Saved</div>
 
 <script>
 // ------- Utilities -------
@@ -244,9 +262,17 @@ let state = loadState();
 function saveState(){
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    showSavedIndicator();
   } catch (e) {
     // ignore storage errors (private mode, etc.)
+    console.warn('Failed to save to localStorage:', e);
   }
+}
+
+function showSavedIndicator(){
+  const indicator = document.getElementById('savedIndicator');
+  indicator.classList.add('show');
+  setTimeout(() => indicator.classList.remove('show'), 1500);
 }
 
 // Load from URL if present (shared links override stored state)
@@ -269,9 +295,16 @@ function saveState(){
 
 function setHome(index){
   state.rows.forEach((r,i)=>r.home = i===index);
+  saveState(); // ADDED: Save when home changes
   render();
 }
-function removeRow(index){ state.rows.splice(index,1); if (!state.rows.some(r=>r.home) && state.rows[0]) state.rows[0].home=true; render(); }
+
+function removeRow(index){ 
+  state.rows.splice(index,1); 
+  if (!state.rows.some(r=>r.home) && state.rows[0]) state.rows[0].home=true; 
+  saveState(); // ADDED: Save when row is removed
+  render(); 
+}
 
 // ------- Rendering -------
 const board = document.getElementById('board');
@@ -395,6 +428,7 @@ function closeDropdown(){ dropdown.classList.remove('show'); ddIdx=-1; }
 
 function addRow(item){
   state.rows.push({label:item.label, tz:item.tz});
+  saveState(); // ADDED: Save when row is added
   render();
   search.value='';
 }
@@ -444,6 +478,7 @@ document.getElementById('reset').addEventListener('click', ()=>{
     {label:'Berlin, Germany', tz:'Europe/Berlin'},
     {label:'Johannesburg, South Africa', tz:'Africa/Johannesburg'}
   ]};
+  saveState(); // ADDED: Save when resetting
   render();
 });
 
