@@ -446,6 +446,7 @@ function render(){
       // Hover behavior: highlight same column everywhere
       c.addEventListener('mouseenter', ()=> highlightColumn(col));
       c.addEventListener('mouseleave', ()=> highlightColumn(-1));
+      c.addEventListener('click', ()=> highlightColumn(col));
 
       cells.appendChild(c);
     });
