@@ -311,19 +311,25 @@ function showSavedIndicator(){
 // Load from URL if present (shared links override stored state)
 (function initFromURL(){
   const params = new URLSearchParams(location.search);
-  const packed = params.get('zones');
+  // Use raw query string so separator commas are not confused with decoded label commas
+  const rawZonesMatch = location.search.match(/[?&]zones=([^&]*)/);
+  const packed = rawZonesMatch ? rawZonesMatch[1] : null;
   const home = params.get('home');
   const start = params.get('start');
   if (packed){
     const parts = packed.split(',').map(s=>decodeURIComponent(s));
     state.rows = parts.map(p=>{
-      const [label, tz] = p.includes('|')? p.split('|') : [p, p];
+      const pipeIdx = p.indexOf('|');
+      const [label, tz] = pipeIdx >= 0 ? [p.slice(0, pipeIdx), p.slice(pipeIdx + 1)] : [p, p];
       return {label, tz, home:false};
     });
     const idx = state.rows.findIndex(r=>r.tz===home);
     if (idx>=0) state.rows[idx].home = true; else if (state.rows.length) state.rows[0].home=true;
   }
-  if (start) state.startHour = Math.max(0, Math.min(23, parseInt(start,10)||1));
+  if (start !== null) {
+    const parsed = parseInt(start, 10);
+    state.startHour = Math.max(0, Math.min(23, isNaN(parsed) ? 1 : parsed));
+  }
 })();
 
 function setHome(index){
