@@ -563,8 +563,23 @@
                     chart.destroy();
                     chart = null;
                 }
+                const canvas = document.getElementById('currencyChart');
+                canvas.style.display = 'none';
+                const wrapper = canvas.parentElement;
+                if (!wrapper.querySelector('.empty-state')) {
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-state';
+                    empty.innerHTML = '<div class="empty-icon">📈</div><div>Add currencies above to compare performance</div>';
+                    wrapper.appendChild(empty);
+                }
                 return;
             }
+
+            // Remove empty state if present
+            const canvas = document.getElementById('currencyChart');
+            canvas.style.display = '';
+            const existingEmpty = canvas.parentElement.querySelector('.empty-state');
+            if (existingEmpty) existingEmpty.remove();
 
             const loading = document.getElementById('loading');
             loading.classList.add('active');

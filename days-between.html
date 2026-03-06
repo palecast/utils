@@ -453,6 +453,7 @@
 
         // Add working days to a date
         function addWorkingDays(dateString, workingDays) {
+            if (workingDays <= 0) return dateString;
             let date = new Date(dateString + 'T00:00:00');
             let addedDays = 0;
 

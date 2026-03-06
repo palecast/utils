@@ -338,6 +338,10 @@
             return mailto;
         }
 
+        function escapeVCardField(str) {
+            return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+        }
+
         function generateVCardData() {
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
@@ -353,15 +357,15 @@
 
             let vcard = 'BEGIN:VCARD\n';
             vcard += 'VERSION:3.0\n';
-            vcard += `N:${lastName};${firstName};;;\n`;
-            vcard += `FN:${firstName} ${lastName}\n`;
-            
-            if (organization) vcard += `ORG:${organization}\n`;
-            if (title) vcard += `TITLE:${title}\n`;
+            vcard += `N:${escapeVCardField(lastName)};${escapeVCardField(firstName)};;;\n`;
+            vcard += `FN:${escapeVCardField(firstName)} ${escapeVCardField(lastName)}\n`;
+
+            if (organization) vcard += `ORG:${escapeVCardField(organization)}\n`;
+            if (title) vcard += `TITLE:${escapeVCardField(title)}\n`;
             if (phone) vcard += `TEL:${phone}\n`;
             if (email) vcard += `EMAIL:${email}\n`;
             if (website) vcard += `URL:${website}\n`;
-            if (address) vcard += `ADR:;;${address};;;;\n`;
+            if (address) vcard += `ADR:;;${escapeVCardField(address)};;;;\n`;
             
             vcard += 'END:VCARD';
 
@@ -394,7 +398,7 @@
 
         function escapeWiFiString(str) {
             // Escape special characters for WiFi QR codes
-            return str.replace(/[\\;,:]/g, '\\$&');
+            return str.replace(/[\\;,:"]/g, '\\$&');
         }
 
         function displayQRCode(data) {

@@ -439,7 +439,7 @@
                 <div class="group-selector-title">Allocate to which group?</div>
                 ${groups.map(group => `
                     <div class="group-selector-item" onclick="event.stopPropagation(); allocateCostToGroup(${costId}, ${group.id})">
-                        ${group.name}
+                        ${escapeHtml(group.name)}
                     </div>
                 `).join('')}
                 <div class="group-selector-item group-selector-cancel" onclick="event.stopPropagation(); closeGroupSelector()">
@@ -641,6 +641,14 @@
             renderTotals();
         }
 
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
         function renderCosts() {
             const costList = document.getElementById('costList');
             
@@ -665,8 +673,8 @@
                          ondragend="handleDragEnd(event)">
                         <div class="item-details">
                             <div class="item-title">
-                                ${cost.description}
-                                ${assignedGroup ? `<span class="assigned-label">→ ${assignedGroup.name}</span>` : ''}
+                                ${escapeHtml(cost.description)}
+                                ${assignedGroup ? `<span class="assigned-label">→ ${escapeHtml(assignedGroup.name)}</span>` : ''}
                             </div>
                             ${assignedGroup ? '<div class="item-subtitle">Assigned exclusively to this group</div>' : '<div class="item-subtitle">Shared cost</div>'}
                         </div>
@@ -701,7 +709,7 @@
                         <div style="flex: 1;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                 <div>
-                                    <div class="item-title">${group.name}</div>
+                                    <div class="item-title">${escapeHtml(group.name)}</div>
                                     <div class="item-subtitle">${group.people.length} ${group.people.length === 1 ? 'person' : 'people'}</div>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -712,7 +720,7 @@
                             <div class="person-list">
                                 ${group.people.map(person => `
                                     <div class="person-item">
-                                        <span class="person-name">${person.name}</span>
+                                        <span class="person-name">${escapeHtml(person.name)}</span>
                                         <span class="person-amount">$${perPerson.toFixed(2)}</span>
                                     </div>
                                 `).join('')}
