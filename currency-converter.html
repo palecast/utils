@@ -305,6 +305,13 @@
         async function init() {
             await loadCurrencies();
             setupEventListeners();
+            const state = loadState();
+            if (state?.currentPeriod) {
+                currentPeriod = state.currentPeriod;
+                periodButtons.forEach(btn => {
+                    btn.classList.toggle('active', parseInt(btn.dataset.period) === currentPeriod);
+                });
+            }
             await convert();
             await updateChart();
         }
@@ -315,8 +322,10 @@
                 const response = await fetch(`${API_BASE}/currencies`);
                 currencies = await response.json();
                 
-                populateSelect(fromCurrency, 'GBP');
-                populateSelect(toCurrency, 'EUR');
+                const state = loadState();
+                populateSelect(fromCurrency, state?.fromCurrency ?? 'GBP');
+                populateSelect(toCurrency,   state?.toCurrency   ?? 'EUR');
+                if (state?.fromAmount != null) fromAmount.value = state.fromAmount;
             } catch (error) {
                 showError('Failed to load currencies');
                 console.error('Error loading currencies:', error);
@@ -345,30 +354,34 @@
 
         // Setup event listeners
         function setupEventListeners() {
-            fromAmount.addEventListener('input', convert);
+            fromAmount.addEventListener('input', () => { convert(); saveState(); });
             fromCurrency.addEventListener('change', () => {
                 convert();
                 updateChart();
+                saveState();
             });
             toCurrency.addEventListener('change', () => {
                 convert();
                 updateChart();
+                saveState();
             });
-            
+
             swapButton.addEventListener('click', () => {
                 const temp = fromCurrency.value;
                 fromCurrency.value = toCurrency.value;
                 toCurrency.value = temp;
                 convert();
                 updateChart();
+                saveState();
             });
-            
+
             periodButtons.forEach(button => {
                 button.addEventListener('click', (e) => {
                     periodButtons.forEach(btn => btn.classList.remove('active'));
                     e.target.classList.add('active');
                     currentPeriod = parseInt(e.target.dataset.period);
                     updateChart();
+                    saveState();
                 });
             });
         }
@@ -611,6 +624,25 @@
                     }
                 }
             });
+        }
+
+        // Persist state to localStorage
+        function saveState() {
+            localStorage.setItem('currencyConverterState', JSON.stringify({
+                fromAmount: fromAmount.value,
+                fromCurrency: fromCurrency.value,
+                toCurrency: toCurrency.value,
+                currentPeriod
+            }));
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem('currencyConverterState');
+                return raw ? JSON.parse(raw) : null;
+            } catch {
+                return null;
+            }
         }
 
         // Show error message
