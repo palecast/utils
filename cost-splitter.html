@@ -194,31 +194,39 @@
             margin-top: 10px;
         }
 
-        .tip-buttons {
+        .amount-type-toggle {
             display: flex;
-            gap: 10px;
-            margin-top: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
         }
 
-        .tip-btn {
-            flex: 1;
-            padding: 8px;
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .tip-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
-        .tip-btn.active {
+        .toggle-btn {
+            padding: 12px 14px;
             background: white;
-            color: #667eea;
+            color: #666;
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+            transform: none;
+        }
+
+        .toggle-btn:hover {
+            background: #f0f0f0;
+            transform: none;
+        }
+
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .toggle-btn.active:hover {
+            background: #5568d3;
         }
 
         .person-list {
@@ -353,6 +361,10 @@
 
                 <div class="input-group">
                     <input type="text" id="costDescription" placeholder="Description (e.g., Pizza)">
+                    <div class="amount-type-toggle">
+                        <button type="button" class="toggle-btn active" id="toggleDollar" onclick="setAmountType('dollar')">$</button>
+                        <button type="button" class="toggle-btn" id="togglePercent" onclick="setAmountType('percent')">%</button>
+                    </div>
                     <input type="number" id="costAmount" placeholder="Amount" step="0.01" min="0">
                     <button onclick="addCost()">Add Cost</button>
                 </div>
@@ -360,22 +372,8 @@
                 <div id="costList"></div>
 
                 <div class="total-section">
-                    <div class="total-row">
-                        <span>Subtotal:</span>
-                        <span id="subtotal">$0.00</span>
-                    </div>
-                    <div class="total-row">
-                        <span>Tip:</span>
-                        <span id="tipAmount">$0.00</span>
-                    </div>
-                    <div class="tip-buttons">
-                        <button class="tip-btn" onclick="setTip(0)">No Tip</button>
-                        <button class="tip-btn" onclick="setTip(10)">10%</button>
-                        <button class="tip-btn" onclick="setTip(15)">15%</button>
-                        <button class="tip-btn" onclick="setTip(20)">20%</button>
-                    </div>
-                    <div class="total-row grand-total">
-                        <span>Grand Total:</span>
+                    <div class="total-row grand-total" style="padding-top: 0; border-top: none; margin-top: 0;">
+                        <span>Total:</span>
                         <span id="grandTotal">$0.00</span>
                     </div>
                 </div>
@@ -403,9 +401,17 @@
     <script>
         let costs = [];
         let groups = [];
-        let tipPercent = 0;
+        let amountType = 'dollar';
         let nextCostId = 1;
         let nextGroupId = 1;
+
+        function setAmountType(type) {
+            amountType = type;
+            document.getElementById('toggleDollar').classList.toggle('active', type === 'dollar');
+            document.getElementById('togglePercent').classList.toggle('active', type === 'percent');
+            const amountInput = document.getElementById('costAmount');
+            amountInput.placeholder = type === 'percent' ? 'e.g. 10' : 'Amount';
+        }
 
         function toggleAllocation(costId) {
             const cost = costs.find(c => c.id === costId);
@@ -465,18 +471,21 @@
 
         function addCost() {
             const description = document.getElementById('costDescription').value.trim();
-            const amount = parseFloat(document.getElementById('costAmount').value);
+            const inputValue = parseFloat(document.getElementById('costAmount').value);
 
-            if (!description || !amount || amount <= 0) {
+            if (!description || isNaN(inputValue) || inputValue <= 0) {
                 alert('Please enter a valid description and amount');
                 return;
             }
 
+            const isPercent = amountType === 'percent';
             costs.push({
                 id: nextCostId++,
                 description,
-                amount,
-                assignedToGroup: null
+                amount: isPercent ? 0 : inputValue,
+                assignedToGroup: null,
+                isPercent,
+                percentValue: isPercent ? inputValue : 0
             });
 
             document.getElementById('costDescription').value = '';
@@ -553,25 +562,22 @@
             render();
         }
 
-        function setTip(percent) {
-            tipPercent = percent;
-            render();
-        }
-
         function calculateTotals() {
-            const sharedCosts = costs.filter(c => c.assignedToGroup === null);
-            const subtotal = sharedCosts.reduce((sum, c) => sum + c.amount, 0);
-            const tip = subtotal * (tipPercent / 100);
-            const sharedTotal = subtotal + tip;
+            // Pass 1: sum all fixed costs
+            const fixedTotal = costs
+                .filter(c => !c.isPercent)
+                .reduce((sum, c) => sum + c.amount, 0);
 
+            // Pass 2: compute amounts for percentage costs
+            costs.filter(c => c.isPercent).forEach(c => {
+                c.amount = (c.percentValue / 100) * fixedTotal;
+            });
+
+            const sharedCosts = costs.filter(c => c.assignedToGroup === null);
+            const sharedTotal = sharedCosts.reduce((sum, c) => sum + c.amount, 0);
             const totalPeople = groups.reduce((sum, g) => sum + g.people.length, 0);
 
-            return {
-                subtotal,
-                tip,
-                sharedTotal,
-                totalPeople
-            };
+            return { sharedTotal, totalPeople };
         }
 
         function calculateGroupShare(group) {
@@ -636,6 +642,7 @@
         }
 
         function render() {
+            calculateTotals(); // compute percentage cost amounts before rendering
             renderCosts();
             renderGroups();
             renderTotals();
@@ -665,8 +672,12 @@
                 const allocateButtonText = cost.assignedToGroup ? 'Make Shared' : 'Allocate';
                 const allocateButtonClass = cost.assignedToGroup ? 'btn-small' : 'btn-small';
 
+                const subtitle = cost.isPercent
+                    ? `${cost.percentValue}% of subtotal — $${cost.amount.toFixed(2)}${assignedGroup ? ' · Assigned exclusively to this group' : ''}`
+                    : (assignedGroup ? 'Assigned exclusively to this group' : 'Shared cost');
+
                 return `
-                    <div class="cost-item ${cost.assignedToGroup ? 'assigned' : ''}" 
+                    <div class="cost-item ${cost.assignedToGroup ? 'assigned' : ''}"
                          draggable="true"
                          data-cost-id="${cost.id}"
                          ondragstart="handleDragStart(event, ${cost.id})"
@@ -676,7 +687,7 @@
                                 ${escapeHtml(cost.description)}
                                 ${assignedGroup ? `<span class="assigned-label">→ ${escapeHtml(assignedGroup.name)}</span>` : ''}
                             </div>
-                            ${assignedGroup ? '<div class="item-subtitle">Assigned exclusively to this group</div>' : '<div class="item-subtitle">Shared cost</div>'}
+                            <div class="item-subtitle">${subtitle}</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <div class="item-amount">$${cost.amount.toFixed(2)}</div>
@@ -732,22 +743,9 @@
         }
 
         function renderTotals() {
-            const { subtotal, tip, sharedTotal } = calculateTotals();
-            const grandTotal = costs.reduce((sum, c) => sum + c.amount, 0) + tip;
-
-            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
-            document.getElementById('tipAmount').textContent = `$${tip.toFixed(2)}`;
+            calculateTotals(); // ensures percentage cost amounts are up to date
+            const grandTotal = costs.reduce((sum, c) => sum + c.amount, 0);
             document.getElementById('grandTotal').textContent = `$${grandTotal.toFixed(2)}`;
-
-            // Update tip button states
-            document.querySelectorAll('.tip-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            const activeTipBtn = Array.from(document.querySelectorAll('.tip-btn'))
-                .find(btn => btn.textContent.includes(tipPercent + '%') || (tipPercent === 0 && btn.textContent === 'No Tip'));
-            if (activeTipBtn) {
-                activeTipBtn.classList.add('active');
-            }
         }
 
         // Allow Enter key to add costs
