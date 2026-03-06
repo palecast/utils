@@ -331,6 +331,36 @@
             font-weight: 600;
         }
 
+        .group-detail {
+            margin-top: 10px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 3px 0;
+            color: #555;
+        }
+
+        .detail-row .detail-label {
+            display: inline-block;
+            font-size: 10px;
+            background: #e0e0e0;
+            color: #555;
+            border-radius: 3px;
+            padding: 1px 5px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .detail-row.assigned-row .detail-label {
+            background: #ffc107;
+            color: #856404;
+        }
+
         @media (max-width: 768px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -374,7 +404,7 @@
                 <div class="total-section">
                     <div class="total-row grand-total" style="padding-top: 0; border-top: none; margin-top: 0;">
                         <span>Total:</span>
-                        <span id="grandTotal">$0.00</span>
+                        <span id="grandTotal">0.00</span>
                     </div>
                 </div>
             </div>
@@ -394,6 +424,13 @@
                 </div>
 
                 <div id="groupList"></div>
+
+                <div class="total-section" id="groupTotalSection" style="display:none;">
+                    <div class="total-row grand-total" style="padding-top:0;border-top:none;margin-top:0;">
+                        <span>Total:</span>
+                        <span id="groupGrandTotal">0.00</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -404,6 +441,7 @@
         let amountType = 'dollar';
         let nextCostId = 1;
         let nextGroupId = 1;
+        let expandedGroups = new Set();
 
         function setAmountType(type) {
             amountType = type;
@@ -580,6 +618,29 @@
             return { sharedTotal, totalPeople };
         }
 
+        function toggleGroupDetail(groupId) {
+            if (expandedGroups.has(groupId)) expandedGroups.delete(groupId);
+            else expandedGroups.add(groupId);
+            render();
+        }
+
+        function getGroupCostBreakdown(group) {
+            const { totalPeople } = calculateTotals();
+            const rows = [];
+            for (const cost of costs) {
+                if (cost.assignedToGroup === null && totalPeople > 0) {
+                    rows.push({
+                        description: cost.description,
+                        amount: (group.people.length / totalPeople) * cost.amount,
+                        type: 'shared'
+                    });
+                } else if (cost.assignedToGroup === group.id) {
+                    rows.push({ description: cost.description, amount: cost.amount, type: 'assigned' });
+                }
+            }
+            return rows;
+        }
+
         function calculateGroupShare(group) {
             const { sharedTotal, totalPeople } = calculateTotals();
             
@@ -673,7 +734,7 @@
                 const allocateButtonClass = cost.assignedToGroup ? 'btn-small' : 'btn-small';
 
                 const subtitle = cost.isPercent
-                    ? `${cost.percentValue}% of subtotal — $${cost.amount.toFixed(2)}${assignedGroup ? ' · Assigned exclusively to this group' : ''}`
+                    ? `${cost.percentValue}% of subtotal — ${cost.amount.toFixed(2)}${assignedGroup ? ' · Assigned exclusively to this group' : ''}`
                     : (assignedGroup ? 'Assigned exclusively to this group' : 'Shared cost');
 
                 return `
@@ -690,7 +751,7 @@
                             <div class="item-subtitle">${subtitle}</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div class="item-amount">$${cost.amount.toFixed(2)}</div>
+                            <div class="item-amount">${cost.amount.toFixed(2)}</div>
                             <button class="${allocateButtonClass}" onclick="event.stopPropagation(); toggleAllocation(${cost.id});">${allocateButtonText}</button>
                             <button class="btn-small btn-danger" onclick="event.stopPropagation(); removeCost(${cost.id})">✕</button>
                         </div>
@@ -701,7 +762,7 @@
 
         function renderGroups() {
             const groupList = document.getElementById('groupList');
-            
+
             if (groups.length === 0) {
                 groupList.innerHTML = '<div class="empty-state">No groups added yet</div>';
                 return;
@@ -710,6 +771,22 @@
             groupList.innerHTML = groups.map(group => {
                 const groupTotal = calculateGroupShare(group);
                 const perPerson = groupTotal / group.people.length;
+                const isExpanded = expandedGroups.has(group.id);
+                const breakdown = isExpanded ? getGroupCostBreakdown(group) : [];
+
+                const detailHtml = isExpanded ? `
+                    <div class="group-detail">
+                        ${breakdown.length === 0
+                            ? '<div class="detail-row" style="color:#95a5a6;">No costs apply to this group yet</div>'
+                            : breakdown.map(row => `
+                                <div class="detail-row ${row.type === 'assigned' ? 'assigned-row' : ''}">
+                                    <span>${escapeHtml(row.description)}<span class="detail-label">${row.type === 'assigned' ? 'assigned' : 'shared'}</span></span>
+                                    <span>${row.amount.toFixed(2)}</span>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                ` : '';
 
                 return `
                     <div class="group-item"
@@ -724,7 +801,8 @@
                                     <div class="item-subtitle">${group.people.length} ${group.people.length === 1 ? 'person' : 'people'}</div>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div class="group-total">$${groupTotal.toFixed(2)}</div>
+                                    <div class="group-total">${groupTotal.toFixed(2)}</div>
+                                    <button class="btn-small" onclick="toggleGroupDetail(${group.id})">Details ${isExpanded ? '▾' : '▸'}</button>
                                     <button class="btn-small btn-danger" onclick="removeGroup(${group.id})">✕</button>
                                 </div>
                             </div>
@@ -732,10 +810,11 @@
                                 ${group.people.map(person => `
                                     <div class="person-item">
                                         <span class="person-name">${escapeHtml(person.name)}</span>
-                                        <span class="person-amount">$${perPerson.toFixed(2)}</span>
+                                        <span class="person-amount">${perPerson.toFixed(2)}</span>
                                     </div>
                                 `).join('')}
                             </div>
+                            ${detailHtml}
                         </div>
                     </div>
                 `;
@@ -745,7 +824,11 @@
         function renderTotals() {
             calculateTotals(); // ensures percentage cost amounts are up to date
             const grandTotal = costs.reduce((sum, c) => sum + c.amount, 0);
-            document.getElementById('grandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+            document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+
+            const groupTotalSection = document.getElementById('groupTotalSection');
+            groupTotalSection.style.display = groups.length > 0 ? '' : 'none';
+            document.getElementById('groupGrandTotal').textContent = grandTotal.toFixed(2);
         }
 
         // Allow Enter key to add costs

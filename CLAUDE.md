@@ -46,8 +46,53 @@ Most tools share the same purple gradient theme (`#667eea → #764ba2`).
 
 ### State Persistence
 
-`ccy-tracker.html` saves user state (selected currencies, time period, base currency) to `localStorage` under the key `currencyTrackerState`.
+Three tools persist user state to `localStorage`:
+
+| Tool | Key | What is saved |
+|------|-----|---------------|
+| `ccy-tracker.html` | `currencyTrackerState` | Selected currencies, time period, base currency |
+| `currency-converter.html` | `currencyConverterState` | From/to currencies, amount, selected period |
+| `timezone-compare-app.html` | `world-timeboard-state-v1` | City rows, home timezone, start hour |
+
+`cost-splitter.html` and `days-between.html` do **not** persist state.
+
+### Security Conventions
+
+When user-supplied strings are inserted into HTML via template literals or `innerHTML`, always escape them first. `cost-splitter.html` has a reusable `escapeHtml()` function as a reference:
+
+```js
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+```
+
+Similarly, `qr-generator.html` has `escapeVCardField()` (escapes `\`, `;`, `,`) and `escapeWiFiString()` (escapes `\`, `;`, `,`, `:`, `"`) for format-specific output.
 
 ### No Back-End
 
 All computation happens in the browser. The only network calls are to the frankfurter.dev API (currency tools) and CDN resources.
+
+### Hosting Infrastructure
+
+Deployed as an **Azure Static Web App** (Free tier), auto-deployed from the `main` branch via GitHub Actions.
+
+| Property | Value |
+|----------|-------|
+| Azure resource name | `Utils` |
+| Resource group | `rg-static-web` |
+| Region | Central US |
+| Default hostname | `victorious-island-015b3f010.3.azurestaticapps.net` |
+| GitHub repo | `https://github.com/palecast/utils` |
+| Deploy branch | `main` |
+
+Pushing to `main` triggers deployment automatically — no manual deploy step needed.
+
+To inspect or manage via Azure CLI:
+```bash
+az staticwebapp show --name Utils --resource-group rg-static-web
+az staticwebapp list --output table
+```
