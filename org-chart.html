@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Org Chart Designer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5.0.0/dist/css/jquery.orgchart.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 24px;
+        }
+
+        header h1 { font-size: 2rem; font-weight: 600; }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            white-space: nowrap;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-secondary { background: #e9ecef; color: #333; }
+        .btn-secondary:hover { background: #dee2e6; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-small { padding: 4px 10px; font-size: 0.8rem; }
+
+        select, input[type="file"] {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: inherit;
+        }
+
+        input[type="checkbox"] { margin-right: 4px; }
+
+        .checkbox-label {
+            font-size: 0.85rem;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        /* Filter multi-select */
+        .filter-container {
+            position: relative;
+        }
+
+        .filter-values {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            min-width: 180px;
+            padding: 8px;
+            display: none;
+        }
+
+        .filter-values.open { display: block; }
+
+        .filter-values label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 0;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        /* Warning banner */
+        .warning-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        /* Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .tab-btn {
+            padding: 10px 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #888;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            border-radius: 0;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content { display: none; padding-top: 16px; }
+        .tab-content.active { display: block; }
+
+        /* Table */
+        .table-wrapper {
+            max-height: 60vh;
+            overflow: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table tr:hover td { background: #f8f9fa; }
+
+        .data-table input, .data-table select {
+            width: 100%;
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.83rem;
+            font-family: inherit;
+        }
+
+        .data-table input:focus, .data-table select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102,126,234,0.2);
+        }
+
+        .data-table input[type="number"] { width: 100px; }
+
+        /* Status badges */
+        .status-filled { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .status-vacant { background: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .status-planned { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .status-removed { background: #e2e3e5; color: #383d41; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+
+        /* Chart */
+        #chart-container {
+            overflow: auto;
+            min-height: 400px;
+            text-align: center;
+        }
+
+        #chart-container .orgchart {
+            background: white;
+            border: none;
+        }
+
+        #chart-container .orgchart .node {
+            width: 180px;
+        }
+
+        #chart-container .orgchart .node .title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 6px 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            border-radius: 6px 6px 0 0;
+        }
+
+        #chart-container .orgchart .node .content {
+            font-size: 0.75rem;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            background: white;
+            height: auto;
+        }
+
+        .node-incumbent { font-weight: 500; margin-bottom: 2px; }
+        .node-status { margin: 2px 0; }
+        .node-meta { color: #888; font-size: 0.7rem; margin-top: 3px; }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 8px 0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        .legend-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 24px;
+            opacity: 0.8;
+            font-size: 0.85rem;
+        }
+
+        footer a { color: white; }
+
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.5rem; }
+            .controls { flex-direction: column; align-items: flex-start; }
+            .data-table input[type="number"] { width: 80px; }
+            .panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>&#127970; Org Chart Designer</h1>
+        </header>
+
+        <div class="panel">
+            <div class="controls">
+                <div class="control-group">
+                    <button class="btn-primary" onclick="document.getElementById('file-input').click()">Import</button>
+                    <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
+                    <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+                    <button class="btn-secondary" onclick="exportExcel()">Export Excel</button>
+                </div>
+
+                <div class="control-group">
+                    <label>Filter by:</label>
+                    <select id="filter-field" onchange="onFilterFieldChange()">
+                        <option value="">None</option>
+                        <option value="status">Status</option>
+                        <option value="department">Department</option>
+                        <option value="location">Location</option>
+                        <option value="incumbentGender">Gender</option>
+                    </select>
+                    <div class="filter-container">
+                        <button class="btn-secondary btn-small" id="filter-values-btn" onclick="toggleFilterDropdown()" style="display:none">Select values</button>
+                        <div class="filter-values" id="filter-values-dropdown"></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Color by:</label>
+                    <select id="color-field" onchange="onColorFieldChange()">
+                        <option value="">None</option>
+                        <option value="status">Status</option>
+                        <option value="department">Department</option>
+                        <option value="location">Location</option>
+                        <option value="incumbentGender">Gender</option>
+                    </select>
+                </div>
+
+                <label class="checkbox-label">
+                    <input type="checkbox" id="show-headcount" onchange="onToggleChange()"> Show Headcount
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="show-cost" onchange="onToggleChange()"> Show Cumulative Cost
+                </label>
+            </div>
+
+            <div class="legend" id="legend"></div>
+        </div>
+
+        <div class="warning-banner" id="warning-banner"></div>
+
+        <div class="panel" style="padding-bottom: 0;">
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('table')">Table</button>
+                <button class="tab-btn" onclick="switchTab('chart')">Chart</button>
+            </div>
+
+            <div class="tab-content active" id="tab-table">
+                <div style="margin-bottom: 12px;">
+                    <button class="btn-primary btn-small" onclick="addRole()">+ Add Row</button>
+                </div>
+                <div class="table-wrapper" id="table-wrapper"></div>
+            </div>
+
+            <div class="tab-content" id="tab-chart">
+                <div id="chart-container"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="/disclaimer">Disclaimer &amp; Terms</a></p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/orgchart@5.0.0/dist/js/jquery.orgchart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script>
+        // --- Data model ---
+        let roles = [];
+        let activeTab = 'table';
+        let nextId = 1;
+        let filterField = '';
+        let filterValues = new Set();
+        let colorField = '';
+        let showHeadcount = false;
+        let showCumulativeCost = false;
+        let colorMap = {};
+
+        const STATUS_COLORS = { filled: '#27ae60', vacant: '#e74c3c', planned: '#f39c12', removed: '#95a5a6' };
+        const PALETTE = ['#27ae60','#e74c3c','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#2c3e50','#d35400','#c0392b'];
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function generateRoleId() {
+            while (roles.some(r => r.roleId === 'R' + nextId)) nextId++;
+            return 'R' + nextId++;
+        }
+
+        // --- CRUD ---
+        function addRole() {
+            roles.push({
+                roleId: generateRoleId(),
+                roleTitle: '',
+                status: 'planned',
+                incumbentName: '',
+                managerRoleId: '',
+                department: '',
+                costToCompany: 0,
+                location: '',
+                incumbentGender: '',
+                comments: ''
+            });
+            render();
+        }
+
+        function deleteRole(roleId) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) return;
+            const parentManager = role.managerRoleId;
+            roles.forEach(r => {
+                if (r.managerRoleId === roleId) r.managerRoleId = parentManager;
+            });
+            roles = roles.filter(r => r.roleId !== roleId);
+            render();
+        }
+
+        function updateRoleField(roleId, field, value) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) return;
+
+            if (field === 'roleId') {
+                const oldId = role.roleId;
+                role.roleId = value;
+                roles.forEach(r => {
+                    if (r.managerRoleId === oldId) r.managerRoleId = value;
+                });
+            } else if (field === 'costToCompany') {
+                role[field] = parseFloat(value) || 0;
+            } else {
+                role[field] = value;
+            }
+
+            validateRoles();
+            if (activeTab === 'chart') renderChart();
+        }
+
+        // --- Validation ---
+        function validateRoles() {
+            const warnings = [];
+            const ids = roles.map(r => r.roleId);
+            const dupes = ids.filter((id, i) => id && ids.indexOf(id) !== i);
+            if (dupes.length) warnings.push('Duplicate Role IDs: ' + [...new Set(dupes)].join(', '));
+
+            for (const role of roles) {
+                if (!role.managerRoleId) continue;
+                const visited = new Set();
+                let current = role;
+                while (current && current.managerRoleId) {
+                    if (visited.has(current.roleId)) {
+                        warnings.push('Circular reference detected involving: ' + current.roleId);
+                        break;
+                    }
+                    visited.add(current.roleId);
+                    current = roles.find(r => r.roleId === current.managerRoleId);
+                }
+            }
+
+            const banner = document.getElementById('warning-banner');
+            if (warnings.length) {
+                banner.textContent = warnings.join(' | ');
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        // --- Table rendering ---
+        function renderTable() {
+            const wrapper = document.getElementById('table-wrapper');
+            if (!roles.length) {
+                wrapper.innerHTML = '<p style="padding:20px;color:#888;text-align:center">No roles yet. Click "+ Add Row" to start, or import a file.</p>';
+                return;
+            }
+
+            let html = '<table class="data-table"><thead><tr>';
+            const cols = ['Role ID','Title','Status','Incumbent','Manager','Department','Cost','Location','Gender','Comments',''];
+            cols.forEach(c => html += '<th>' + c + '</th>');
+            html += '</tr></thead><tbody>';
+
+            roles.forEach((role, idx) => {
+                html += '<tr>';
+                html += '<td><input value="' + escapeHtml(role.roleId) + '" onchange="onTableEdit(' + idx + ',\'roleId\',this.value)"></td>';
+                html += '<td><input value="' + escapeHtml(role.roleTitle) + '" onchange="onTableEdit(' + idx + ',\'roleTitle\',this.value)"></td>';
+                html += '<td><select onchange="onTableEdit(' + idx + ',\'status\',this.value)">';
+                ['filled','vacant','planned','removed'].forEach(s => {
+                    html += '<option value="' + s + '"' + (role.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
+                });
+                html += '</select></td>';
+                html += '<td><input value="' + escapeHtml(role.incumbentName) + '" onchange="onTableEdit(' + idx + ',\'incumbentName\',this.value)"></td>';
+                html += '<td><select onchange="onTableEdit(' + idx + ',\'managerRoleId\',this.value)">';
+                html += '<option value="">(None - Root)</option>';
+                roles.forEach(r => {
+                    if (r.roleId === role.roleId) return;
+                    const label = escapeHtml(r.roleId + (r.roleTitle ? ' - ' + r.roleTitle : ''));
+                    html += '<option value="' + escapeHtml(r.roleId) + '"' + (role.managerRoleId === r.roleId ? ' selected' : '') + '>' + label + '</option>';
+                });
+                html += '</select></td>';
+                html += '<td><input value="' + escapeHtml(role.department) + '" onchange="onTableEdit(' + idx + ',\'department\',this.value)"></td>';
+                html += '<td><input type="number" value="' + role.costToCompany + '" onchange="onTableEdit(' + idx + ',\'costToCompany\',this.value)"></td>';
+                html += '<td><input value="' + escapeHtml(role.location) + '" onchange="onTableEdit(' + idx + ',\'location\',this.value)"></td>';
+                html += '<td><select onchange="onTableEdit(' + idx + ',\'incumbentGender\',this.value)">';
+                ['','Male','Female','Other'].forEach(g => {
+                    html += '<option value="' + g + '"' + (role.incumbentGender === g ? ' selected' : '') + '>' + (g || '-') + '</option>';
+                });
+                html += '</select></td>';
+                html += '<td><input value="' + escapeHtml(role.comments) + '" onchange="onTableEdit(' + idx + ',\'comments\',this.value)"></td>';
+                html += '<td><button class="btn-danger btn-small" onclick="deleteRole(\'' + escapeHtml(role.roleId) + '\')">&#10005;</button></td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            wrapper.innerHTML = html;
+        }
+
+        function onTableEdit(idx, field, value) {
+            if (idx < 0 || idx >= roles.length) return;
+            updateRoleField(roles[idx].roleId, field, value);
+            if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle') {
+                renderTable();
+            }
+        }
+
+        // --- Tree building ---
+        function buildTree(rolesArray) {
+            const map = {};
+            rolesArray.forEach(r => {
+                map[r.roleId] = { ...r, children: [] };
+            });
+            const roots = [];
+            rolesArray.forEach(r => {
+                if (r.managerRoleId && map[r.managerRoleId]) {
+                    map[r.managerRoleId].children.push(map[r.roleId]);
+                } else {
+                    roots.push(map[r.roleId]);
+                }
+            });
+
+            if (roots.length === 0) return null;
+            if (roots.length === 1) return roots[0];
+            return { roleId: '_root', roleTitle: 'Organization', status: '', incumbentName: '', department: '', costToCompany: 0, location: '', incumbentGender: '', comments: '', children: roots };
+        }
+
+        function computeCumulativeFields(node) {
+            if (!node) return;
+            let headcount = (node.status === 'filled' || node.status === 'planned') ? 1 : 0;
+            let cost = node.costToCompany || 0;
+            (node.children || []).forEach(child => {
+                computeCumulativeFields(child);
+                headcount += child.cumulativeHeadcount || 0;
+                cost += child.cumulativeCost || 0;
+            });
+            node.cumulativeHeadcount = headcount;
+            node.cumulativeCost = cost;
+        }
+
+        // --- Filtering ---
+        function getFilteredRoles() {
+            if (!filterField || filterValues.size === 0) return roles.slice();
+
+            const allValues = getUniqueValues(filterField);
+            if (filterValues.size === allValues.length) return roles.slice();
+
+            const kept = new Set();
+            const removedMap = {};
+            roles.forEach(r => {
+                const val = String(r[filterField] || '');
+                if (filterValues.has(val)) {
+                    kept.add(r.roleId);
+                } else {
+                    removedMap[r.roleId] = r.managerRoleId;
+                }
+            });
+
+            const result = roles.filter(r => kept.has(r.roleId)).map(r => ({ ...r }));
+            result.forEach(r => {
+                let mgr = r.managerRoleId;
+                while (mgr && removedMap.hasOwnProperty(mgr)) {
+                    mgr = removedMap[mgr];
+                }
+                r.managerRoleId = mgr;
+            });
+            return result;
+        }
+
+        function getUniqueValues(field) {
+            const vals = new Set();
+            roles.forEach(r => vals.add(String(r[field] || '')));
+            return [...vals].sort();
+        }
+
+        function onFilterFieldChange() {
+            filterField = document.getElementById('filter-field').value;
+            filterValues = new Set();
+            const btn = document.getElementById('filter-values-btn');
+            const dropdown = document.getElementById('filter-values-dropdown');
+
+            if (!filterField) {
+                btn.style.display = 'none';
+                dropdown.classList.remove('open');
+                if (activeTab === 'chart') renderChart();
+                return;
+            }
+
+            const vals = getUniqueValues(filterField);
+            filterValues = new Set(vals);
+            btn.style.display = '';
+            rebuildFilterCheckboxes(vals);
+            if (activeTab === 'chart') renderChart();
+        }
+
+        function rebuildFilterCheckboxes(vals) {
+            const dropdown = document.getElementById('filter-values-dropdown');
+            let html = '';
+            vals.forEach(v => {
+                const checked = filterValues.has(v) ? ' checked' : '';
+                html += '<label><input type="checkbox"' + checked + ' onchange="toggleFilterValue(\'' + escapeHtml(v) + '\', this.checked)"> ' + escapeHtml(v || '(empty)') + '</label>';
+            });
+            dropdown.innerHTML = html;
+        }
+
+        function toggleFilterDropdown() {
+            const dd = document.getElementById('filter-values-dropdown');
+            dd.classList.toggle('open');
+        }
+
+        function toggleFilterValue(val, checked) {
+            if (checked) filterValues.add(val);
+            else filterValues.delete(val);
+            if (activeTab === 'chart') renderChart();
+        }
+
+        // Close filter dropdown on outside click
+        document.addEventListener('click', function(e) {
+            const container = document.querySelector('.filter-container');
+            if (container && !container.contains(e.target)) {
+                document.getElementById('filter-values-dropdown').classList.remove('open');
+            }
+        });
+
+        // --- Color coding ---
+        function onColorFieldChange() {
+            colorField = document.getElementById('color-field').value;
+            buildColorMap();
+            renderLegend();
+            if (activeTab === 'chart') renderChart();
+        }
+
+        function buildColorMap() {
+            colorMap = {};
+            if (!colorField) return;
+            if (colorField === 'status') {
+                colorMap = { ...STATUS_COLORS };
+                return;
+            }
+            const vals = getUniqueValues(colorField);
+            vals.forEach((v, i) => {
+                colorMap[v] = PALETTE[i % PALETTE.length];
+            });
+        }
+
+        function getNodeColor(role) {
+            if (!colorField) return '#667eea';
+            const val = String(role[colorField] || '');
+            return colorMap[val] || '#667eea';
+        }
+
+        function renderLegend() {
+            const el = document.getElementById('legend');
+            if (!colorField) { el.innerHTML = ''; return; }
+            let html = '';
+            Object.entries(colorMap).forEach(([label, color]) => {
+                html += '<div class="legend-item"><span class="legend-swatch" style="background:' + color + '"></span>' + escapeHtml(label || '(empty)') + '</div>';
+            });
+            el.innerHTML = html;
+        }
+
+        // --- Toggles ---
+        function onToggleChange() {
+            showHeadcount = document.getElementById('show-headcount').checked;
+            showCumulativeCost = document.getElementById('show-cost').checked;
+            if (activeTab === 'chart') renderChart();
+        }
+
+        // --- Chart rendering ---
+        function renderChart() {
+            const container = $('#chart-container');
+            container.empty();
+
+            const filtered = getFilteredRoles();
+            if (!filtered.length) {
+                container.html('<p style="padding:40px;color:#888">No roles to display. Add data in the Table tab.</p>');
+                return;
+            }
+
+            const tree = buildTree(filtered);
+            if (!tree) {
+                container.html('<p style="padding:40px;color:#888">Unable to build tree. Check your data.</p>');
+                return;
+            }
+            computeCumulativeFields(tree);
+
+            function toOrgData(node) {
+                const data = {
+                    name: escapeHtml(node.roleTitle || node.roleId),
+                    roleId: node.roleId,
+                    roleData: node
+                };
+                if (node.children && node.children.length) {
+                    data.children = node.children.map(toOrgData);
+                }
+                return data;
+            }
+
+            const orgData = toOrgData(tree);
+
+            container.orgchart({
+                data: orgData,
+                nodeContent: 'title',
+                direction: 't2b',
+                pan: true,
+                zoom: true,
+                draggable: true,
+                createNode: function($node, data) {
+                    const role = data.roleData;
+                    if (!role) return;
+
+                    const bgColor = role.roleId === '_root' ? '#667eea' : getNodeColor(role);
+                    $node.find('.title').css({ 'background-color': bgColor, 'color': 'white' });
+                    $node.attr('data-role-id', role.roleId);
+
+                    let contentHtml = '';
+                    if (role.incumbentName) {
+                        contentHtml += '<div class="node-incumbent">' + escapeHtml(role.incumbentName) + '</div>';
+                    }
+                    if (role.status) {
+                        contentHtml += '<div class="node-status"><span class="status-' + escapeHtml(role.status) + '">' + escapeHtml(role.status.charAt(0).toUpperCase() + role.status.slice(1)) + '</span></div>';
+                    }
+                    if (role.department) {
+                        contentHtml += '<div class="node-meta">' + escapeHtml(role.department) + '</div>';
+                    }
+                    if (showHeadcount && role.cumulativeHeadcount !== undefined) {
+                        contentHtml += '<div class="node-meta">HC: ' + role.cumulativeHeadcount + '</div>';
+                    }
+                    if (showCumulativeCost && role.cumulativeCost !== undefined) {
+                        contentHtml += '<div class="node-meta">Cost: ' + role.cumulativeCost.toLocaleString() + '</div>';
+                    }
+
+                    $node.find('.content').html(contentHtml);
+                }
+            });
+
+            // Drag-drop sync
+            container.on('nodedrop.orgchart', function(event, params) {
+                const draggedId = params.draggedNode.attr('data-role-id');
+                const droppedId = params.dropZone.closest('.node').attr('data-role-id');
+                if (draggedId && droppedId && draggedId !== '_root') {
+                    const effectiveDropId = droppedId === '_root' ? '' : droppedId;
+                    updateRoleField(draggedId, 'managerRoleId', effectiveDropId);
+                    renderTable();
+                }
+            });
+        }
+
+        // --- Tab switching ---
+        function switchTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', (i === 0 && tab === 'table') || (i === 1 && tab === 'chart'));
+            });
+            document.getElementById('tab-table').classList.toggle('active', tab === 'table');
+            document.getElementById('tab-chart').classList.toggle('active', tab === 'chart');
+            if (tab === 'chart') renderChart();
+        }
+
+        // --- Import ---
+        const HEADER_ALIASES = {
+            'roleid': 'roleId', 'role id': 'roleId', 'role_id': 'roleId', 'id': 'roleId',
+            'roletitle': 'roleTitle', 'role title': 'roleTitle', 'role_title': 'roleTitle', 'title': 'roleTitle', 'role': 'roleTitle',
+            'status': 'status',
+            'incumbentname': 'incumbentName', 'incumbent name': 'incumbentName', 'incumbent_name': 'incumbentName', 'incumbent': 'incumbentName', 'name': 'incumbentName',
+            'managerroleid': 'managerRoleId', 'manager role id': 'managerRoleId', 'manager_role_id': 'managerRoleId', 'manager': 'managerRoleId', 'manager id': 'managerRoleId', 'reports to': 'managerRoleId',
+            'department': 'department', 'dept': 'department',
+            'costtocompany': 'costToCompany', 'cost to company': 'costToCompany', 'cost_to_company': 'costToCompany', 'cost': 'costToCompany', 'ctc': 'costToCompany', 'salary': 'costToCompany',
+            'location': 'location', 'office': 'location',
+            'incumbentgender': 'incumbentGender', 'incumbent gender': 'incumbentGender', 'incumbent_gender': 'incumbentGender', 'gender': 'incumbentGender',
+            'comments': 'comments', 'notes': 'comments', 'comment': 'comments'
+        };
+
+        function mapHeaders(rawHeaders) {
+            const mapping = {};
+            rawHeaders.forEach(h => {
+                const key = String(h).trim().toLowerCase();
+                if (HEADER_ALIASES[key]) mapping[h] = HEADER_ALIASES[key];
+            });
+            return mapping;
+        }
+
+        function importFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+                    if (!jsonData.length) {
+                        alert('No data found in the file.');
+                        return;
+                    }
+
+                    const headerMap = mapHeaders(Object.keys(jsonData[0]));
+                    roles = jsonData.map((row, i) => {
+                        const role = {
+                            roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
+                            managerRoleId: '', department: '', costToCompany: 0,
+                            location: '', incumbentGender: '', comments: ''
+                        };
+                        Object.entries(row).forEach(([col, val]) => {
+                            const field = headerMap[col];
+                            if (field) {
+                                if (field === 'costToCompany') {
+                                    role[field] = parseFloat(val) || 0;
+                                } else if (field === 'status') {
+                                    const s = String(val).toLowerCase().trim();
+                                    role[field] = ['filled','vacant','planned','removed'].includes(s) ? s : 'planned';
+                                } else {
+                                    role[field] = String(val);
+                                }
+                            }
+                        });
+                        if (!role.roleId) role.roleId = 'R' + (i + 1);
+                        return role;
+                    });
+
+                    nextId = roles.length + 1;
+                    validateRoles();
+                    render();
+                } catch (err) {
+                    alert('Error importing file: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        // --- Export ---
+        function exportCSV() {
+            if (!roles.length) { alert('No data to export.'); return; }
+            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Comments'];
+            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','comments'];
+
+            let csv = headers.join(',') + '\n';
+            roles.forEach(r => {
+                csv += fields.map(f => {
+                    let v = String(r[f] || '');
+                    if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+                        v = '"' + v.replace(/"/g, '""') + '"';
+                    }
+                    return v;
+                }).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'org-chart.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportExcel() {
+            if (!roles.length) { alert('No data to export.'); return; }
+            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Comments'];
+            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','comments'];
+
+            const data = roles.map(r => {
+                const row = {};
+                fields.forEach((f, i) => row[headers[i]] = r[f]);
+                return row;
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Org Chart');
+            XLSX.writeFile(wb, 'org-chart.xlsx');
+        }
+
+        // --- Render ---
+        function render() {
+            renderTable();
+            if (activeTab === 'chart') renderChart();
+        }
+
+        // --- Init ---
+        render();
+    </script>
+</body>
+</html>
