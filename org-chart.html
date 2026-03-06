@@ -238,16 +238,15 @@
         }
 
         #chart-container .orgchart .node {
-            width: 180px;
+            width: 200px;
         }
 
         #chart-container .orgchart .node .title {
             font-size: 0.8rem;
             font-weight: 600;
             padding: 6px 8px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            word-wrap: break-word;
             border-radius: 6px 6px 0 0;
         }
 
@@ -298,6 +297,34 @@
         }
 
         footer a { color: white; }
+
+        .chart-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .chart-controls label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .chart-controls button {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            font-size: 1rem;
+            line-height: 28px;
+            text-align: center;
+        }
+
+        .chart-controls span {
+            font-size: 0.85rem;
+            min-width: 30px;
+            text-align: center;
+        }
 
         @media (max-width: 768px) {
             header h1 { font-size: 1.5rem; }
@@ -354,6 +381,14 @@
                 <label class="checkbox-label">
                     <input type="checkbox" id="show-cost" onchange="onToggleChange()"> Show Cumulative Cost
                 </label>
+
+                <div class="control-group">
+                    <label>Show fields:</label>
+                    <div class="filter-container" id="fields-container">
+                        <button class="btn-secondary btn-small" id="fields-btn" onclick="toggleFieldsDropdown()">Configure</button>
+                        <div class="filter-values" id="fields-dropdown"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="legend" id="legend"></div>
@@ -375,6 +410,12 @@
             </div>
 
             <div class="tab-content" id="tab-chart">
+                <div class="chart-controls">
+                    <label>Depth:</label>
+                    <button class="btn-secondary" onclick="changeDepth(-1)">&minus;</button>
+                    <span id="depth-display">All</span>
+                    <button class="btn-secondary" onclick="changeDepth(1)">+</button>
+                </div>
                 <div id="chart-container"></div>
             </div>
         </div>
@@ -398,6 +439,8 @@
         let showHeadcount = false;
         let showCumulativeCost = false;
         let colorMap = {};
+        let maxDepth = 0; // 0 = show all
+        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, cost: false, comments: false };
 
         const STATUS_COLORS = { filled: '#27ae60', vacant: '#e74c3c', planned: '#f39c12', removed: '#95a5a6' };
         const PALETTE = ['#27ae60','#e74c3c','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#2c3e50','#d35400','#c0392b'];
@@ -457,6 +500,14 @@
                 role[field] = parseFloat(value) || 0;
             } else {
                 role[field] = value;
+            }
+
+            if (field === 'managerRoleId' && value) {
+                const manager = roles.find(r => r.roleId === value);
+                if (manager && manager.department && !role.department) {
+                    role.department = manager.department;
+                    renderTable();
+                }
             }
 
             validateRoles();
@@ -710,6 +761,77 @@
             if (activeTab === 'chart') renderChart();
         }
 
+        // --- Field visibility ---
+        function renderFieldsDropdown() {
+            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', cost: 'Cost', comments: 'Comments' };
+            const dropdown = document.getElementById('fields-dropdown');
+            let html = '';
+            Object.keys(chartFields).forEach(f => {
+                const checked = chartFields[f] ? ' checked' : '';
+                html += '<label><input type="checkbox"' + checked + ' onchange="toggleChartField(\'' + f + '\', this.checked)"> ' + labels[f] + '</label>';
+            });
+            dropdown.innerHTML = html;
+        }
+
+        function toggleChartField(field, checked) {
+            chartFields[field] = checked;
+            if (activeTab === 'chart') renderChart();
+        }
+
+        function toggleFieldsDropdown() {
+            const dd = document.getElementById('fields-dropdown');
+            dd.classList.toggle('open');
+        }
+
+        // --- Depth controls ---
+        function changeDepth(delta) {
+            const filtered = getFilteredRoles();
+            const tree = buildTree(filtered);
+            const actualMax = tree ? getMaxTreeDepth(tree) : 1;
+
+            if (delta < 0) {
+                if (maxDepth === 0) maxDepth = actualMax;
+                else maxDepth = Math.max(1, maxDepth - 1);
+            } else {
+                if (maxDepth === 0) return;
+                maxDepth = maxDepth + 1;
+                if (maxDepth >= actualMax) maxDepth = 0;
+            }
+
+            document.getElementById('depth-display').textContent = maxDepth === 0 ? 'All' : maxDepth;
+            if (activeTab === 'chart') renderChart();
+        }
+
+        function getMaxTreeDepth(node, d) {
+            d = d || 1;
+            if (!node.children || !node.children.length) return d;
+            let max = d;
+            node.children.forEach(c => {
+                max = Math.max(max, getMaxTreeDepth(c, d + 1));
+            });
+            return max;
+        }
+
+        function pruneTree(node, depth, max) {
+            if (!node) return node;
+            if (depth >= max) {
+                node.children = [];
+                return node;
+            }
+            if (node.children) {
+                node.children = node.children.map(c => pruneTree(c, depth + 1, max));
+            }
+            return node;
+        }
+
+        // Extend outside click handler to close fields dropdown
+        document.addEventListener('click', function(e) {
+            const fc = document.getElementById('fields-container');
+            if (fc && !fc.contains(e.target)) {
+                document.getElementById('fields-dropdown').classList.remove('open');
+            }
+        });
+
         // --- Chart rendering ---
         function renderChart() {
             const container = $('#chart-container');
@@ -727,6 +849,10 @@
                 return;
             }
             computeCumulativeFields(tree);
+
+            if (maxDepth > 0) {
+                pruneTree(tree, 1, maxDepth);
+            }
 
             function toOrgData(node) {
                 const data = {
@@ -758,14 +884,26 @@
                     $node.attr('data-role-id', role.roleId);
 
                     let contentHtml = '';
-                    if (role.incumbentName) {
+                    if (chartFields.incumbent && role.incumbentName) {
                         contentHtml += '<div class="node-incumbent">' + escapeHtml(role.incumbentName) + '</div>';
                     }
-                    if (role.status) {
+                    if (chartFields.status && role.status) {
                         contentHtml += '<div class="node-status"><span class="status-' + escapeHtml(role.status) + '">' + escapeHtml(role.status.charAt(0).toUpperCase() + role.status.slice(1)) + '</span></div>';
                     }
-                    if (role.department) {
+                    if (chartFields.department && role.department) {
                         contentHtml += '<div class="node-meta">' + escapeHtml(role.department) + '</div>';
+                    }
+                    if (chartFields.location && role.location) {
+                        contentHtml += '<div class="node-meta">' + escapeHtml(role.location) + '</div>';
+                    }
+                    if (chartFields.gender && role.incumbentGender) {
+                        contentHtml += '<div class="node-meta">' + escapeHtml(role.incumbentGender) + '</div>';
+                    }
+                    if (chartFields.cost && role.costToCompany) {
+                        contentHtml += '<div class="node-meta">Cost: ' + role.costToCompany.toLocaleString() + '</div>';
+                    }
+                    if (chartFields.comments && role.comments) {
+                        contentHtml += '<div class="node-meta">' + escapeHtml(role.comments) + '</div>';
                     }
                     if (showHeadcount && role.cumulativeHeadcount !== undefined) {
                         contentHtml += '<div class="node-meta">HC: ' + role.cumulativeHeadcount + '</div>';
@@ -926,6 +1064,7 @@
         }
 
         // --- Init ---
+        renderFieldsDropdown();
         render();
     </script>
 </body>
