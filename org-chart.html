@@ -1290,6 +1290,10 @@
         function renderChart() {
             const container = document.getElementById('chart-container');
             container.innerHTML = '';
+            const legendDiv = document.createElement('div');
+            legendDiv.className = 'chart-legend';
+            legendDiv.id = 'legend';
+            container.appendChild(legendDiv);
 
             const filtered = getFilteredRoles();
             if (!filtered.length) {
@@ -1326,6 +1330,8 @@
                     showReparentPanel(nodeId, e || window.event || { pageX: 300, pageY: 300 });
                 })
                 .render();
+
+            renderLegend();
         }
 
         // --- Tab switching ---
