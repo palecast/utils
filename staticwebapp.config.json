@@ -65,10 +65,7 @@
     {
       "route": "/org-chart.html",
       "redirect": "/org-chart",
-      "statusCode": 301,
-      "allowedRoles": [
-        "authenticated"
-      ]
+      "statusCode": 301
     },
     {
       "route": "/disclaimer.html",
