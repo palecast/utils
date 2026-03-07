@@ -201,6 +201,11 @@
         }
         .row-action-btn:hover { background: #dee2e6; }
 
+        .tabulator-cell.tabulator-cell-active {
+            outline: 2px solid #667eea;
+            outline-offset: -2px;
+        }
+
         /* Chart */
         #chart-container {
             overflow: auto;
@@ -333,13 +338,6 @@
                     </select>
                 </div>
 
-                <label class="checkbox-label">
-                    <input type="checkbox" id="show-headcount" onchange="onToggleChange()"> Show Headcount
-                </label>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="show-cost" onchange="onToggleChange()"> Show Cumulative Cost
-                </label>
-
                 <div class="control-group">
                     <label>Show fields:</label>
                     <div class="filter-container" id="fields-container">
@@ -364,7 +362,7 @@
                 <div style="margin-bottom: 12px;">
                     <button class="btn-primary btn-small" onclick="addRole()">+ Add Row</button>
                 </div>
-                <div id="tabulator-grid"></div>
+                <div id="tabulator-grid" tabindex="0" style="outline:none;"></div>
             </div>
 
             <div class="tab-content" id="tab-chart">
@@ -397,13 +395,12 @@
         let filterField = '';
         let filterValues = new Set();
         let colorField = '';
-        let showHeadcount = false;
-        let showCumulativeCost = false;
         let colorMap = {};
         let maxDepth = 0; // 0 = show all
-        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, cost: false, comments: false };
+        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, cost: false, comments: false, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPlanned: false, hcRemoved: false, costFilled: false, costVacant: false, costPlanned: false, costRemoved: false };
         let chartInstance = null;
         let tabulatorGrid = null;
+        let isEditing = false;
 
         const GRID_COLUMNS = [
             { field: 'roleId',          type: 'input' },
@@ -589,6 +586,88 @@
                         if (activeTab === 'chart') renderChart();
                     }
                 });
+
+                tabulatorGrid.on('cellEditing', function() { isEditing = true; });
+                tabulatorGrid.on('cellEditCancelled', function() { isEditing = false; });
+                tabulatorGrid.on('cellEdited', function() { isEditing = false; });
+                tabulatorGrid.on('cellClick', function(e, cell) {
+                    if (cell.getField() === '_actions') return;
+                    document.querySelectorAll('.tabulator-cell.tabulator-cell-active').forEach(el => el.classList.remove('tabulator-cell-active'));
+                    cell.getElement().classList.add('tabulator-cell-active');
+                    cell.getRow().select();
+                });
+
+                // Excel-like keyboard navigation
+                document.getElementById('tabulator-grid').addEventListener('keydown', function(e) {
+                    if (isEditing) {
+                        // When editing a list cell, pressing a letter selects the first matching option
+                        if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+                            const activeEl = document.activeElement;
+                            const listDropdown = document.querySelector('.tabulator-edit-list');
+                            if (listDropdown) {
+                                const items = listDropdown.querySelectorAll('.tabulator-edit-list-item');
+                                const letter = e.key.toLowerCase();
+                                for (const item of items) {
+                                    if (item.textContent.trim().toLowerCase().startsWith(letter)) {
+                                        item.click();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        return;
+                    }
+
+                    const arrows = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+                    if (!arrows.includes(e.key) && e.key !== 'Enter') return;
+
+                    e.preventDefault();
+                    const selectedRows = tabulatorGrid.getSelectedRows();
+                    if (!selectedRows.length) return;
+
+                    const row = selectedRows[0];
+                    const allRows = tabulatorGrid.getRows();
+                    const allCols = tabulatorGrid.getColumns().filter(c => c.getField() && c.getField() !== '_actions');
+                    const rowIdx = allRows.indexOf(row);
+
+                    // Find currently focused cell column, default to first
+                    const focusedCell = document.querySelector('.tabulator-cell.tabulator-cell-active');
+                    let colIdx = 0;
+                    if (focusedCell) {
+                        const focusedField = focusedCell.getAttribute('tabulator-field');
+                        const idx = allCols.findIndex(c => c.getField() === focusedField);
+                        if (idx >= 0) colIdx = idx;
+                    }
+
+                    let targetRow = row;
+                    let targetColIdx = colIdx;
+
+                    if (e.key === 'ArrowUp' && rowIdx > 0) {
+                        targetRow = allRows[rowIdx - 1];
+                    } else if (e.key === 'ArrowDown' && rowIdx < allRows.length - 1) {
+                        targetRow = allRows[rowIdx + 1];
+                    } else if (e.key === 'ArrowLeft' && colIdx > 0) {
+                        targetColIdx = colIdx - 1;
+                    } else if (e.key === 'ArrowRight' && colIdx < allCols.length - 1) {
+                        targetColIdx = colIdx + 1;
+                    } else if (e.key === 'Enter') {
+                        const cell = row.getCell(allCols[colIdx].getField());
+                        if (cell) cell.edit();
+                        return;
+                    }
+
+                    if (targetRow !== row) {
+                        targetRow.select();
+                    }
+                    const targetCell = targetRow.getCell(allCols[targetColIdx].getField());
+                    if (targetCell) {
+                        const cellEl = targetCell.getElement();
+                        // Remove active from previous, add to new
+                        document.querySelectorAll('.tabulator-cell.tabulator-cell-active').forEach(el => el.classList.remove('tabulator-cell-active'));
+                        cellEl.classList.add('tabulator-cell-active');
+                        cellEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                    }
+                });
             } else {
                 tabulatorGrid.replaceData(roles.slice());
             }
@@ -643,15 +722,26 @@
 
         function computeCumulativeFields(node) {
             if (!node) return;
+            const statuses = ['filled', 'vacant', 'planned', 'removed'];
             let headcount = (node.status === 'filled' || node.status === 'planned') ? 1 : 0;
             let cost = node.costToCompany || 0;
+            const perStatus = {};
+            statuses.forEach(s => {
+                perStatus['hc_' + s] = node.status === s ? 1 : 0;
+                perStatus['cost_' + s] = node.status === s ? (node.costToCompany || 0) : 0;
+            });
             (node.children || []).forEach(child => {
                 computeCumulativeFields(child);
                 headcount += child.cumulativeHeadcount || 0;
                 cost += child.cumulativeCost || 0;
+                statuses.forEach(s => {
+                    perStatus['hc_' + s] += child['hc_' + s] || 0;
+                    perStatus['cost_' + s] += child['cost_' + s] || 0;
+                });
             });
             node.cumulativeHeadcount = headcount;
             node.cumulativeCost = cost;
+            Object.assign(node, perStatus);
         }
 
         // --- Filtering ---
@@ -775,19 +865,19 @@
             el.innerHTML = html;
         }
 
-        // --- Toggles ---
-        function onToggleChange() {
-            showHeadcount = document.getElementById('show-headcount').checked;
-            showCumulativeCost = document.getElementById('show-cost').checked;
-            if (activeTab === 'chart') renderChart();
-        }
-
         // --- Field visibility ---
         function renderFieldsDropdown() {
-            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', cost: 'Cost', comments: 'Comments' };
+            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', cost: 'Cost', comments: 'Comments', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPlanned: 'HC Planned', hcRemoved: 'HC Removed', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPlanned: 'Cost Planned', costRemoved: 'Cost Removed' };
+            const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'cost', 'comments'];
+            const computedFields = ['headcount', 'cumulativeCost', 'hcFilled', 'hcVacant', 'hcPlanned', 'hcRemoved', 'costFilled', 'costVacant', 'costPlanned', 'costRemoved'];
             const dropdown = document.getElementById('fields-dropdown');
             let html = '';
-            Object.keys(chartFields).forEach(f => {
+            baseFields.forEach(f => {
+                const checked = chartFields[f] ? ' checked' : '';
+                html += '<label><input type="checkbox"' + checked + ' onchange="toggleChartField(\'' + f + '\', this.checked)"> ' + labels[f] + '</label>';
+            });
+            html += '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd">';
+            computedFields.forEach(f => {
                 const checked = chartFields[f] ? ' checked' : '';
                 html += '<label><input type="checkbox"' + checked + ' onchange="toggleChartField(\'' + f + '\', this.checked)"> ' + labels[f] + '</label>';
             });
@@ -848,9 +938,12 @@
             computeCumulativeFields(tree);
 
             // Build a lookup from tree nodes to get cumulative values
+            const perStatusKeys = ['hc_filled','hc_vacant','hc_planned','hc_removed','cost_filled','cost_vacant','cost_planned','cost_removed'];
             const cumulMap = {};
             function walkTree(node) {
-                cumulMap[node.roleId] = { cumulativeHeadcount: node.cumulativeHeadcount, cumulativeCost: node.cumulativeCost };
+                const entry = { cumulativeHeadcount: node.cumulativeHeadcount, cumulativeCost: node.cumulativeCost };
+                perStatusKeys.forEach(k => { entry[k] = node[k] || 0; });
+                cumulMap[node.roleId] = entry;
                 (node.children || []).forEach(walkTree);
             }
             walkTree(tree);
@@ -859,7 +952,7 @@
             const hasVirtualRoot = tree.roleId === '_root';
 
             if (hasVirtualRoot) {
-                flat.push({
+                const rootEntry = {
                     id: '_root',
                     parentId: '',
                     roleId: '_root',
@@ -873,7 +966,9 @@
                     comments: '',
                     cumulativeHeadcount: tree.cumulativeHeadcount,
                     cumulativeCost: tree.cumulativeCost
-                });
+                };
+                perStatusKeys.forEach(k => { rootEntry[k] = tree[k] || 0; });
+                flat.push(rootEntry);
             }
 
             filteredRoles.forEach(r => {
@@ -887,7 +982,7 @@
                     parentId = '_root';
                 }
                 const cumul = cumulMap[r.roleId] || {};
-                flat.push({
+                const entry = {
                     id: r.roleId,
                     parentId: parentId,
                     roleId: r.roleId,
@@ -901,7 +996,9 @@
                     comments: r.comments,
                     cumulativeHeadcount: cumul.cumulativeHeadcount || 0,
                     cumulativeCost: cumul.cumulativeCost || 0
-                });
+                };
+                perStatusKeys.forEach(k => { entry[k] = cumul[k] || 0; });
+                flat.push(entry);
             });
 
             return flat;
@@ -909,15 +1006,7 @@
 
         function computeNodeHeight() {
             let lines = 1; // title bar always
-            if (chartFields.incumbent) lines++;
-            if (chartFields.status) lines++;
-            if (chartFields.department) lines++;
-            if (chartFields.location) lines++;
-            if (chartFields.gender) lines++;
-            if (chartFields.cost) lines++;
-            if (chartFields.comments) lines++;
-            if (showHeadcount) lines++;
-            if (showCumulativeCost) lines++;
+            Object.keys(chartFields).forEach(f => { if (chartFields[f]) lines++; });
             return Math.max(60, 30 + lines * 18);
         }
 
@@ -949,12 +1038,29 @@
             if (chartFields.comments && role.comments) {
                 html += '<div class="node-meta">' + escapeHtml(role.comments) + '</div>';
             }
-            if (showHeadcount && role.cumulativeHeadcount !== undefined) {
+            if (chartFields.headcount && role.cumulativeHeadcount !== undefined) {
                 html += '<div class="node-meta">HC: ' + role.cumulativeHeadcount + '</div>';
             }
-            if (showCumulativeCost && role.cumulativeCost !== undefined) {
-                html += '<div class="node-meta">Cost: ' + Number(role.cumulativeCost).toLocaleString() + '</div>';
+            if (chartFields.cumulativeCost && role.cumulativeCost !== undefined) {
+                html += '<div class="node-meta">Cumul. Cost: ' + Number(role.cumulativeCost).toLocaleString() + '</div>';
             }
+
+            const metaFields = [
+                { key: 'hcFilled', prop: 'hc_filled', label: 'HC Filled' },
+                { key: 'hcVacant', prop: 'hc_vacant', label: 'HC Vacant' },
+                { key: 'hcPlanned', prop: 'hc_planned', label: 'HC Planned' },
+                { key: 'hcRemoved', prop: 'hc_removed', label: 'HC Removed' },
+                { key: 'costFilled', prop: 'cost_filled', label: 'Cost Filled', isCost: true },
+                { key: 'costVacant', prop: 'cost_vacant', label: 'Cost Vacant', isCost: true },
+                { key: 'costPlanned', prop: 'cost_planned', label: 'Cost Planned', isCost: true },
+                { key: 'costRemoved', prop: 'cost_removed', label: 'Cost Removed', isCost: true }
+            ];
+            metaFields.forEach(mf => {
+                if (chartFields[mf.key] && role[mf.prop] !== undefined) {
+                    const val = mf.isCost ? Number(role[mf.prop]).toLocaleString() : role[mf.prop];
+                    html += '<div class="node-meta">' + mf.label + ': ' + val + '</div>';
+                }
+            });
 
             html += '</div></div>';
             return html;
@@ -1045,7 +1151,7 @@
                 .neighbourMargin(function(a, b) { return 25; })
                 .siblingsMargin(function(d) { return 25; })
                 .childrenMargin(function(d) { return 50; })
-                .compact(false)
+                .compact(true)
                 .initialExpandLevel(expandLevel)
                 .nodeContent(function(d) { return buildNodeContentHtml(d); })
                 .onNodeClick(function(nodeId, e) {
