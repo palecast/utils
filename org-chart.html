@@ -290,6 +290,16 @@
             text-align: center;
         }
 
+        .chart-controls select {
+            font-size: 0.85rem;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            color: #333;
+            margin-right: 8px;
+        }
+
         @media (max-width: 768px) {
             header h1 { font-size: 1.5rem; }
             .controls { flex-direction: column; align-items: flex-start; }
@@ -367,6 +377,14 @@
 
             <div class="tab-content" id="tab-chart">
                 <div class="chart-controls">
+                    <label>Layout:</label>
+                    <select id="chart-layout" onchange="onLayoutChange()">
+                        <option value="top">Top-down</option>
+                        <option value="top-compact" selected>Top-down Compact</option>
+                        <option value="left">Left-to-right</option>
+                        <option value="left-compact">Left-to-right Compact</option>
+                        <option value="bottom">Bottom-up</option>
+                    </select>
                     <label>Depth:</label>
                     <button class="btn-secondary" onclick="changeDepth(-1)">&minus;</button>
                     <span id="depth-display">All</span>
@@ -401,6 +419,15 @@
         let chartInstance = null;
         let tabulatorGrid = null;
         let isEditing = false;
+        let chartLayout = 'top-compact';
+
+        const LAYOUT_PRESETS = {
+            'top':            { layout: 'top',    compact: false, label: 'Top-down' },
+            'top-compact':    { layout: 'top',    compact: true,  label: 'Top-down Compact' },
+            'left':           { layout: 'left',   compact: false, label: 'Left-to-right' },
+            'left-compact':   { layout: 'left',   compact: true,  label: 'Left-to-right Compact' },
+            'bottom':         { layout: 'bottom', compact: false, label: 'Bottom-up' },
+        };
 
         const GRID_COLUMNS = [
             { field: 'roleId',          type: 'input' },
@@ -895,6 +922,11 @@
         }
 
         // --- Depth controls ---
+        function onLayoutChange() {
+            chartLayout = document.getElementById('chart-layout').value;
+            if (activeTab === 'chart') renderChart();
+        }
+
         function changeDepth(delta) {
             const filtered = getFilteredRoles();
             const tree = buildTree(filtered);
@@ -1141,9 +1173,12 @@
             const nodeH = computeNodeHeight();
             const expandLevel = maxDepth === 0 ? Infinity : maxDepth;
 
+            const preset = LAYOUT_PRESETS[chartLayout] || LAYOUT_PRESETS['top-compact'];
+
             chartInstance = new d3.OrgChart()
                 .container('#chart-container')
                 .data(flatData)
+                .layout(preset.layout)
                 .nodeWidth(function(d) { return 220; })
                 .nodeHeight(function(d) { return nodeH; })
                 .compactMarginBetween(function(d) { return 25; })
@@ -1151,7 +1186,7 @@
                 .neighbourMargin(function(a, b) { return 25; })
                 .siblingsMargin(function(d) { return 25; })
                 .childrenMargin(function(d) { return 50; })
-                .compact(true)
+                .compact(preset.compact)
                 .initialExpandLevel(expandLevel)
                 .nodeContent(function(d) { return buildNodeContentHtml(d); })
                 .onNodeClick(function(nodeId, e) {
