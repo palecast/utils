@@ -366,10 +366,27 @@
             color: #333;
         }
 
+        .control-section-body button.btn-small {
+            width: auto;
+            height: auto;
+        }
+
         @media (max-width: 768px) {
             header h1 { font-size: 1.5rem; }
             .controls { flex-direction: column; align-items: flex-start; }
             .panel { padding: 16px; }
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #chart-container, #chart-container * { visibility: visible; }
+            #chart-container {
+                position: absolute;
+                left: 0; top: 0;
+                width: 100%; height: auto;
+                overflow: visible;
+            }
+            .chart-legend { position: absolute; }
         }
     </style>
 </head>
@@ -460,6 +477,16 @@
                                     <div class="filter-values" id="fields-dropdown"></div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    <div class="control-section">
+                        <div class="control-section-label">Export</div>
+                        <div class="control-section-body">
+                            <button class="btn-secondary btn-small" onclick="printChart()">&#128424; Print</button>
+                            <span class="control-divider"></span>
+                            <button class="btn-secondary btn-small" onclick="downloadChart('png')">PNG</button>
+                            <button class="btn-secondary btn-small" onclick="downloadChart('svg')">SVG</button>
+                            <button class="btn-secondary btn-small" onclick="downloadChart('jpeg')">JPEG</button>
                         </div>
                     </div>
                 </div>
@@ -1407,6 +1434,98 @@
         function render() {
             renderTable();
             if (activeTab === 'chart') renderChart();
+        }
+
+        // --- Export / Print ---
+        function printChart() {
+            window.print();
+        }
+
+        function downloadChart(format) {
+            const svgEl = document.querySelector('#chart-container svg');
+            if (!svgEl) return;
+            if (format === 'svg') {
+                downloadSVG(svgEl);
+                return;
+            }
+            downloadRaster(svgEl, format);
+        }
+
+        function downloadSVG(svgEl) {
+            const clone = svgEl.cloneNode(true);
+            const bbox = svgEl.getBBox();
+            clone.setAttribute('viewBox', `${bbox.x - 10} ${bbox.y - 10} ${bbox.width + 20} ${bbox.height + 20}`);
+            clone.setAttribute('width', bbox.width + 20);
+            clone.setAttribute('height', bbox.height + 20);
+            inlineSVGStyles(clone);
+            const data = new XMLSerializer().serializeToString(clone);
+            triggerDownload('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data), 'org-chart.svg');
+        }
+
+        function downloadRaster(svgEl, format) {
+            const clone = svgEl.cloneNode(true);
+            const bbox = svgEl.getBBox();
+            const padding = 20;
+            const w = bbox.width + padding * 2;
+            const h = bbox.height + padding * 2;
+            clone.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${w} ${h}`);
+            clone.setAttribute('width', w);
+            clone.setAttribute('height', h);
+            clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+            clone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
+            inlineSVGStyles(clone);
+
+            const data = new XMLSerializer().serializeToString(clone);
+            const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            const scale = 2;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = w * scale;
+                canvas.height = h * scale;
+                const ctx = canvas.getContext('2d');
+                if (format === 'jpeg') {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+                const quality = format === 'jpeg' ? 0.95 : undefined;
+                triggerDownload(canvas.toDataURL(mimeType, quality), 'org-chart.' + format);
+            };
+            img.src = url;
+        }
+
+        function inlineSVGStyles(svgClone) {
+            const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+            const styles = [];
+            for (const sheet of document.styleSheets) {
+                try {
+                    for (const rule of sheet.cssRules) {
+                        if (rule.selectorText && (
+                            rule.selectorText.includes('.node-') ||
+                            rule.selectorText.includes('.legend') ||
+                            rule.selectorText.includes('.chart-legend')
+                        )) {
+                            styles.push(rule.cssText);
+                        }
+                    }
+                } catch(e) { /* cross-origin sheets */ }
+            }
+            styleEl.textContent = styles.join('\n');
+            svgClone.insertBefore(styleEl, svgClone.firstChild);
+        }
+
+        function triggerDownload(href, filename) {
+            const a = document.createElement('a');
+            a.href = href;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
 
         // --- Init ---
