@@ -262,11 +262,37 @@
 
         footer a { color: white; }
 
+        .chart-config {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+
+        .chart-config .chart-controls {
+            margin-bottom: 8px;
+        }
+
+        .chart-config .chart-controls:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .chart-config .legend:empty {
+            display: none;
+        }
+
+        .chart-config .legend {
+            margin-top: 8px;
+            margin-bottom: 0;
+        }
+
         .chart-controls {
             display: flex;
             gap: 8px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .chart-controls label {
@@ -321,43 +347,7 @@
                     <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
                     <button class="btn-secondary" onclick="exportExcel()">Export Excel</button>
                 </div>
-
-                <div class="control-group">
-                    <label>Filter by:</label>
-                    <select id="filter-field" onchange="onFilterFieldChange()">
-                        <option value="">None</option>
-                        <option value="status">Status</option>
-                        <option value="department">Department</option>
-                        <option value="location">Location</option>
-                        <option value="incumbentGender">Gender</option>
-                    </select>
-                    <div class="filter-container">
-                        <button class="btn-secondary btn-small" id="filter-values-btn" onclick="toggleFilterDropdown()" style="display:none">Select values</button>
-                        <div class="filter-values" id="filter-values-dropdown"></div>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <label>Color by:</label>
-                    <select id="color-field" onchange="onColorFieldChange()">
-                        <option value="">None</option>
-                        <option value="status">Status</option>
-                        <option value="department">Department</option>
-                        <option value="location">Location</option>
-                        <option value="incumbentGender">Gender</option>
-                    </select>
-                </div>
-
-                <div class="control-group">
-                    <label>Show fields:</label>
-                    <div class="filter-container" id="fields-container">
-                        <button class="btn-secondary btn-small" id="fields-btn" onclick="toggleFieldsDropdown()">Configure</button>
-                        <div class="filter-values" id="fields-dropdown"></div>
-                    </div>
-                </div>
             </div>
-
-            <div class="legend" id="legend"></div>
         </div>
 
         <div class="warning-banner" id="warning-banner"></div>
@@ -376,19 +366,55 @@
             </div>
 
             <div class="tab-content" id="tab-chart">
-                <div class="chart-controls">
-                    <label>Layout:</label>
-                    <select id="chart-layout" onchange="onLayoutChange()">
-                        <option value="top">Top-down</option>
-                        <option value="top-compact" selected>Top-down Compact</option>
-                        <option value="left">Left-to-right</option>
-                        <option value="left-compact">Left-to-right Compact</option>
-                        <option value="bottom">Bottom-up</option>
-                    </select>
-                    <label>Depth:</label>
-                    <button class="btn-secondary" onclick="changeDepth(-1)">&minus;</button>
-                    <span id="depth-display">All</span>
-                    <button class="btn-secondary" onclick="changeDepth(1)">+</button>
+                <div class="chart-config">
+                    <div class="chart-controls">
+                        <label>Layout:</label>
+                        <select id="chart-layout" onchange="onLayoutChange()">
+                            <option value="top">Top-down</option>
+                            <option value="top-compact" selected>Top-down Compact</option>
+                            <option value="left">Left-to-right</option>
+                            <option value="left-compact">Left-to-right Compact</option>
+                            <option value="bottom">Bottom-up</option>
+                        </select>
+                        <label>Depth:</label>
+                        <button class="btn-secondary" onclick="changeDepth(-1)">&minus;</button>
+                        <span id="depth-display">All</span>
+                        <button class="btn-secondary" onclick="changeDepth(1)">+</button>
+                    </div>
+                    <div class="chart-controls">
+                        <div class="control-group">
+                            <label>Filter by:</label>
+                            <select id="filter-field" onchange="onFilterFieldChange()">
+                                <option value="">None</option>
+                                <option value="status">Status</option>
+                                <option value="department">Department</option>
+                                <option value="location">Location</option>
+                                <option value="incumbentGender">Gender</option>
+                            </select>
+                            <div class="filter-container">
+                                <button class="btn-secondary btn-small" id="filter-values-btn" onclick="toggleFilterDropdown()" style="display:none">Select values</button>
+                                <div class="filter-values" id="filter-values-dropdown"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Color by:</label>
+                            <select id="color-field" onchange="onColorFieldChange()">
+                                <option value="">None</option>
+                                <option value="status">Status</option>
+                                <option value="department">Department</option>
+                                <option value="location">Location</option>
+                                <option value="incumbentGender">Gender</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Show fields:</label>
+                            <div class="filter-container" id="fields-container">
+                                <button class="btn-secondary btn-small" id="fields-btn" onclick="toggleFieldsDropdown()">Configure</button>
+                                <div class="filter-values" id="fields-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="legend" id="legend"></div>
                 </div>
                 <div id="chart-container"></div>
             </div>
