@@ -205,6 +205,13 @@
             outline: 2px solid #667eea;
             outline-offset: -2px;
         }
+        #tabulator-grid .tabulator-header .tabulator-col .tabulator-header-filter input,
+        #tabulator-grid .tabulator-header .tabulator-col .tabulator-header-filter select {
+            font-size: 0.8rem;
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
 
         /* Chart */
         #chart-container {
@@ -580,14 +587,15 @@
                     selectable: 1,
                     placeholder: 'No roles yet — click + Add Row to start, or import a file.',
                     columns: [
-                        { title: 'Role ID', field: 'roleId', editor: 'input', width: 90 },
-                        { title: 'Title', field: 'roleTitle', editor: 'input' },
+                        { title: 'Role ID', field: 'roleId', editor: 'input', width: 90, headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
+                        { title: 'Title', field: 'roleTitle', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
                             title: 'Status', field: 'status', editor: 'list',
                             editorParams: { values: ['filled', 'vacant', 'planned', 'removed'] },
-                            width: 90
+                            width: 90,
+                            headerFilter: 'list', headerFilterParams: { values: { '': 'All', filled: 'Filled', vacant: 'Vacant', planned: 'Planned', removed: 'Removed' } }
                         },
-                        { title: 'Incumbent', field: 'incumbentName', editor: 'input' },
+                        { title: 'Incumbent', field: 'incumbentName', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
                             title: 'Manager', field: 'managerRoleId', editor: 'list',
                             editorParams: function(cell) {
@@ -598,17 +606,19 @@
                                 });
                                 return { values: opts };
                             },
-                            width: 120
+                            width: 120,
+                            headerFilter: 'input', headerFilterPlaceholder: 'Filter...'
                         },
-                        { title: 'Department', field: 'department', editor: 'input' },
-                        { title: 'Cost', field: 'costToCompany', editor: 'number', editorParams: { min: 0 }, width: 90 },
-                        { title: 'Location', field: 'location', editor: 'input' },
+                        { title: 'Department', field: 'department', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
+                        { title: 'Cost', field: 'costToCompany', editor: 'number', editorParams: { min: 0 }, width: 90, headerFilter: 'number', headerFilterPlaceholder: 'Min...', headerFilterFunc: '>=' },
+                        { title: 'Location', field: 'location', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
                             title: 'Gender', field: 'incumbentGender', editor: 'list',
                             editorParams: { values: [{ label: '-', value: '' }, 'Male', 'Female', 'Other'] },
-                            width: 85
+                            width: 85,
+                            headerFilter: 'list', headerFilterParams: { values: { '': 'All', '-': '-', Male: 'Male', Female: 'Female', Other: 'Other' } }
                         },
-                        { title: 'Comments', field: 'comments', editor: 'input' },
+                        { title: 'Comments', field: 'comments', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
                             title: '', field: '_actions', width: 120, headerSort: false, editable: false,
                             formatter: function() {
