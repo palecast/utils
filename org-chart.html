@@ -412,6 +412,7 @@
             }
             .chart-config { display: none; }
             .chart-legend { position: absolute; }
+            .reparent-panel { display: none !important; }
         }
     </style>
 </head>
@@ -579,7 +580,8 @@
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function generateRoleId() {
@@ -981,8 +983,8 @@
 
         // Close filter dropdown on outside click
         document.addEventListener('click', function(e) {
-            const container = document.querySelector('.filter-container');
-            if (container && !container.contains(e.target)) {
+            const filterContainer = document.getElementById('filter-values-btn')?.closest('.filter-container');
+            if (filterContainer && !filterContainer.contains(e.target)) {
                 document.getElementById('filter-values-dropdown').classList.remove('open');
             }
         });
@@ -991,7 +993,6 @@
         function onColorFieldChange() {
             colorField = document.getElementById('color-field').value;
             buildColorMap();
-            renderLegend();
             if (activeTab === 'chart') renderChart();
         }
 
@@ -1409,13 +1410,17 @@
                         return role;
                     });
 
-                    nextId = roles.length + 1;
+                    nextId = roles.reduce(function(max, r) {
+                        var m = r.roleId.match(/^R(\d+)$/);
+                        return m ? Math.max(max, parseInt(m[1]) + 1) : max;
+                    }, roles.length + 1);
                     validateRoles();
                     render();
                 } catch (err) {
                     alert('Error importing file: ' + err.message);
                 }
             };
+            reader.onerror = function() { alert('Error reading file.'); };
             reader.readAsArrayBuffer(file);
             event.target.value = '';
         }
