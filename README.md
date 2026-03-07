@@ -9,7 +9,7 @@ Live at: **[https://www.duplessis.uk](https://www.duplessis.uk)**
 ## Tools
 
 ### 🌍 Timezone Compare
-Compare times across multiple timezones at a glance. Great for scheduling international meetings and calls. Supports shareable links so you can send the same view to colleagues.
+Compare times across different timezones easily. Perfect for scheduling international meetings and calls. Supports shareable links so you can send the same view to colleagues.
 
 ### 📅 Days Between
 Calculate the number of days between two dates, including working days and public holidays.
@@ -26,13 +26,16 @@ Compare the relative value of currencies over time against a chosen base currenc
 ### 💰 Cost Splitter
 Split a bill between any number of people, with support for individual non-shared items and optional tip.
 
+### 🏢 Org Chart
+Design and model org structures. Import/export Excel/CSV, filter by department or role, color-code nodes, and visualize hierarchies as a tree or table. Supports print and image export.
+
 ---
 
 ## Design philosophy
 
 - **Zero dependencies** — each tool is a single self-contained `.html` file with inline CSS and JavaScript.
 - **No build step** — open any file directly in a browser, or serve the folder with any static file server.
-- **No back-end** — all computation runs in the browser; the only network calls are to the Frankfurter exchange-rate API and CDN resources (Chart.js).
+- **No back-end** — all computation runs in the browser; the only network calls are to the Frankfurter exchange-rate API and CDN resources.
 - **Privacy-first** — no analytics, no ads, no external tracking.
 
 ---
