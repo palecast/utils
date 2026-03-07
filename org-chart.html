@@ -167,89 +167,39 @@
         .tab-content { display: none; padding-top: 16px; }
         .tab-content.active { display: block; }
 
-        /* Table */
-        .table-wrapper {
-            max-height: 60vh;
-            overflow: auto;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-
-        .data-table th {
-            background: #f8f9fa;
-            padding: 10px 8px;
-            text-align: left;
-            font-weight: 600;
-            color: #555;
-            border-bottom: 2px solid #dee2e6;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            white-space: nowrap;
-        }
-
-        .data-table td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .data-table tr:hover td { background: #f8f9fa; }
-
-        .data-table input, .data-table select {
-            width: 100%;
-            padding: 4px 6px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.83rem;
-            font-family: inherit;
-        }
-
-        .data-table input:focus, .data-table select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102,126,234,0.2);
-        }
-
-        .data-table input[type="number"] { width: 100px; }
-
         /* Status badges */
         .status-filled { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
         .status-vacant { background: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
         .status-planned { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
         .status-removed { background: #e2e3e5; color: #383d41; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
 
-        /* Grid editor */
-        .row-num-col {
-            width: 36px;
-            min-width: 36px;
-            text-align: center;
-            cursor: pointer;
-            color: #888;
-            font-size: 0.8rem;
-            user-select: none;
-        }
-        .row-num-col:hover { background: #e9ecef !important; }
-        td.cell-active { outline: 2px solid #3b82f6; outline-offset: -2px; }
-        tr.row-selected td { background: #dbeafe !important; }
-        .row-action-bar {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            padding: 6px 12px;
-            margin-bottom: 8px;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
+        /* Tabulator theme overrides */
+        #tabulator-grid {
+            border: 1px solid #e9ecef;
             border-radius: 6px;
             font-size: 0.85rem;
-            color: #1e40af;
+            font-family: inherit;
         }
-        .row-action-bar span { font-weight: 600; }
+        #tabulator-grid .tabulator-header {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            border-radius: 6px 6px 0 0;
+        }
+        #tabulator-grid .tabulator-col-title { font-weight: 600; color: #555; }
+        #tabulator-grid .tabulator-row:hover .tabulator-cell { background: #f8f9fa; }
+        #tabulator-grid .tabulator-row.tabulator-selected .tabulator-cell { background: #dbeafe; }
+        #tabulator-grid .tabulator-row.tabulator-selected:hover .tabulator-cell { background: #bfdbfe; }
+        .row-action-btn {
+            padding: 2px 6px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            margin: 0 1px;
+            background: #e9ecef;
+            color: #333;
+        }
+        .row-action-btn:hover { background: #dee2e6; }
 
         /* Chart */
         #chart-container {
@@ -338,7 +288,6 @@
         @media (max-width: 768px) {
             header h1 { font-size: 1.5rem; }
             .controls { flex-direction: column; align-items: flex-start; }
-            .data-table input[type="number"] { width: 80px; }
             .panel { padding: 16px; }
         }
     </style>
@@ -415,7 +364,7 @@
                 <div style="margin-bottom: 12px;">
                     <button class="btn-primary btn-small" onclick="addRole()">+ Add Row</button>
                 </div>
-                <div class="table-wrapper" id="table-wrapper"></div>
+                <div id="tabulator-grid"></div>
             </div>
 
             <div class="tab-content" id="tab-chart">
@@ -434,6 +383,8 @@
         </footer>
     </div>
 
+    <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.1.2/build/d3-flextree.js"></script>
@@ -452,8 +403,7 @@
         let maxDepth = 0; // 0 = show all
         let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, cost: false, comments: false };
         let chartInstance = null;
-        let currentCell = null;    // { row, col } or null
-        let selectedRow = null;    // row index or null
+        let tabulatorGrid = null;
 
         const GRID_COLUMNS = [
             { field: 'roleId',          type: 'input' },
@@ -509,13 +459,6 @@
                 if (r.managerRoleId === roleId) r.managerRoleId = parentManager;
             });
             roles = roles.filter(r => r.roleId !== roleId);
-            // Clamp grid state
-            if (currentCell && currentCell.row >= roles.length) {
-                currentCell = roles.length > 0 ? { row: roles.length - 1, col: currentCell.col } : null;
-            }
-            if (selectedRow !== null && selectedRow >= roles.length) {
-                selectedRow = roles.length > 0 ? roles.length - 1 : null;
-            }
             render();
         }
 
@@ -579,134 +522,84 @@
 
         // --- Table rendering ---
         function renderTable() {
-            const wrapper = document.getElementById('table-wrapper');
-            if (!roles.length) {
-                wrapper.innerHTML = '<p style="padding:20px;color:#888;text-align:center">No roles yet. Click "+ Add Row" to start, or import a file.</p>';
-                // Clear action bar
-                const existing = document.getElementById('row-action-bar');
-                if (existing) existing.remove();
-                return;
-            }
-
-            // Row action bar (before table)
-            let actionBarHtml = '';
-            if (selectedRow !== null && selectedRow >= 0 && selectedRow < roles.length) {
-                actionBarHtml = '<div class="row-action-bar" id="row-action-bar">'
-                    + '<span>Row ' + (selectedRow + 1) + ':</span>'
-                    + '<button class="btn-primary btn-small" onclick="addDirectReport(' + selectedRow + ')">+ Direct Report</button>'
-                    + '<button class="btn-secondary btn-small" onclick="duplicateRow(' + selectedRow + ')">Duplicate</button>'
-                    + '<button class="btn-danger btn-small" onclick="deleteRowByIndex(' + selectedRow + ')">Delete</button>'
-                    + '</div>';
-            }
-
-            let html = actionBarHtml + '<table class="data-table"><thead><tr>';
-            html += '<th class="row-num-col">#</th>';
-            const cols = ['Role ID','Title','Status','Incumbent','Manager','Department','Cost','Location','Gender','Comments',''];
-            cols.forEach(c => html += '<th>' + c + '</th>');
-            html += '</tr></thead><tbody>';
-
-            roles.forEach((role, idx) => {
-                const rowSelected = selectedRow === idx ? ' row-selected' : '';
-                html += '<tr class="' + rowSelected + '" data-row="' + idx + '">';
-                html += '<td class="row-num-col" onclick="selectRow(' + idx + ')">' + (idx + 1) + '</td>';
-
-                // Role ID
-                const isActive = function(col) { return currentCell && currentCell.row === idx && currentCell.col === col ? ' cell-active' : ''; };
-                html += '<td data-row="' + idx + '" data-col="0"' + isActive(0) + '><input data-row="' + idx + '" data-col="0" value="' + escapeHtml(role.roleId) + '" onchange="onTableEdit(' + idx + ',\'roleId\',this.value)"></td>';
-                html += '<td data-row="' + idx + '" data-col="1"' + isActive(1) + '><input data-row="' + idx + '" data-col="1" value="' + escapeHtml(role.roleTitle) + '" onchange="onTableEdit(' + idx + ',\'roleTitle\',this.value)"></td>';
-
-                // Status select
-                html += '<td data-row="' + idx + '" data-col="2"' + isActive(2) + '><select data-row="' + idx + '" data-col="2" onchange="onTableEdit(' + idx + ',\'status\',this.value)">';
-                ['filled','vacant','planned','removed'].forEach(s => {
-                    html += '<option value="' + s + '"' + (role.status === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
+            if (!tabulatorGrid) {
+                tabulatorGrid = new Tabulator('#tabulator-grid', {
+                    data: roles.slice(),
+                    layout: 'fitColumns',
+                    movableRows: false,
+                    selectable: 1,
+                    placeholder: 'No roles yet — click + Add Row to start, or import a file.',
+                    columns: [
+                        { title: 'Role ID', field: 'roleId', editor: 'input', width: 90 },
+                        { title: 'Title', field: 'roleTitle', editor: 'input' },
+                        {
+                            title: 'Status', field: 'status', editor: 'list',
+                            editorParams: { values: ['filled', 'vacant', 'planned', 'removed'] },
+                            width: 90
+                        },
+                        { title: 'Incumbent', field: 'incumbentName', editor: 'input' },
+                        {
+                            title: 'Manager', field: 'managerRoleId', editor: 'list',
+                            editorParams: function(cell) {
+                                const roleId = cell.getRow().getData().roleId;
+                                const opts = [{ label: '(None - Root)', value: '' }];
+                                roles.forEach(r => {
+                                    if (r.roleId !== roleId) opts.push({ label: r.roleId + (r.roleTitle ? ' - ' + r.roleTitle : ''), value: r.roleId });
+                                });
+                                return { values: opts };
+                            },
+                            width: 120
+                        },
+                        { title: 'Department', field: 'department', editor: 'input' },
+                        { title: 'Cost', field: 'costToCompany', editor: 'number', editorParams: { min: 0 }, width: 90 },
+                        { title: 'Location', field: 'location', editor: 'input' },
+                        {
+                            title: 'Gender', field: 'incumbentGender', editor: 'list',
+                            editorParams: { values: [{ label: '-', value: '' }, 'Male', 'Female', 'Other'] },
+                            width: 85
+                        },
+                        { title: 'Comments', field: 'comments', editor: 'input' },
+                        {
+                            title: '', field: '_actions', width: 120, headerSort: false, editable: false,
+                            formatter: function() {
+                                return '<button class="row-action-btn" data-action="addChild" title="Add Direct Report">+child</button>'
+                                    + '<button class="row-action-btn" data-action="duplicate" title="Duplicate">&#10697;</button>'
+                                    + '<button class="row-action-btn" data-action="delete" title="Delete">&#10005;</button>';
+                            },
+                            cellClick: function(e, cell) {
+                                const action = e.target.dataset.action;
+                                if (!action) return;
+                                const roleId = cell.getRow().getData().roleId;
+                                if (action === 'addChild') addDirectReportById(roleId);
+                                else if (action === 'duplicate') duplicateRowById(roleId);
+                                else if (action === 'delete') deleteRole(roleId);
+                            }
+                        }
+                    ],
+                    cellEdited: function(cell) {
+                        const field = cell.getField();
+                        if (field === '_actions') return;
+                        const rowData = cell.getRow().getData();
+                        const newValue = cell.getValue();
+                        const roleId = field === 'roleId' ? cell.getOldValue() : rowData.roleId;
+                        updateRoleField(roleId, field, newValue);
+                        if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle') {
+                            tabulatorGrid.replaceData(roles.slice());
+                        }
+                        if (activeTab === 'chart') renderChart();
+                    }
                 });
-                html += '</select></td>';
-
-                html += '<td data-row="' + idx + '" data-col="3"' + isActive(3) + '><input data-row="' + idx + '" data-col="3" value="' + escapeHtml(role.incumbentName) + '" onchange="onTableEdit(' + idx + ',\'incumbentName\',this.value)"></td>';
-
-                // Manager select
-                html += '<td data-row="' + idx + '" data-col="4"' + isActive(4) + '><select data-row="' + idx + '" data-col="4" onchange="onTableEdit(' + idx + ',\'managerRoleId\',this.value)">';
-                html += '<option value="">(None - Root)</option>';
-                roles.forEach(r => {
-                    if (r.roleId === role.roleId) return;
-                    const label = escapeHtml(r.roleId + (r.roleTitle ? ' - ' + r.roleTitle : ''));
-                    html += '<option value="' + escapeHtml(r.roleId) + '"' + (role.managerRoleId === r.roleId ? ' selected' : '') + '>' + label + '</option>';
-                });
-                html += '</select></td>';
-
-                html += '<td data-row="' + idx + '" data-col="5"' + isActive(5) + '><input data-row="' + idx + '" data-col="5" value="' + escapeHtml(role.department) + '" onchange="onTableEdit(' + idx + ',\'department\',this.value)"></td>';
-                html += '<td data-row="' + idx + '" data-col="6"' + isActive(6) + '><input data-row="' + idx + '" data-col="6" type="number" value="' + role.costToCompany + '" onchange="onTableEdit(' + idx + ',\'costToCompany\',this.value)"></td>';
-                html += '<td data-row="' + idx + '" data-col="7"' + isActive(7) + '><input data-row="' + idx + '" data-col="7" value="' + escapeHtml(role.location) + '" onchange="onTableEdit(' + idx + ',\'location\',this.value)"></td>';
-
-                // Gender select
-                html += '<td data-row="' + idx + '" data-col="8"' + isActive(8) + '><select data-row="' + idx + '" data-col="8" onchange="onTableEdit(' + idx + ',\'incumbentGender\',this.value)">';
-                ['','Male','Female','Other'].forEach(g => {
-                    html += '<option value="' + g + '"' + (role.incumbentGender === g ? ' selected' : '') + '>' + (g || '-') + '</option>';
-                });
-                html += '</select></td>';
-
-                html += '<td data-row="' + idx + '" data-col="9"' + isActive(9) + '><input data-row="' + idx + '" data-col="9" value="' + escapeHtml(role.comments) + '" onchange="onTableEdit(' + idx + ',\'comments\',this.value)"></td>';
-                html += '<td><button class="btn-danger btn-small" onclick="deleteRole(\'' + escapeHtml(role.roleId) + '\')">&#10005;</button></td>';
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            wrapper.innerHTML = html;
-
-            // Restore focus after re-render
-            if (currentCell) focusCell(currentCell.row, currentCell.col);
-        }
-
-        // --- Focus management ---
-        function focusCell(row, col) {
-            const td = document.querySelector('td[data-row="' + row + '"][data-col="' + col + '"]');
-            if (!td) return;
-            const el = td.querySelector('input, select');
-            if (!el) return;
-            el.focus();
-            if (el.tagName === 'INPUT' && el.type !== 'number') {
-                el.select();
+            } else {
+                tabulatorGrid.replaceData(roles.slice());
             }
-            el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }
 
-        function setActiveCell(row, col) {
-            // Remove previous active
-            const prev = document.querySelector('td.cell-active');
-            if (prev) prev.classList.remove('cell-active');
-            // Set new
-            currentCell = { row: row, col: col };
-            const td = document.querySelector('td[data-row="' + row + '"][data-col="' + col + '"]');
-            if (td) td.classList.add('cell-active');
-            focusCell(row, col);
-        }
-
-        // --- Quiet add (no render) ---
-        function addRoleQuiet() {
-            roles.push({
-                roleId: generateRoleId(),
-                roleTitle: '',
-                status: 'planned',
-                incumbentName: '',
-                managerRoleId: '',
-                department: '',
-                costToCompany: 0,
-                location: '',
-                incumbentGender: '',
-                comments: ''
-            });
-        }
-
-        // --- Row selection & convenience actions ---
-        function selectRow(idx) {
-            selectedRow = selectedRow === idx ? null : idx;
-            renderTable();
-        }
-
-        function addDirectReport(idx) {
+        // --- Row actions (by roleId) ---
+        function addDirectReportById(roleId) {
+            const idx = roles.findIndex(r => r.roleId === roleId);
+            if (idx < 0) return;
             const parent = roles[idx];
-            if (!parent) return;
-            const newRole = {
+            roles.splice(idx + 1, 0, {
                 roleId: generateRoleId(),
                 roleTitle: '',
                 status: 'planned',
@@ -717,146 +610,15 @@
                 location: parent.location || '',
                 incumbentGender: '',
                 comments: ''
-            };
-            roles.splice(idx + 1, 0, newRole);
-            selectedRow = idx + 1;
-            currentCell = { row: idx + 1, col: 1 }; // focus on title
+            });
             render();
         }
 
-        function duplicateRow(idx) {
-            const source = roles[idx];
-            if (!source) return;
-            const copy = { ...source, roleId: generateRoleId() };
-            roles.splice(idx + 1, 0, copy);
-            selectedRow = idx + 1;
-            currentCell = { row: idx + 1, col: 0 };
+        function duplicateRowById(roleId) {
+            const idx = roles.findIndex(r => r.roleId === roleId);
+            if (idx < 0) return;
+            roles.splice(idx + 1, 0, { ...roles[idx], roleId: generateRoleId() });
             render();
-        }
-
-        function deleteRowByIndex(idx) {
-            if (idx < 0 || idx >= roles.length) return;
-            deleteRole(roles[idx].roleId);
-        }
-
-        // --- Keyboard navigation handler ---
-        function handleGridKeydown(e) {
-            if (!currentCell) return;
-            const { row, col } = currentCell;
-            const el = e.target;
-            const isSelect = el.tagName === 'SELECT';
-            const isInput = el.tagName === 'INPUT';
-            const maxCol = GRID_COLUMNS.length - 1;
-            const maxRow = roles.length - 1;
-
-            if (e.key === 'ArrowUp') {
-                if (isSelect || (isInput && row > 0)) {
-                    e.preventDefault();
-                    setActiveCell(row - 1, col);
-                }
-            } else if (e.key === 'ArrowDown') {
-                if (isSelect || isInput) {
-                    e.preventDefault();
-                    if (row >= maxRow) {
-                        addRoleQuiet();
-                        renderTable();
-                        setActiveCell(row + 1, col);
-                    } else {
-                        setActiveCell(row + 1, col);
-                    }
-                }
-            } else if (e.key === 'ArrowLeft') {
-                if (isSelect || (isInput && el.selectionStart === 0 && el.selectionEnd === 0)) {
-                    if (col > 0) {
-                        e.preventDefault();
-                        setActiveCell(row, col - 1);
-                    }
-                }
-            } else if (e.key === 'ArrowRight') {
-                if (isSelect || (isInput && el.selectionStart === el.value.length)) {
-                    if (col < maxCol) {
-                        e.preventDefault();
-                        setActiveCell(row, col + 1);
-                    }
-                }
-            } else if (e.key === 'Tab') {
-                e.preventDefault();
-                if (e.shiftKey) {
-                    // Move left/up
-                    if (col > 0) {
-                        setActiveCell(row, col - 1);
-                    } else if (row > 0) {
-                        setActiveCell(row - 1, maxCol);
-                    }
-                } else {
-                    // Move right/down
-                    if (col < maxCol) {
-                        setActiveCell(row, col + 1);
-                    } else if (row >= maxRow) {
-                        addRoleQuiet();
-                        renderTable();
-                        setActiveCell(row + 1, 0);
-                    } else {
-                        setActiveCell(row + 1, 0);
-                    }
-                }
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                // Commit value
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-                if (row >= maxRow) {
-                    addRoleQuiet();
-                    renderTable();
-                    setActiveCell(row + 1, col);
-                } else {
-                    setActiveCell(row + 1, col);
-                }
-            } else if (e.key === 'Escape') {
-                // Revert to model value
-                const colDef = GRID_COLUMNS[col];
-                if (colDef) {
-                    const role = roles[row];
-                    if (role) {
-                        el.value = role[colDef.field];
-                    }
-                }
-                el.blur();
-                currentCell = null;
-                const active = document.querySelector('td.cell-active');
-                if (active) active.classList.remove('cell-active');
-            }
-        }
-
-        // --- Focus-in handler (click-to-focus) ---
-        function handleGridFocusin(e) {
-            const el = e.target;
-            if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT') return;
-            const row = parseInt(el.getAttribute('data-row'));
-            const col = parseInt(el.getAttribute('data-col'));
-            if (isNaN(row) || isNaN(col)) return;
-
-            // Remove previous active
-            const prev = document.querySelector('td.cell-active');
-            if (prev) prev.classList.remove('cell-active');
-            currentCell = { row: row, col: col };
-            const td = el.closest('td');
-            if (td) td.classList.add('cell-active');
-
-            // Deselect row when clicking into a data cell (not row-num)
-            if (selectedRow !== null) {
-                selectedRow = null;
-                const bar = document.getElementById('row-action-bar');
-                if (bar) bar.remove();
-                document.querySelectorAll('tr.row-selected').forEach(tr => tr.classList.remove('row-selected'));
-            }
-        }
-
-        function onTableEdit(idx, field, value) {
-            if (idx < 0 || idx >= roles.length) return;
-            updateRoleField(roles[idx].roleId, field, value);
-            if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle') {
-                renderTable();
-            }
         }
 
         // --- Tree building ---
@@ -1368,8 +1130,6 @@
                     });
 
                     nextId = roles.length + 1;
-                    currentCell = null;
-                    selectedRow = null;
                     validateRoles();
                     render();
                 } catch (err) {
@@ -1430,11 +1190,6 @@
         }
 
         // --- Init ---
-        (function initGridHandlers() {
-            const wrapper = document.getElementById('table-wrapper');
-            wrapper.addEventListener('keydown', handleGridKeydown);
-            wrapper.addEventListener('focusin', handleGridFocusin);
-        })();
         renderFieldsDropdown();
         render();
     </script>
