@@ -215,6 +215,7 @@
 
         /* Chart */
         #chart-container {
+            position: relative;
             overflow: auto;
             min-height: 400px;
             text-align: center;
@@ -235,12 +236,32 @@
         .reparent-panel select { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px; }
         .reparent-panel .reparent-btns { display: flex; gap: 8px; justify-content: flex-end; }
 
-        /* Legend */
-        .legend {
+        /* Legend (floating overlay on chart) */
+        .chart-legend {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            z-index: 10;
             display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            padding: 8px 0;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+        }
+        .chart-legend:empty { display: none; }
+        .chart-legend .legend-title {
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #888;
+            margin-bottom: 2px;
         }
 
         .legend-item {
@@ -270,45 +291,58 @@
         footer a { color: white; }
 
         .chart-config {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 12px 16px;
             margin-bottom: 12px;
         }
 
-        .chart-config .chart-controls {
-            margin-bottom: 8px;
-        }
-
-        .chart-config .chart-controls:last-of-type {
-            margin-bottom: 0;
-        }
-
-        .chart-config .legend:empty {
-            display: none;
-        }
-
-        .chart-config .legend {
-            margin-top: 8px;
-            margin-bottom: 0;
-        }
-
-        .chart-controls {
+        .control-section {
             display: flex;
-            gap: 8px;
+            align-items: stretch;
+            gap: 0;
             margin-bottom: 8px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .control-section:last-child { margin-bottom: 0; }
+
+        .control-section-label {
+            background: #eef0f4;
+            color: #666;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 8px 12px;
+            display: flex;
             align-items: center;
+            border-right: 1px solid #e0e0e0;
+            min-width: 50px;
+            justify-content: center;
+        }
+
+        .control-section-body {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
             flex-wrap: wrap;
         }
 
-        .chart-controls label {
+        .control-divider {
+            width: 1px;
+            height: 20px;
+            background: #ddd;
+            flex-shrink: 0;
+        }
+
+        .control-section-body label {
             font-size: 0.85rem;
             font-weight: 600;
             color: #555;
         }
 
-        .chart-controls button {
+        .control-section-body button {
             width: 28px;
             height: 28px;
             padding: 0;
@@ -317,20 +351,19 @@
             text-align: center;
         }
 
-        .chart-controls span {
+        .control-section-body span {
             font-size: 0.85rem;
             min-width: 30px;
             text-align: center;
         }
 
-        .chart-controls select {
+        .control-section-body select {
             font-size: 0.85rem;
             padding: 4px 8px;
             border: 1px solid #ddd;
             border-radius: 6px;
             background: #fff;
             color: #333;
-            margin-right: 8px;
         }
 
         @media (max-width: 768px) {
@@ -374,56 +407,65 @@
 
             <div class="tab-content" id="tab-chart">
                 <div class="chart-config">
-                    <div class="chart-controls">
-                        <label>Layout:</label>
-                        <select id="chart-layout" onchange="onLayoutChange()">
-                            <option value="top">Top-down</option>
-                            <option value="top-compact" selected>Top-down Compact</option>
-                            <option value="left">Left-to-right</option>
-                            <option value="left-compact">Left-to-right Compact</option>
-                            <option value="bottom">Bottom-up</option>
-                        </select>
-                        <label>Depth:</label>
-                        <button class="btn-secondary" onclick="changeDepth(-1)">&minus;</button>
-                        <span id="depth-display">All</span>
-                        <button class="btn-secondary" onclick="changeDepth(1)">+</button>
-                    </div>
-                    <div class="chart-controls">
-                        <div class="control-group">
-                            <label>Filter by:</label>
-                            <select id="filter-field" onchange="onFilterFieldChange()">
-                                <option value="">None</option>
-                                <option value="status">Status</option>
-                                <option value="department">Department</option>
-                                <option value="location">Location</option>
-                                <option value="incumbentGender">Gender</option>
+                    <div class="control-section">
+                        <div class="control-section-label">View</div>
+                        <div class="control-section-body">
+                            <label>Layout:</label>
+                            <select id="chart-layout" onchange="onLayoutChange()">
+                                <option value="top">Top-down</option>
+                                <option value="top-compact" selected>Top-down Compact</option>
+                                <option value="left">Left-to-right</option>
+                                <option value="left-compact">Left-to-right Compact</option>
+                                <option value="bottom">Bottom-up</option>
                             </select>
-                            <div class="filter-container">
-                                <button class="btn-secondary btn-small" id="filter-values-btn" onclick="toggleFilterDropdown()" style="display:none">Select values</button>
-                                <div class="filter-values" id="filter-values-dropdown"></div>
-                            </div>
-                        </div>
-                        <div class="control-group">
-                            <label>Color by:</label>
-                            <select id="color-field" onchange="onColorFieldChange()">
-                                <option value="">None</option>
-                                <option value="status">Status</option>
-                                <option value="department">Department</option>
-                                <option value="location">Location</option>
-                                <option value="incumbentGender">Gender</option>
-                            </select>
-                        </div>
-                        <div class="control-group">
-                            <label>Show fields:</label>
-                            <div class="filter-container" id="fields-container">
-                                <button class="btn-secondary btn-small" id="fields-btn" onclick="toggleFieldsDropdown()">Configure</button>
-                                <div class="filter-values" id="fields-dropdown"></div>
-                            </div>
+                            <label>Depth:</label>
+                            <button class="btn-secondary" onclick="changeDepth(-1)">&minus;</button>
+                            <span id="depth-display">All</span>
+                            <button class="btn-secondary" onclick="changeDepth(1)">+</button>
                         </div>
                     </div>
-                    <div class="legend" id="legend"></div>
+                    <div class="control-section">
+                        <div class="control-section-label">Data</div>
+                        <div class="control-section-body">
+                            <div class="control-group">
+                                <label>Filter:</label>
+                                <select id="filter-field" onchange="onFilterFieldChange()">
+                                    <option value="">None</option>
+                                    <option value="status">Status</option>
+                                    <option value="department">Department</option>
+                                    <option value="location">Location</option>
+                                    <option value="incumbentGender">Gender</option>
+                                </select>
+                                <div class="filter-container">
+                                    <button class="btn-secondary btn-small" id="filter-values-btn" onclick="toggleFilterDropdown()" style="display:none">Select values</button>
+                                    <div class="filter-values" id="filter-values-dropdown"></div>
+                                </div>
+                            </div>
+                            <span class="control-divider"></span>
+                            <div class="control-group">
+                                <label>Color:</label>
+                                <select id="color-field" onchange="onColorFieldChange()">
+                                    <option value="">None</option>
+                                    <option value="status">Status</option>
+                                    <option value="department">Department</option>
+                                    <option value="location">Location</option>
+                                    <option value="incumbentGender">Gender</option>
+                                </select>
+                            </div>
+                            <span class="control-divider"></span>
+                            <div class="control-group">
+                                <label>Fields:</label>
+                                <div class="filter-container" id="fields-container">
+                                    <button class="btn-secondary btn-small" id="fields-btn" onclick="toggleFieldsDropdown()">Configure</button>
+                                    <div class="filter-values" id="fields-dropdown"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div id="chart-container"></div>
+                <div id="chart-container">
+                    <div class="chart-legend" id="legend"></div>
+                </div>
             </div>
         </div>
 
@@ -921,7 +963,8 @@
         function renderLegend() {
             const el = document.getElementById('legend');
             if (!colorField) { el.innerHTML = ''; return; }
-            let html = '';
+            const fieldLabels = { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender' };
+            let html = '<div class="legend-title">' + escapeHtml(fieldLabels[colorField] || colorField) + '</div>';
             Object.entries(colorMap).forEach(([label, color]) => {
                 html += '<div class="legend-item"><span class="legend-swatch" style="background:' + color + '"></span>' + escapeHtml(label || '(empty)') + '</div>';
             });
