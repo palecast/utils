@@ -187,6 +187,7 @@
         .tab-content.active { display: block; }
         #tab-table.active { overflow: auto; flex: 1; min-height: 0; }
         #tab-chart.active { display: flex; gap: 0; flex: 1; min-height: 0; padding: 0; }
+        #tab-pivot.active { display: flex; gap: 0; flex: 1; min-height: 0; padding: 0; }
 
         /* Status badges */
         .status-filled { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
@@ -404,75 +405,16 @@
         .summary-pill.planned { background: #fff3cd; color: #856404; }
         .summary-pill.removed { background: #e2e3e5; color: #383d41; }
 
-        /* Minimap */
-        .minimap {
-            position: absolute;
-            bottom: 16px;
-            right: 16px;
-            width: 220px;
-            height: 160px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-            z-index: 20;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .minimap.hidden { display: none; }
-        .minimap-header {
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 8px;
-            background: #f8f9fb;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #666;
-            flex-shrink: 0;
-        }
-        .minimap-header button {
-            width: 20px; height: 20px; padding: 0; font-size: 0.7rem;
-            background: none; border: none; cursor: pointer; color: #888;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 4px;
-        }
-        .minimap-header button:hover { background: #eee; color: #333; }
-        .minimap-canvas {
-            flex: 1;
-            overflow: hidden;
-            position: relative;
-        }
-        .minimap-viewport {
-            position: absolute;
-            border: 2px solid #667eea;
-            background: rgba(102, 126, 234, 0.08);
-            cursor: grab;
-            border-radius: 2px;
-        }
-        .minimap-viewport:active { cursor: grabbing; }
-        .minimap-toggle-btn {
-            position: absolute;
-            bottom: 16px;
-            right: 16px;
-            z-index: 20;
-            width: 32px;
-            height: 32px;
-            padding: 0;
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            color: #666;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .minimap-toggle-btn:hover { background: #f0f0f0; }
+        /* Pivot table */
+        .pivot-surface { flex: 1; min-width: 0; overflow: auto; padding: 16px; }
+        .pivot-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .pivot-table th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; text-align: right; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
+        .pivot-table th:first-child { text-align: left; }
+        .pivot-table td { padding: 8px 12px; border-bottom: 1px solid #e9ecef; text-align: right; color: #333; }
+        .pivot-table td:first-child { text-align: left; font-weight: 600; color: #555; }
+        .pivot-table tbody tr:nth-child(even) { background: #f8f9fb; }
+        .pivot-table tbody tr:hover { background: #eef0f4; }
+        .pivot-table tfoot td { font-weight: 700; border-top: 2px solid #667eea; background: #f8f9fb; }
 
         .control-section {
             display: flex;
@@ -573,8 +515,7 @@
             .chart-sidebar.collapsed { width: 100%; height: 0; border-bottom: none; }
             .sidebar-content { width: 100%; }
             .sidebar-toggle { display: none; }
-            .minimap { display: none; }
-            .minimap-toggle-btn { display: none !important; }
+            #tab-pivot.active { flex-direction: column; }
             .summary-content { flex-direction: column; gap: 8px; }
         }
 
@@ -591,7 +532,7 @@
             .chart-sidebar { display: none; }
             .chart-legend { position: absolute; }
             .reparent-panel { display: none !important; }
-            .minimap, .summary-panel, .sidebar-toggle, .minimap-toggle-btn { display: none !important; }
+            .summary-panel, .sidebar-toggle { display: none !important; }
         }
     </style>
 </head>
@@ -619,6 +560,7 @@
             <div class="tab-bar">
                 <button class="tab-btn active" onclick="switchTab('table')">Table</button>
                 <button class="tab-btn" onclick="switchTab('chart')">Chart</button>
+                <button class="tab-btn" onclick="switchTab('pivot')">Pivot</button>
             </div>
         </div>
 
@@ -706,16 +648,53 @@
                     <div id="chart-container">
                         <div class="chart-legend" id="legend"></div>
                     </div>
-                    <div class="minimap" id="minimap">
-                        <div class="minimap-header">
-                            <span>Overview</span>
-                            <button onclick="toggleMinimap()">&#10005;</button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-pivot">
+                <div class="chart-sidebar" id="pivot-sidebar">
+                    <button class="sidebar-toggle" onclick="togglePivotSidebar()" id="pivot-sidebar-toggle-btn">&#9664;</button>
+                    <div class="sidebar-content">
+                        <div class="control-section">
+                            <div class="control-section-label">Dimensions</div>
+                            <div class="control-section-body">
+                                <div class="control-group">
+                                    <label>Rows:</label>
+                                    <select id="pivot-row-field" onchange="onPivotFieldChange('row')">
+                                        <option value="department" selected>Department</option>
+                                        <option value="status">Status</option>
+                                        <option value="location">Location</option>
+                                        <option value="incumbentGender">Gender</option>
+                                    </select>
+                                </div>
+                                <span class="control-divider"></span>
+                                <div class="control-group">
+                                    <label>Columns:</label>
+                                    <select id="pivot-col-field" onchange="onPivotFieldChange('col')">
+                                        <option value="status" selected>Status</option>
+                                        <option value="department">Department</option>
+                                        <option value="location">Location</option>
+                                        <option value="incumbentGender">Gender</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                        <div class="minimap-canvas" id="minimap-canvas">
-                            <div class="minimap-viewport" id="minimap-viewport"></div>
+                        <div class="control-section">
+                            <div class="control-section-label">Value</div>
+                            <div class="control-section-body">
+                                <div class="control-group">
+                                    <label>Aggregate:</label>
+                                    <select id="pivot-value-field" onchange="renderPivotTable()">
+                                        <option value="count">Count of Headcount</option>
+                                        <option value="cost">Sum of Cost</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <button class="minimap-toggle-btn" id="minimap-toggle-btn" onclick="toggleMinimap()" style="display:none">&#8862;</button>
+                </div>
+                <div class="pivot-surface" id="pivot-surface">
+                    <div id="pivot-table-container"></div>
                 </div>
             </div>
         </div>
@@ -1488,10 +1467,7 @@
         });
 
         // --- Chart rendering ---
-        let minimapObserver = null;
-
         function renderChart() {
-            if (minimapObserver) { minimapObserver.disconnect(); minimapObserver = null; }
 
             const container = document.getElementById('chart-container');
             container.innerHTML = '';
@@ -1504,8 +1480,6 @@
             if (!filtered.length) {
                 container.innerHTML = '<p style="padding:40px;color:#888">No roles to display. Add data in the Table tab.</p>';
                 updateSummaryPanel(filtered);
-                document.getElementById('minimap').classList.add('hidden');
-                document.getElementById('minimap-toggle-btn').style.display = 'none';
                 return;
             }
 
@@ -1513,8 +1487,6 @@
             if (!flatData.length) {
                 container.innerHTML = '<p style="padding:40px;color:#888">Unable to build tree. Check your data.</p>';
                 updateSummaryPanel(filtered);
-                document.getElementById('minimap').classList.add('hidden');
-                document.getElementById('minimap-toggle-btn').style.display = 'none';
                 return;
             }
 
@@ -1544,11 +1516,6 @@
 
             renderLegend();
             updateSummaryPanel(filtered);
-            setTimeout(function() {
-                renderMinimap();
-                hookMinimapToZoom();
-                setupMinimapDrag();
-            }, 100);
         }
 
         // --- Sidebar, Summary, Minimap ---
@@ -1564,13 +1531,6 @@
             const icon = document.getElementById('summary-toggle-icon');
             panel.classList.toggle('collapsed');
             icon.innerHTML = panel.classList.contains('collapsed') ? '&#9650;' : '&#9660;';
-        }
-
-        function toggleMinimap() {
-            const minimap = document.getElementById('minimap');
-            const btn = document.getElementById('minimap-toggle-btn');
-            const isHidden = minimap.classList.toggle('hidden');
-            btn.style.display = isHidden ? 'flex' : 'none';
         }
 
         function updateSummaryPanel(filtered) {
@@ -1623,273 +1583,100 @@
             content.innerHTML = html;
         }
 
-        // --- Minimap ---
-        let minimapScale = 1;
-        let minimapChartBBox = null;
-
-        function renderMinimap() {
-            var minimap = document.getElementById('minimap');
-            var canvas = document.getElementById('minimap-canvas');
-            var svgEl = document.querySelector('#chart-container svg');
-            if (!svgEl) { minimap.classList.add('hidden'); return; }
-
-            minimap.classList.remove('hidden');
-            document.getElementById('minimap-toggle-btn').style.display = 'none';
-
-            var innerG = svgEl.querySelector('g');
-            if (!innerG) return;
-
-            var bbox = innerG.getBBox();
-            minimapChartBBox = bbox;
-
-            var canvasW = canvas.clientWidth || 204;
-            var canvasH = canvas.clientHeight || 124;
-
-            var scaleX = canvasW / (bbox.width + 40);
-            var scaleY = canvasH / (bbox.height + 40);
-            minimapScale = Math.min(scaleX, scaleY);
-
-            // Build simplified minimap SVG
-            var ns = 'http://www.w3.org/2000/svg';
-            canvas.querySelectorAll('svg').forEach(function(s) { s.remove(); });
-
-            var miniSvg = document.createElementNS(ns, 'svg');
-            miniSvg.setAttribute('width', canvasW);
-            miniSvg.setAttribute('height', canvasH);
-            miniSvg.style.position = 'absolute';
-            miniSvg.style.left = '0';
-            miniSvg.style.top = '0';
-
-            var miniG = document.createElementNS(ns, 'g');
-            var tx = (canvasW - bbox.width * minimapScale) / 2 - bbox.x * minimapScale;
-            var ty = (canvasH - bbox.height * minimapScale) / 2 - bbox.y * minimapScale;
-            miniG.setAttribute('transform', 'translate(' + tx + ',' + ty + ') scale(' + minimapScale + ')');
-
-            // Clone paths (links) — search entire SVG tree, accumulate parent transforms
-            svgEl.querySelectorAll('path').forEach(function(p) {
-                var d = p.getAttribute('d');
-                if (!d) return;
-                // Accumulate translate transforms from parent <g> elements
-                var offsetX = 0, offsetY = 0;
-                var el = p.parentElement;
-                while (el && el !== innerG && el.tagName === 'g') {
-                    var t = el.getAttribute('transform');
-                    if (t) {
-                        var m = t.match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/);
-                        if (m) { offsetX += parseFloat(m[1]); offsetY += parseFloat(m[2]); }
-                    }
-                    el = el.parentElement;
-                }
-                var pathG = document.createElementNS(ns, 'g');
-                if (offsetX || offsetY) {
-                    pathG.setAttribute('transform', 'translate(' + offsetX + ',' + offsetY + ')');
-                }
-                var clone = document.createElementNS(ns, 'path');
-                clone.setAttribute('d', d);
-                clone.setAttribute('stroke', '#ccc');
-                clone.setAttribute('stroke-width', '1');
-                clone.setAttribute('fill', 'none');
-                pathG.appendChild(clone);
-                miniG.appendChild(pathG);
-            });
-
-            // Render nodes as simple colored rectangles — search entire SVG tree
-            svgEl.querySelectorAll('foreignObject').forEach(function(fo) {
-                // foreignObject may be inside nested <g> elements with transforms
-                // We need to get the absolute position relative to innerG
-                var foX = parseFloat(fo.getAttribute('x')) || 0;
-                var foY = parseFloat(fo.getAttribute('y')) || 0;
-                var foW = parseFloat(fo.getAttribute('width')) || 220;
-                var foH = parseFloat(fo.getAttribute('height')) || 60;
-
-                // Walk up through parent <g> elements to accumulate transforms
-                var el = fo.parentElement;
-                while (el && el !== innerG && el.tagName === 'g') {
-                    var t = el.getAttribute('transform');
-                    if (t) {
-                        var m = t.match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/);
-                        if (m) { foX += parseFloat(m[1]); foY += parseFloat(m[2]); }
-                    }
-                    el = el.parentElement;
-                }
-
-                var rect = document.createElementNS(ns, 'rect');
-                rect.setAttribute('x', foX);
-                rect.setAttribute('y', foY);
-                rect.setAttribute('width', foW);
-                rect.setAttribute('height', foH);
-                rect.setAttribute('rx', '3');
-
-                // Get color from .node-title-bar inline style
-                var titleBar = fo.querySelector('.node-title-bar');
-                var color = '#bbb';
-                if (titleBar && titleBar.style.backgroundColor) {
-                    color = titleBar.style.backgroundColor;
-                }
-                rect.setAttribute('fill', color);
-                rect.setAttribute('opacity', '0.6');
-                miniG.appendChild(rect);
-            });
-
-            miniSvg.appendChild(miniG);
-            canvas.insertBefore(miniSvg, canvas.firstChild);
-
-            updateMinimapViewport();
-        }
-
-        function updateMinimapViewport() {
-            var svgEl = document.querySelector('#chart-container svg');
-            var viewport = document.getElementById('minimap-viewport');
-            var canvas = document.getElementById('minimap-canvas');
-            if (!svgEl || !minimapChartBBox || !canvas) return;
-
-            var transform;
-            try { transform = d3.zoomTransform(svgEl); } catch(e) { return; }
-
-            var canvasW = canvas.clientWidth || 204;
-            var canvasH = canvas.clientHeight || 124;
-            var bbox = minimapChartBBox;
-
-            var tx = (canvasW - bbox.width * minimapScale) / 2 - bbox.x * minimapScale;
-            var ty = (canvasH - bbox.height * minimapScale) / 2 - bbox.y * minimapScale;
-
-            // Visible area in chart coordinates
-            var svgW = svgEl.clientWidth || svgEl.getBoundingClientRect().width;
-            var svgH = svgEl.clientHeight || svgEl.getBoundingClientRect().height;
-            var visX = -transform.x / transform.k;
-            var visY = -transform.y / transform.k;
-            var visW = svgW / transform.k;
-            var visH = svgH / transform.k;
-
-            // Map to minimap coords
-            var vx = tx + visX * minimapScale;
-            var vy = ty + visY * minimapScale;
-            var vw = visW * minimapScale;
-            var vh = visH * minimapScale;
-
-            viewport.style.left = Math.max(0, vx) + 'px';
-            viewport.style.top = Math.max(0, vy) + 'px';
-            viewport.style.width = Math.min(vw, canvasW) + 'px';
-            viewport.style.height = Math.min(vh, canvasH) + 'px';
-        }
-
-        function hookMinimapToZoom() {
-            if (minimapObserver) { minimapObserver.disconnect(); minimapObserver = null; }
-
-            var svgEl = document.querySelector('#chart-container svg');
-            if (!svgEl) return;
-            var innerG = svgEl.querySelector('g');
-            if (!innerG) return;
-
-            minimapObserver = new MutationObserver(function() { updateMinimapViewport(); });
-            minimapObserver.observe(innerG, { attributes: true, attributeFilter: ['transform'] });
-
-            // Also listen for zoom events on the SVG itself
-            svgEl.addEventListener('wheel', function() { setTimeout(updateMinimapViewport, 50); });
-            svgEl.addEventListener('mouseup', function() { setTimeout(updateMinimapViewport, 50); });
-        }
-
-        function setupMinimapDrag() {
-            var viewport = document.getElementById('minimap-viewport');
-            var canvas = document.getElementById('minimap-canvas');
-            if (!viewport || !canvas) return;
-
-            var dragging = false;
-            var startX = 0, startY = 0;
-            var startLeft = 0, startTop = 0;
-
-            viewport.onmousedown = function(e) {
-                e.preventDefault();
-                dragging = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                startLeft = parseFloat(viewport.style.left) || 0;
-                startTop = parseFloat(viewport.style.top) || 0;
-            };
-
-            document.addEventListener('mousemove', function(e) {
-                if (!dragging) return;
-                var dx = e.clientX - startX;
-                var dy = e.clientY - startY;
-                var newLeft = startLeft + dx;
-                var newTop = startTop + dy;
-
-                viewport.style.left = newLeft + 'px';
-                viewport.style.top = newTop + 'px';
-
-                applyMinimapPan(newLeft, newTop);
-            });
-
-            document.addEventListener('mouseup', function() { dragging = false; });
-
-            // Click on canvas to center
-            canvas.addEventListener('click', function(e) {
-                if (e.target === viewport || viewport.contains(e.target)) return;
-                var rect = canvas.getBoundingClientRect();
-                var clickX = e.clientX - rect.left;
-                var clickY = e.clientY - rect.top;
-                var vw = parseFloat(viewport.style.width) || 50;
-                var vh = parseFloat(viewport.style.height) || 50;
-                var newLeft = clickX - vw / 2;
-                var newTop = clickY - vh / 2;
-                viewport.style.left = newLeft + 'px';
-                viewport.style.top = newTop + 'px';
-                applyMinimapPan(newLeft, newTop);
-            });
-        }
-
-        function applyMinimapPan(minimapX, minimapY) {
-            var svgEl = document.querySelector('#chart-container svg');
-            if (!svgEl || !minimapChartBBox) return;
-
-            var canvas = document.getElementById('minimap-canvas');
-            var canvasW = canvas.clientWidth || 204;
-            var canvasH = canvas.clientHeight || 124;
-            var bbox = minimapChartBBox;
-
-            var tx = (canvasW - bbox.width * minimapScale) / 2 - bbox.x * minimapScale;
-            var ty = (canvasH - bbox.height * minimapScale) / 2 - bbox.y * minimapScale;
-
-            // Convert minimap position to chart coordinates
-            var chartX = (minimapX - tx) / minimapScale;
-            var chartY = (minimapY - ty) / minimapScale;
-
-            var transform;
-            try { transform = d3.zoomTransform(svgEl); } catch(e) { return; }
-
-            var newTransform = d3.zoomIdentity.translate(-chartX * transform.k, -chartY * transform.k).scale(transform.k);
-
-            // Use the chart instance's zoom behavior for proper d3 integration
-            try {
-                if (chartInstance && chartInstance.getChartState) {
-                    var state = chartInstance.getChartState();
-                    if (state.zoom) {
-                        d3.select(svgEl).call(state.zoom.transform, newTransform);
-                        return;
-                    }
-                }
-            } catch(e) { /* fallback below */ }
-
-            // Fallback: manually set transform
-            try {
-                d3.select(svgEl).property('__zoom', newTransform);
-                var innerG = svgEl.querySelector('g');
-                if (innerG) {
-                    innerG.setAttribute('transform', newTransform.toString());
-                }
-            } catch(e) { /* ignore */ }
-        }
-
         // --- Tab switching ---
         function switchTab(tab) {
             activeTab = tab;
             document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-                btn.classList.toggle('active', (i === 0 && tab === 'table') || (i === 1 && tab === 'chart'));
+                btn.classList.toggle('active', (i === 0 && tab === 'table') || (i === 1 && tab === 'chart') || (i === 2 && tab === 'pivot'));
             });
             document.getElementById('tab-table').classList.toggle('active', tab === 'table');
             document.getElementById('tab-chart').classList.toggle('active', tab === 'chart');
-            document.getElementById('summary-panel').classList.toggle('visible', tab === 'chart');
+            document.getElementById('tab-pivot').classList.toggle('active', tab === 'pivot');
+            document.getElementById('summary-panel').classList.toggle('visible', tab === 'chart' || tab === 'pivot');
             if (tab === 'chart') renderChart();
+            if (tab === 'pivot') renderPivotTable();
+        }
+
+        // --- Pivot tab ---
+        function togglePivotSidebar() {
+            const sidebar = document.getElementById('pivot-sidebar');
+            const btn = document.getElementById('pivot-sidebar-toggle-btn');
+            sidebar.classList.toggle('collapsed');
+            btn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+        }
+
+        function onPivotFieldChange(which) {
+            const rowSel = document.getElementById('pivot-row-field');
+            const colSel = document.getElementById('pivot-col-field');
+            if (rowSel.value === colSel.value) {
+                const other = which === 'row' ? colSel : rowSel;
+                const options = Array.from(other.options);
+                const changed = which === 'row' ? rowSel.value : colSel.value;
+                for (const opt of options) {
+                    if (opt.value !== changed) { other.value = opt.value; break; }
+                }
+            }
+            renderPivotTable();
+        }
+
+        function fieldLabel(field) {
+            return { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender' }[field] || field;
+        }
+
+        function renderPivotTable() {
+            const filtered = getFilteredRoles();
+            const container = document.getElementById('pivot-table-container');
+            if (!filtered.length) {
+                container.innerHTML = '<p style="padding:40px;color:#888">No data. Import or add rows in the Table tab.</p>';
+                updateSummaryPanel(filtered);
+                return;
+            }
+
+            const rowField = document.getElementById('pivot-row-field').value;
+            const colField = document.getElementById('pivot-col-field').value;
+            const valueField = document.getElementById('pivot-value-field').value;
+            const isCost = valueField === 'cost';
+
+            const rowVals = [...new Set(filtered.map(r => String(r[rowField] || '') || '(blank)'))].sort();
+            const colVals = [...new Set(filtered.map(r => String(r[colField] || '') || '(blank)'))].sort();
+
+            const agg = {};
+            filtered.forEach(r => {
+                const rv = String(r[rowField] || '') || '(blank)';
+                const cv = String(r[colField] || '') || '(blank)';
+                const key = rv + '|' + cv;
+                agg[key] = (agg[key] || 0) + (isCost ? (r.costToCompany || 0) : 1);
+            });
+
+            function fmt(v) { return isCost ? Number(v).toLocaleString() : v; }
+
+            let html = '<table class="pivot-table"><thead><tr>';
+            html += '<th>' + escapeHtml(fieldLabel(rowField)) + ' \\ ' + escapeHtml(fieldLabel(colField)) + '</th>';
+            colVals.forEach(c => { html += '<th>' + escapeHtml(c) + '</th>'; });
+            html += '<th>Total</th></tr></thead><tbody>';
+
+            let colTotals = colVals.map(() => 0);
+            let grandTotal = 0;
+
+            rowVals.forEach(rv => {
+                html += '<tr><td>' + escapeHtml(rv) + '</td>';
+                let rowTotal = 0;
+                colVals.forEach((cv, ci) => {
+                    const v = agg[rv + '|' + cv] || 0;
+                    rowTotal += v;
+                    colTotals[ci] += v;
+                    html += '<td>' + fmt(v) + '</td>';
+                });
+                grandTotal += rowTotal;
+                html += '<td>' + fmt(rowTotal) + '</td></tr>';
+            });
+
+            html += '</tbody><tfoot><tr><td>Total</td>';
+            colTotals.forEach(ct => { html += '<td>' + fmt(ct) + '</td>'; });
+            html += '<td>' + fmt(grandTotal) + '</td></tr></tfoot></table>';
+
+            container.innerHTML = html;
+            updateSummaryPanel(filtered);
         }
 
         // --- Import ---
@@ -2018,6 +1805,7 @@
         function render() {
             renderTable();
             if (activeTab === 'chart') renderChart();
+            if (activeTab === 'pivot') renderPivotTable();
         }
 
         // --- Export / Print ---
