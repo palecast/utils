@@ -604,6 +604,8 @@
                                         <option value="department">Department</option>
                                         <option value="location">Location</option>
                                         <option value="incumbentGender">Gender</option>
+                                        <option value="employmentType">Employment Type</option>
+                                        <option value="workingPattern">Working Pattern</option>
                                     </select>
                                     <div class="filter-container">
                                         <button class="btn-secondary btn-small" id="filter-values-btn" onclick="toggleFilterDropdown()" style="display:none">Select values</button>
@@ -619,6 +621,8 @@
                                         <option value="department">Department</option>
                                         <option value="location">Location</option>
                                         <option value="incumbentGender">Gender</option>
+                                        <option value="employmentType">Employment Type</option>
+                                        <option value="workingPattern">Working Pattern</option>
                                     </select>
                                 </div>
                                 <span class="control-divider"></span>
@@ -662,6 +666,8 @@
                                         <option value="status">Status</option>
                                         <option value="location">Location</option>
                                         <option value="incumbentGender">Gender</option>
+                                        <option value="employmentType">Employment Type</option>
+                                        <option value="workingPattern">Working Pattern</option>
                                     </select>
                                 </div>
                                 <span class="control-divider"></span>
@@ -672,6 +678,8 @@
                                         <option value="department">Department</option>
                                         <option value="location">Location</option>
                                         <option value="incumbentGender">Gender</option>
+                                        <option value="employmentType">Employment Type</option>
+                                        <option value="workingPattern">Working Pattern</option>
                                     </select>
                                 </div>
                             </div>
@@ -699,6 +707,8 @@
                                         <option value="department">Department</option>
                                         <option value="location">Location</option>
                                         <option value="incumbentGender">Gender</option>
+                                        <option value="employmentType">Employment Type</option>
+                                        <option value="workingPattern">Working Pattern</option>
                                     </select>
                                     <div class="filter-container">
                                         <button class="btn-secondary btn-small" id="pivot-filter-values-btn" onclick="togglePivotFilterDropdown()" style="display:none">Select values</button>
@@ -740,7 +750,7 @@
         let colorField = '';
         let colorMap = {};
         let maxDepth = 0; // 0 = show all
-        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, cost: false, comments: false, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPlanned: false, hcRemoved: false, costFilled: false, costVacant: false, costPlanned: false, costRemoved: false };
+        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPlanned: false, hcRemoved: false, costFilled: false, costVacant: false, costPlanned: false, costRemoved: false };
         let chartInstance = null;
         let tabulatorGrid = null;
         let isEditing = false;
@@ -764,6 +774,8 @@
             { field: 'costToCompany',   type: 'input' },
             { field: 'location',        type: 'input' },
             { field: 'incumbentGender', type: 'select' },
+            { field: 'employmentType',  type: 'select' },
+            { field: 'workingPattern',  type: 'select' },
             { field: 'comments',        type: 'input' },
         ];
 
@@ -796,6 +808,8 @@
                 costToCompany: 0,
                 location: '',
                 incumbentGender: '',
+                employmentType: 'Permanent',
+                workingPattern: 'Full-time',
                 comments: ''
             });
             render();
@@ -910,6 +924,18 @@
                             editorParams: { values: [{ label: '-', value: '' }, 'Male', 'Female', 'Other'] },
                             width: 85,
                             headerFilter: 'list', headerFilterParams: { values: { '': 'All', '-': '-', Male: 'Male', Female: 'Female', Other: 'Other' } }
+                        },
+                        {
+                            title: 'Employment Type', field: 'employmentType', editor: 'list',
+                            editorParams: { values: ['Permanent', 'Intern', 'Secondment', 'Fixed-term', 'Contractor', 'Temporary/Agency', 'Apprentice/Graduate'] },
+                            width: 140,
+                            headerFilter: 'list', headerFilterParams: { values: { '': 'All', Permanent: 'Permanent', Intern: 'Intern', Secondment: 'Secondment', 'Fixed-term': 'Fixed-term', Contractor: 'Contractor', 'Temporary/Agency': 'Temporary/Agency', 'Apprentice/Graduate': 'Apprentice/Graduate' } }
+                        },
+                        {
+                            title: 'Working Pattern', field: 'workingPattern', editor: 'list',
+                            editorParams: { values: ['Full-time', 'Part-time'] },
+                            width: 120,
+                            headerFilter: 'list', headerFilterParams: { values: { '': 'All', 'Full-time': 'Full-time', 'Part-time': 'Part-time' } }
                         },
                         { title: 'Comments', field: 'comments', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
@@ -1044,6 +1070,8 @@
                 costToCompany: 0,
                 location: parent.location || '',
                 incumbentGender: '',
+                employmentType: 'Permanent',
+                workingPattern: 'Full-time',
                 comments: ''
             });
             render();
@@ -1246,7 +1274,7 @@
         function renderLegend() {
             const el = document.getElementById('legend');
             if (!colorField) { el.innerHTML = ''; return; }
-            const fieldLabels = { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender' };
+            const fieldLabels = { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' };
             let html = '<div class="legend-title">' + escapeHtml(fieldLabels[colorField] || colorField) + '</div>';
             Object.entries(colorMap).forEach(([label, color]) => {
                 html += '<div class="legend-item"><span class="legend-swatch" style="background:' + color + '"></span>' + escapeHtml(label || '(empty)') + '</div>';
@@ -1256,8 +1284,8 @@
 
         // --- Field visibility ---
         function renderFieldsDropdown() {
-            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', cost: 'Cost', comments: 'Comments', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPlanned: 'HC Planned', hcRemoved: 'HC Removed', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPlanned: 'Cost Planned', costRemoved: 'Cost Removed' };
-            const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'cost', 'comments'];
+            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern', cost: 'Cost', comments: 'Comments', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPlanned: 'HC Planned', hcRemoved: 'HC Removed', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPlanned: 'Cost Planned', costRemoved: 'Cost Removed' };
+            const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'employmentType', 'workingPattern', 'cost', 'comments'];
             const computedFields = ['headcount', 'cumulativeCost', 'hcFilled', 'hcVacant', 'hcPlanned', 'hcRemoved', 'costFilled', 'costVacant', 'costPlanned', 'costRemoved'];
             const dropdown = document.getElementById('fields-dropdown');
             let html = '';
@@ -1425,6 +1453,12 @@
             }
             if (chartFields.gender && role.incumbentGender) {
                 html += '<div class="node-meta">' + escapeHtml(role.incumbentGender) + '</div>';
+            }
+            if (chartFields.employmentType && role.employmentType) {
+                html += '<div class="node-meta">' + escapeHtml(role.employmentType) + '</div>';
+            }
+            if (chartFields.workingPattern && role.workingPattern) {
+                html += '<div class="node-meta">' + escapeHtml(role.workingPattern) + '</div>';
             }
             if (chartFields.cost && role.costToCompany) {
                 html += '<div class="node-meta">Cost: ' + Number(role.costToCompany).toLocaleString() + '</div>';
@@ -1670,7 +1704,7 @@
         }
 
         function fieldLabel(field) {
-            return { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender' }[field] || field;
+            return { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' }[field] || field;
         }
 
         function renderPivotTable() {
@@ -1740,6 +1774,8 @@
             'costtocompany': 'costToCompany', 'cost to company': 'costToCompany', 'cost_to_company': 'costToCompany', 'cost': 'costToCompany', 'ctc': 'costToCompany', 'salary': 'costToCompany',
             'location': 'location', 'office': 'location',
             'incumbentgender': 'incumbentGender', 'incumbent gender': 'incumbentGender', 'incumbent_gender': 'incumbentGender', 'gender': 'incumbentGender',
+            'employmenttype': 'employmentType', 'employment type': 'employmentType', 'employment_type': 'employmentType', 'emp type': 'employmentType', 'contract type': 'employmentType',
+            'workingpattern': 'workingPattern', 'working pattern': 'workingPattern', 'working_pattern': 'workingPattern', 'work pattern': 'workingPattern', 'fte': 'workingPattern',
             'comments': 'comments', 'notes': 'comments', 'comment': 'comments'
         };
 
@@ -1768,7 +1804,8 @@
                 const role = {
                     roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
                     managerRoleId: '', department: '', costToCompany: 0,
-                    location: '', incumbentGender: '', comments: ''
+                    location: '', incumbentGender: '', employmentType: 'Permanent',
+                    workingPattern: 'Full-time', comments: ''
                 };
                 Object.entries(row).forEach(([col, val]) => {
                     const field = headerMap[col];
@@ -1829,8 +1866,8 @@
         // --- Export ---
         function exportCSV() {
             if (!roles.length) { alert('No data to export.'); return; }
-            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Comments'];
-            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','comments'];
+            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments'];
+            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments'];
 
             let csv = headers.join(',') + '\n';
             roles.forEach(r => {
@@ -1854,8 +1891,8 @@
 
         function exportExcel() {
             if (!roles.length) { alert('No data to export.'); return; }
-            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Comments'];
-            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','comments'];
+            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments'];
+            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments'];
 
             const data = roles.map(r => {
                 const row = {};

@@ -1,70 +1,70 @@
-Role ID,Title,Status,Incumbent,Manager Role ID,Department,Cost to Company,Location,Gender,Comments
-CEO-001,Chief Executive Officer,filled,Sarah Mitchell,,Executive,450000,London HQ,Female,Founder
-CFO-001,Chief Financial Officer,filled,James Chen,CEO-001,Finance,320000,London HQ,Male,
-COO-001,Chief Operating Officer,filled,Priya Sharma,CEO-001,Operations,340000,London HQ,Female,
-CSO-001,Chief Sales Officer,filled,David Okonkwo,CEO-001,Sales,310000,London HQ,Male,
-CTO-001,Chief Technology Officer,filled,Maria Garcia,CEO-001,Design & Construction,330000,London HQ,Female,
-FIN-001,VP Finance,filled,Tom Bradley,CFO-001,Finance,210000,London HQ,Male,
-FIN-002,Financial Controller,filled,Emma Watson,FIN-001,Finance,145000,London HQ,Female,
-FIN-003,Senior Accountant,filled,Raj Patel,FIN-002,Finance,95000,London HQ,Male,
-FIN-004,Accounts Payable Specialist,filled,Lucy Nguyen,FIN-002,Finance,65000,London HQ,Female,
-FIN-005,Accounts Receivable Specialist,filled,Mark Johnson,FIN-002,Finance,65000,London HQ,Male,
-FIN-006,Treasury Analyst,vacant,,FIN-001,Finance,85000,London HQ,,Backfill approved
-FIN-007,Payroll Manager,filled,Sandra Kim,FIN-001,Finance,110000,London HQ,Female,
-SAL-001,VP Sales EMEA,filled,Klaus Weber,CSO-001,Sales,220000,London HQ,Male,
-SAL-002,VP Sales Americas,filled,Jessica Morales,CSO-001,Sales,230000,New York,Female,
-SAL-003,Enterprise Account Manager,filled,Aidan Murphy,SAL-001,Sales,130000,London HQ,Male,
-SAL-004,Enterprise Account Manager,filled,Fatima Al-Rashid,SAL-001,Sales,130000,Dublin,Female,
-SAL-005,Account Executive,filled,Pierre Dubois,SAL-001,Sales,95000,Amsterdam,Male,
-SAL-006,Account Executive,planned,,SAL-001,Sales,95000,Frankfurt,,New hire Q2
-SAL-007,Enterprise Account Manager,filled,Carlos Rivera,SAL-002,Sales,140000,New York,Male,
-SAL-008,Account Executive,filled,Samantha Lee,SAL-002,Sales,100000,Chicago,Female,
-SAL-009,Account Executive,vacant,,SAL-002,Sales,100000,Dallas,,Recruiting
-SAL-010,Sales Engineer,filled,Nathan Brooks,CSO-001,Sales,125000,London HQ,Male,Pre-sales support
-OPS-001,VP Data Center Operations,filled,Michael O'Brien,COO-001,Operations,240000,London HQ,Male,
-OPS-002,SOC Manager,filled,Yuki Tanaka,OPS-001,Operations,160000,London HQ,Female,Service Operations Center
-OPS-003,SOC Team Lead - Day Shift,filled,Andre Williams,OPS-002,Operations,110000,London HQ,Male,
-OPS-004,SOC Analyst,filled,Hannah Fischer,OPS-003,Operations,72000,London HQ,Female,
-OPS-005,SOC Analyst,filled,Ben Taylor,OPS-003,Operations,72000,London HQ,Male,
-OPS-006,SOC Team Lead - Night Shift,filled,Kenji Nakamura,OPS-002,Operations,115000,London HQ,Male,Night shift premium
-OPS-007,SOC Analyst,filled,Olga Petrov,OPS-006,Operations,75000,London HQ,Female,Night shift
-OPS-008,SOC Analyst,vacant,,OPS-006,Operations,75000,London HQ,,Night shift - hiring
-OPS-009,Regional Manager - North,filled,Liam Scott,OPS-001,Operations,180000,Manchester,Male,Sites: MAN-1 MAN-2 EDI-1
-OPS-010,Regional Manager - South,filled,Rebecca Hall,OPS-001,Operations,180000,London HQ,Female,Sites: LON-1 LON-2 LON-3 SLO-1
-OPS-011,Regional Manager - Europe,filled,Stefan Mueller,OPS-001,Operations,185000,Frankfurt,Male,Sites: FRA-1 AMS-1
-DC-MAN-001,Data Center Manager - LON-1,filled,Chris Palmer,OPS-010,Operations,130000,London - Docklands,Male,Flagship facility
-DC-ENG-001,Site Engineer,filled,Aisha Khan,DC-MAN-001,Operations,85000,London - Docklands,Female,Electrical specialist
-DC-ENG-002,Site Engineer,filled,Jake Morrison,DC-MAN-001,Operations,85000,London - Docklands,Male,Mechanical specialist
-DC-ENG-003,Site Engineer,planned,,DC-MAN-001,Operations,85000,London - Docklands,,Expansion hire
-DC-MAN-002,Data Center Manager - LON-2,filled,Diane Cross,OPS-010,Operations,125000,London - Park Royal,Female,
-DC-ENG-004,Site Engineer,filled,Tariq Hassan,DC-MAN-002,Operations,82000,London - Park Royal,Male,
-DC-ENG-005,Site Engineer,filled,Megan O'Neill,DC-MAN-002,Operations,82000,London - Park Royal,Female,
-DC-MAN-003,Data Center Manager - LON-3,filled,George Papadopoulos,OPS-010,Operations,125000,London - Slough East,Male,
-DC-ENG-006,Site Engineer,filled,Fiona Campbell,DC-MAN-003,Operations,82000,London - Slough East,Female,
-DC-ENG-007,Site Engineer,vacant,,DC-MAN-003,Operations,82000,London - Slough East,,Backfill
-DC-MAN-004,Data Center Manager - SLO-1,filled,Nina Johansson,OPS-010,Operations,120000,Slough West,Female,
-DC-ENG-008,Site Engineer,filled,Ryan Cooper,DC-MAN-004,Operations,80000,Slough West,Male,
-DC-MAN-005,Data Center Manager - MAN-1,filled,Owen Hughes,OPS-009,Operations,120000,Manchester - Trafford,Male,
-DC-ENG-009,Site Engineer,filled,Ellie Shaw,DC-MAN-005,Operations,80000,Manchester - Trafford,Female,
-DC-ENG-010,Site Engineer,filled,Callum Reid,DC-MAN-005,Operations,80000,Manchester - Trafford,Male,
-DC-MAN-006,Data Center Manager - MAN-2,filled,Sophie Turner,OPS-009,Operations,120000,Manchester - Salford,Female,
-DC-ENG-011,Site Engineer,filled,Dan Whitaker,DC-MAN-006,Operations,80000,Manchester - Salford,Male,
-DC-MAN-007,Data Center Manager - EDI-1,filled,Hamish MacDonald,OPS-009,Operations,118000,Edinburgh,Male,
-DC-ENG-012,Site Engineer,filled,Isla Robertson,DC-MAN-007,Operations,78000,Edinburgh,Female,
-DC-ENG-013,Site Engineer,vacant,,DC-MAN-007,Operations,78000,Edinburgh,,New site ramp-up
-DC-MAN-008,Data Center Manager - FRA-1,filled,Lukas Braun,OPS-011,Operations,125000,Frankfurt,Male,
-DC-ENG-014,Site Engineer,filled,Anna Schneider,DC-MAN-008,Operations,82000,Frankfurt,Female,
-DC-ENG-015,Site Engineer,filled,Markus Hoffmann,DC-MAN-008,Operations,82000,Frankfurt,Male,
-DC-MAN-009,Data Center Manager - AMS-1,filled,Willem de Vries,OPS-011,Operations,122000,Amsterdam,Male,
-DC-ENG-016,Site Engineer,filled,Eva Bakker,DC-MAN-009,Operations,80000,Amsterdam,Female,
-DC-ENG-017,Site Engineer,planned,,DC-MAN-009,Operations,80000,Amsterdam,,Phase 2 expansion
-DNC-001,VP Design & Construction,filled,Robert Ainsworth,CTO-001,Design & Construction,230000,London HQ,Male,
-DNC-002,Design Manager,filled,Laura Benson,DNC-001,Design & Construction,155000,London HQ,Female,
-DNC-003,Senior Design Engineer,filled,Vikram Singh,DNC-002,Design & Construction,120000,London HQ,Male,Electrical design
-DNC-004,Design Engineer,filled,Chloe Martin,DNC-002,Design & Construction,95000,London HQ,Female,Mechanical design
-DNC-005,Design Engineer,planned,,DNC-002,Design & Construction,95000,London HQ,,BIM specialist
-DNC-006,Construction Manager,filled,Patrick Brennan,DNC-001,Design & Construction,160000,London HQ,Male,
-DNC-007,Project Manager,filled,Rachel Green,DNC-006,Design & Construction,125000,London HQ,Female,LON-3 expansion
-DNC-008,Project Manager,filled,Simon Watts,DNC-006,Design & Construction,125000,Manchester,Male,MAN-2 fit-out
-DNC-009,Project Engineer,filled,Amy Fletcher,DNC-007,Design & Construction,90000,London HQ,Female,
-DNC-010,Project Engineer,vacant,,DNC-008,Design & Construction,90000,Manchester,,Hiring for MAN-2
+Role ID,Title,Status,Incumbent,Manager Role ID,Department,Cost to Company,Location,Gender,Employment Type,Working Pattern,Comments
+CEO-001,Chief Executive Officer,filled,Sarah Mitchell,,Executive,450000,London HQ,Female,Permanent,Full-time,Founder
+CFO-001,Chief Financial Officer,filled,James Chen,CEO-001,Finance,320000,London HQ,Male,Permanent,Full-time,
+COO-001,Chief Operating Officer,filled,Priya Sharma,CEO-001,Operations,340000,London HQ,Female,Permanent,Full-time,
+CSO-001,Chief Sales Officer,filled,David Okonkwo,CEO-001,Sales,310000,London HQ,Male,Permanent,Full-time,
+CTO-001,Chief Technology Officer,filled,Maria Garcia,CEO-001,Design & Construction,330000,London HQ,Female,Permanent,Full-time,
+FIN-001,VP Finance,filled,Tom Bradley,CFO-001,Finance,210000,London HQ,Male,Permanent,Full-time,
+FIN-002,Financial Controller,filled,Emma Watson,FIN-001,Finance,145000,London HQ,Female,Permanent,Full-time,
+FIN-003,Senior Accountant,filled,Raj Patel,FIN-002,Finance,95000,London HQ,Male,Permanent,Full-time,
+FIN-004,Accounts Payable Specialist,filled,Lucy Nguyen,FIN-002,Finance,65000,London HQ,Female,Permanent,Part-time,
+FIN-005,Accounts Receivable Specialist,filled,Mark Johnson,FIN-002,Finance,65000,London HQ,Male,Permanent,Full-time,
+FIN-006,Treasury Analyst,vacant,,FIN-001,Finance,85000,London HQ,,Permanent,Full-time,Backfill approved
+FIN-007,Payroll Manager,filled,Sandra Kim,FIN-001,Finance,110000,London HQ,Female,Permanent,Part-time,
+SAL-001,VP Sales EMEA,filled,Klaus Weber,CSO-001,Sales,220000,London HQ,Male,Permanent,Full-time,
+SAL-002,VP Sales Americas,filled,Jessica Morales,CSO-001,Sales,230000,New York,Female,Permanent,Full-time,
+SAL-003,Enterprise Account Manager,filled,Aidan Murphy,SAL-001,Sales,130000,London HQ,Male,Permanent,Full-time,
+SAL-004,Enterprise Account Manager,filled,Fatima Al-Rashid,SAL-001,Sales,130000,Dublin,Female,Secondment,Full-time,
+SAL-005,Account Executive,filled,Pierre Dubois,SAL-001,Sales,95000,Amsterdam,Male,Permanent,Full-time,
+SAL-006,Account Executive,planned,,SAL-001,Sales,95000,Frankfurt,,Permanent,Full-time,New hire Q2
+SAL-007,Enterprise Account Manager,filled,Carlos Rivera,SAL-002,Sales,140000,New York,Male,Permanent,Full-time,
+SAL-008,Account Executive,filled,Samantha Lee,SAL-002,Sales,100000,Chicago,Female,Permanent,Full-time,
+SAL-009,Account Executive,vacant,,SAL-002,Sales,100000,Dallas,,Permanent,Full-time,Recruiting
+SAL-010,Sales Engineer,filled,Nathan Brooks,CSO-001,Sales,125000,London HQ,Male,Contractor,Full-time,Pre-sales support
+OPS-001,VP Data Center Operations,filled,Michael O'Brien,COO-001,Operations,240000,London HQ,Male,Permanent,Full-time,
+OPS-002,SOC Manager,filled,Yuki Tanaka,OPS-001,Operations,160000,London HQ,Female,Permanent,Full-time,Service Operations Center
+OPS-003,SOC Team Lead - Day Shift,filled,Andre Williams,OPS-002,Operations,110000,London HQ,Male,Permanent,Full-time,
+OPS-004,SOC Analyst,filled,Hannah Fischer,OPS-003,Operations,72000,London HQ,Female,Permanent,Full-time,
+OPS-005,SOC Analyst,filled,Ben Taylor,OPS-003,Operations,72000,London HQ,Male,Temporary/Agency,Full-time,
+OPS-006,SOC Team Lead - Night Shift,filled,Kenji Nakamura,OPS-002,Operations,115000,London HQ,Male,Permanent,Full-time,Night shift premium
+OPS-007,SOC Analyst,filled,Olga Petrov,OPS-006,Operations,75000,London HQ,Female,Permanent,Full-time,Night shift
+OPS-008,SOC Analyst,vacant,,OPS-006,Operations,75000,London HQ,,Permanent,Full-time,Night shift - hiring
+OPS-009,Regional Manager - North,filled,Liam Scott,OPS-001,Operations,180000,Manchester,Male,Permanent,Full-time,Sites: MAN-1 MAN-2 EDI-1
+OPS-010,Regional Manager - South,filled,Rebecca Hall,OPS-001,Operations,180000,London HQ,Female,Permanent,Full-time,Sites: LON-1 LON-2 LON-3 SLO-1
+OPS-011,Regional Manager - Europe,filled,Stefan Mueller,OPS-001,Operations,185000,Frankfurt,Male,Permanent,Full-time,Sites: FRA-1 AMS-1
+DC-MAN-001,Data Center Manager - LON-1,filled,Chris Palmer,OPS-010,Operations,130000,London - Docklands,Male,Permanent,Full-time,Flagship facility
+DC-ENG-001,Site Engineer,filled,Aisha Khan,DC-MAN-001,Operations,85000,London - Docklands,Female,Permanent,Full-time,Electrical specialist
+DC-ENG-002,Site Engineer,filled,Jake Morrison,DC-MAN-001,Operations,85000,London - Docklands,Male,Contractor,Full-time,Mechanical specialist
+DC-ENG-003,Site Engineer,planned,,DC-MAN-001,Operations,85000,London - Docklands,,Permanent,Full-time,Expansion hire
+DC-MAN-002,Data Center Manager - LON-2,filled,Diane Cross,OPS-010,Operations,125000,London - Park Royal,Female,Permanent,Full-time,
+DC-ENG-004,Site Engineer,filled,Tariq Hassan,DC-MAN-002,Operations,82000,London - Park Royal,Male,Contractor,Full-time,
+DC-ENG-005,Site Engineer,filled,Megan O'Neill,DC-MAN-002,Operations,82000,London - Park Royal,Female,Permanent,Full-time,
+DC-MAN-003,Data Center Manager - LON-3,filled,George Papadopoulos,OPS-010,Operations,125000,London - Slough East,Male,Permanent,Full-time,
+DC-ENG-006,Site Engineer,filled,Fiona Campbell,DC-MAN-003,Operations,82000,London - Slough East,Female,Permanent,Full-time,
+DC-ENG-007,Site Engineer,vacant,,DC-MAN-003,Operations,82000,London - Slough East,,Permanent,Full-time,Backfill
+DC-MAN-004,Data Center Manager - SLO-1,filled,Nina Johansson,OPS-010,Operations,120000,Slough West,Female,Permanent,Part-time,
+DC-ENG-008,Site Engineer,filled,Ryan Cooper,DC-MAN-004,Operations,80000,Slough West,Male,Permanent,Full-time,
+DC-MAN-005,Data Center Manager - MAN-1,filled,Owen Hughes,OPS-009,Operations,120000,Manchester - Trafford,Male,Permanent,Full-time,
+DC-ENG-009,Site Engineer,filled,Ellie Shaw,DC-MAN-005,Operations,80000,Manchester - Trafford,Female,Permanent,Full-time,
+DC-ENG-010,Site Engineer,filled,Callum Reid,DC-MAN-005,Operations,80000,Manchester - Trafford,Male,Apprentice/Graduate,Full-time,
+DC-MAN-006,Data Center Manager - MAN-2,filled,Sophie Turner,OPS-009,Operations,120000,Manchester - Salford,Female,Permanent,Full-time,
+DC-ENG-011,Site Engineer,filled,Dan Whitaker,DC-MAN-006,Operations,80000,Manchester - Salford,Male,Permanent,Full-time,
+DC-MAN-007,Data Center Manager - EDI-1,filled,Hamish MacDonald,OPS-009,Operations,118000,Edinburgh,Male,Permanent,Full-time,
+DC-ENG-012,Site Engineer,filled,Isla Robertson,DC-MAN-007,Operations,78000,Edinburgh,Female,Permanent,Full-time,
+DC-ENG-013,Site Engineer,vacant,,DC-MAN-007,Operations,78000,Edinburgh,,Permanent,Full-time,New site ramp-up
+DC-MAN-008,Data Center Manager - FRA-1,filled,Lukas Braun,OPS-011,Operations,125000,Frankfurt,Male,Permanent,Full-time,
+DC-ENG-014,Site Engineer,filled,Anna Schneider,DC-MAN-008,Operations,82000,Frankfurt,Female,Permanent,Full-time,
+DC-ENG-015,Site Engineer,filled,Markus Hoffmann,DC-MAN-008,Operations,82000,Frankfurt,Male,Permanent,Full-time,
+DC-MAN-009,Data Center Manager - AMS-1,filled,Willem de Vries,OPS-011,Operations,122000,Amsterdam,Male,Permanent,Full-time,
+DC-ENG-016,Site Engineer,filled,Eva Bakker,DC-MAN-009,Operations,80000,Amsterdam,Female,Fixed-term,Full-time,
+DC-ENG-017,Site Engineer,planned,,DC-MAN-009,Operations,80000,Amsterdam,,Permanent,Full-time,Phase 2 expansion
+DNC-001,VP Design & Construction,filled,Robert Ainsworth,CTO-001,Design & Construction,230000,London HQ,Male,Permanent,Full-time,
+DNC-002,Design Manager,filled,Laura Benson,DNC-001,Design & Construction,155000,London HQ,Female,Permanent,Part-time,
+DNC-003,Senior Design Engineer,filled,Vikram Singh,DNC-002,Design & Construction,120000,London HQ,Male,Permanent,Full-time,Electrical design
+DNC-004,Design Engineer,filled,Chloe Martin,DNC-002,Design & Construction,95000,London HQ,Female,Permanent,Full-time,Mechanical design
+DNC-005,Design Engineer,planned,,DNC-002,Design & Construction,95000,London HQ,,Permanent,Full-time,BIM specialist
+DNC-006,Construction Manager,filled,Patrick Brennan,DNC-001,Design & Construction,160000,London HQ,Male,Permanent,Full-time,
+DNC-007,Project Manager,filled,Rachel Green,DNC-006,Design & Construction,125000,London HQ,Female,Permanent,Full-time,LON-3 expansion
+DNC-008,Project Manager,filled,Simon Watts,DNC-006,Design & Construction,125000,Manchester,Male,Permanent,Full-time,MAN-2 fit-out
+DNC-009,Project Engineer,filled,Amy Fletcher,DNC-007,Design & Construction,90000,London HQ,Female,Intern,Full-time,
+DNC-010,Project Engineer,vacant,,DNC-008,Design & Construction,90000,Manchester,,Permanent,Full-time,Hiring for MAN-2
