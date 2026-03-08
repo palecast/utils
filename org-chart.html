@@ -9,30 +9,49 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            background: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         header {
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            margin-bottom: 24px;
+            padding: 10px 20px;
+            flex-shrink: 0;
         }
 
-        header h1 { font-size: 2rem; font-weight: 600; }
+        header h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+        header a.disclaimer-link { color: rgba(255,255,255,0.7); font-size: 0.75rem; text-decoration: none; }
+        header a.disclaimer-link:hover { color: white; }
 
         .panel {
             background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
+        }
+
+        .panel-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+            background: white;
         }
 
         /* Controls */
@@ -164,9 +183,10 @@
             border-bottom-color: #667eea;
         }
 
-        .tab-content { display: none; padding-top: 16px; }
+        .tab-content { display: none; padding: 16px 20px 16px; }
         .tab-content.active { display: block; }
-        #tab-chart.active { display: flex; gap: 16px; }
+        #tab-table.active { overflow: auto; flex: 1; min-height: 0; }
+        #tab-chart.active { display: flex; gap: 0; flex: 1; min-height: 0; padding: 0; }
 
         /* Status badges */
         .status-filled { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
@@ -218,7 +238,8 @@
         #chart-container {
             position: relative;
             overflow: auto;
-            min-height: 400px;
+            flex: 1;
+            min-height: 0;
             text-align: center;
         }
 
@@ -280,23 +301,19 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
-        /* Footer */
-        footer {
-            text-align: center;
-            color: white;
-            margin-top: 24px;
-            opacity: 0.8;
-            font-size: 0.85rem;
+        /* Tab bar */
+        .tab-bar-container {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0 20px;
+            flex-shrink: 0;
         }
-
-        footer a { color: white; }
 
         .chart-sidebar {
             width: 240px;
             flex-shrink: 0;
             background: #f8f9fb;
             border-right: 1px solid #e0e0e0;
-            border-radius: 8px 0 0 8px;
             transition: width 0.2s ease, padding 0.2s ease;
             overflow: hidden;
             position: relative;
@@ -340,13 +357,19 @@
             min-width: 0;
         }
 
-        /* Summary panel */
+        /* Summary panel — fixed footer */
         .summary-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
             background: white;
             border-top: 1px solid #e0e0e0;
-            border-radius: 0 0 8px 8px;
-            flex-shrink: 0;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            display: none;
         }
+        .summary-panel.visible { display: block; }
         .summary-toggle {
             height: 32px;
             display: flex;
@@ -355,7 +378,6 @@
             padding: 0 12px;
             cursor: pointer;
             background: #f8f9fb;
-            border-radius: 0 0 8px 8px;
             font-size: 0.75rem;
             font-weight: 600;
             color: #666;
@@ -371,7 +393,6 @@
             overflow: hidden;
         }
         .summary-panel.collapsed .summary-content { max-height: 0; padding: 0 16px; }
-        .summary-panel.collapsed .summary-toggle { border-radius: 0 0 8px 8px; }
         .summary-stat { display: flex; flex-direction: column; gap: 2px; }
         .summary-stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: #999; font-weight: 600; }
         .summary-stat-value { font-size: 1rem; font-weight: 700; color: #333; }
@@ -386,7 +407,7 @@
         /* Minimap */
         .minimap {
             position: absolute;
-            bottom: 48px;
+            bottom: 16px;
             right: 16px;
             width: 220px;
             height: 160px;
@@ -434,7 +455,7 @@
         .minimap-viewport:active { cursor: grabbing; }
         .minimap-toggle-btn {
             position: absolute;
-            bottom: 48px;
+            bottom: 16px;
             right: 16px;
             z-index: 20;
             width: 32px;
@@ -544,11 +565,11 @@
         }
 
         @media (max-width: 768px) {
-            header h1 { font-size: 1.5rem; }
+            header h1 { font-size: 1.1rem; }
             .controls { flex-direction: column; align-items: flex-start; }
-            .panel { padding: 16px; }
+            .panel { padding: 12px; }
             #tab-chart.active { flex-direction: column; }
-            .chart-sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e0e0e0; border-radius: 8px 8px 0 0; }
+            .chart-sidebar { width: 100%; border-right: none; border-bottom: 1px solid #e0e0e0; }
             .chart-sidebar.collapsed { width: 100%; height: 0; border-bottom: none; }
             .sidebar-content { width: 100%; }
             .sidebar-toggle { display: none; }
@@ -558,6 +579,7 @@
         }
 
         @media print {
+            body { height: auto; overflow: visible; }
             body * { visibility: hidden; }
             #chart-container, #chart-container * { visibility: visible; }
             #chart-container {
@@ -577,6 +599,7 @@
     <div class="container">
         <header>
             <h1>&#127970; Org Chart Designer</h1>
+            <a class="disclaimer-link" href="/disclaimer">Disclaimer</a>
         </header>
 
         <div class="panel">
@@ -592,11 +615,14 @@
 
         <div class="warning-banner" id="warning-banner"></div>
 
-        <div class="panel" style="padding-bottom: 0;">
+        <div class="tab-bar-container">
             <div class="tab-bar">
                 <button class="tab-btn active" onclick="switchTab('table')">Table</button>
                 <button class="tab-btn" onclick="switchTab('chart')">Chart</button>
             </div>
+        </div>
+
+        <div class="panel-main">
 
             <div class="tab-content active" id="tab-table">
                 <div style="margin-bottom: 12px;">
@@ -671,9 +697,7 @@
                             <div class="control-section-body">
                                 <button class="btn-secondary btn-small" onclick="printChart()">&#128424; Print</button>
                                 <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="downloadChart('png')">PNG</button>
-                                <button class="btn-secondary btn-small" onclick="downloadChart('svg')">SVG</button>
-                                <button class="btn-secondary btn-small" onclick="downloadChart('jpeg')">JPEG</button>
+                                <button class="btn-secondary btn-small" onclick="downloadChart()">&#11015; SVG</button>
                             </div>
                         </div>
                     </div>
@@ -692,20 +716,17 @@
                         </div>
                     </div>
                     <button class="minimap-toggle-btn" id="minimap-toggle-btn" onclick="toggleMinimap()" style="display:none">&#8862;</button>
-                    <div class="summary-panel" id="summary-panel">
-                        <div class="summary-toggle" onclick="toggleSummary()">
-                            <span>Summary</span>
-                            <span id="summary-toggle-icon">&#9660;</span>
-                        </div>
-                        <div class="summary-content" id="summary-content"></div>
-                    </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <footer>
-            <p><a href="/disclaimer">Disclaimer &amp; Terms</a></p>
-        </footer>
+    <div class="summary-panel" id="summary-panel">
+        <div class="summary-toggle" onclick="toggleSummary()">
+            <span>Summary</span>
+            <span id="summary-toggle-icon">&#9660;</span>
+        </div>
+        <div class="summary-content" id="summary-content"></div>
     </div>
 
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
@@ -1644,33 +1665,69 @@
             var ty = (canvasH - bbox.height * minimapScale) / 2 - bbox.y * minimapScale;
             miniG.setAttribute('transform', 'translate(' + tx + ',' + ty + ') scale(' + minimapScale + ')');
 
-            // Clone paths (links)
-            innerG.querySelectorAll('path').forEach(function(p) {
-                var clone = p.cloneNode(false);
+            // Clone paths (links) — search entire SVG tree, accumulate parent transforms
+            svgEl.querySelectorAll('path').forEach(function(p) {
+                var d = p.getAttribute('d');
+                if (!d) return;
+                // Accumulate translate transforms from parent <g> elements
+                var offsetX = 0, offsetY = 0;
+                var el = p.parentElement;
+                while (el && el !== innerG && el.tagName === 'g') {
+                    var t = el.getAttribute('transform');
+                    if (t) {
+                        var m = t.match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/);
+                        if (m) { offsetX += parseFloat(m[1]); offsetY += parseFloat(m[2]); }
+                    }
+                    el = el.parentElement;
+                }
+                var pathG = document.createElementNS(ns, 'g');
+                if (offsetX || offsetY) {
+                    pathG.setAttribute('transform', 'translate(' + offsetX + ',' + offsetY + ')');
+                }
+                var clone = document.createElementNS(ns, 'path');
+                clone.setAttribute('d', d);
                 clone.setAttribute('stroke', '#ccc');
                 clone.setAttribute('stroke-width', '1');
                 clone.setAttribute('fill', 'none');
-                miniG.appendChild(clone);
+                pathG.appendChild(clone);
+                miniG.appendChild(pathG);
             });
 
-            // Render nodes as simple colored rectangles
-            innerG.querySelectorAll('foreignObject').forEach(function(fo) {
+            // Render nodes as simple colored rectangles — search entire SVG tree
+            svgEl.querySelectorAll('foreignObject').forEach(function(fo) {
+                // foreignObject may be inside nested <g> elements with transforms
+                // We need to get the absolute position relative to innerG
+                var foX = parseFloat(fo.getAttribute('x')) || 0;
+                var foY = parseFloat(fo.getAttribute('y')) || 0;
+                var foW = parseFloat(fo.getAttribute('width')) || 220;
+                var foH = parseFloat(fo.getAttribute('height')) || 60;
+
+                // Walk up through parent <g> elements to accumulate transforms
+                var el = fo.parentElement;
+                while (el && el !== innerG && el.tagName === 'g') {
+                    var t = el.getAttribute('transform');
+                    if (t) {
+                        var m = t.match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/);
+                        if (m) { foX += parseFloat(m[1]); foY += parseFloat(m[2]); }
+                    }
+                    el = el.parentElement;
+                }
+
                 var rect = document.createElementNS(ns, 'rect');
-                rect.setAttribute('x', fo.getAttribute('x') || 0);
-                rect.setAttribute('y', fo.getAttribute('y') || 0);
-                rect.setAttribute('width', fo.getAttribute('width') || 220);
-                rect.setAttribute('height', fo.getAttribute('height') || 60);
+                rect.setAttribute('x', foX);
+                rect.setAttribute('y', foY);
+                rect.setAttribute('width', foW);
+                rect.setAttribute('height', foH);
                 rect.setAttribute('rx', '3');
 
-                // Try to get status color from the node content
-                var nodeDiv = fo.querySelector('.org-node');
+                // Get color from .node-title-bar inline style
+                var titleBar = fo.querySelector('.node-title-bar');
                 var color = '#bbb';
-                if (nodeDiv) {
-                    var borderMatch = nodeDiv.style.borderLeftColor || nodeDiv.style.borderTopColor;
-                    if (borderMatch) color = borderMatch;
+                if (titleBar && titleBar.style.backgroundColor) {
+                    color = titleBar.style.backgroundColor;
                 }
                 rect.setAttribute('fill', color);
-                rect.setAttribute('opacity', '0.5');
+                rect.setAttribute('opacity', '0.6');
                 miniG.appendChild(rect);
             });
 
@@ -1802,19 +1859,23 @@
 
             var newTransform = d3.zoomIdentity.translate(-chartX * transform.k, -chartY * transform.k).scale(transform.k);
 
-            var sel = d3.select(svgEl);
-            var zoom = null;
-            // Try to get the zoom behavior from the SVG
+            // Use the chart instance's zoom behavior for proper d3 integration
             try {
-                var zoomData = svgEl.__zoom;
-                if (zoomData) {
-                    sel.call(function(s) {
-                        s.property('__zoom', newTransform);
-                    });
-                    var innerG = svgEl.querySelector('g');
-                    if (innerG) {
-                        innerG.setAttribute('transform', newTransform.toString());
+                if (chartInstance && chartInstance.getChartState) {
+                    var state = chartInstance.getChartState();
+                    if (state.zoom) {
+                        d3.select(svgEl).call(state.zoom.transform, newTransform);
+                        return;
                     }
+                }
+            } catch(e) { /* fallback below */ }
+
+            // Fallback: manually set transform
+            try {
+                d3.select(svgEl).property('__zoom', newTransform);
+                var innerG = svgEl.querySelector('g');
+                if (innerG) {
+                    innerG.setAttribute('transform', newTransform.toString());
                 }
             } catch(e) { /* ignore */ }
         }
@@ -1827,6 +1888,7 @@
             });
             document.getElementById('tab-table').classList.toggle('active', tab === 'table');
             document.getElementById('tab-chart').classList.toggle('active', tab === 'chart');
+            document.getElementById('summary-panel').classList.toggle('visible', tab === 'chart');
             if (tab === 'chart') renderChart();
         }
 
@@ -1963,17 +2025,9 @@
             window.print();
         }
 
-        function downloadChart(format) {
+        function downloadChart() {
             const svgEl = document.querySelector('#chart-container svg');
             if (!svgEl) return;
-            if (format === 'svg') {
-                downloadSVG(svgEl);
-                return;
-            }
-            downloadRaster(svgEl, format);
-        }
-
-        function downloadSVG(svgEl) {
             const clone = svgEl.cloneNode(true);
             const bbox = svgEl.getBBox();
             clone.setAttribute('viewBox', `${bbox.x - 10} ${bbox.y - 10} ${bbox.width + 20} ${bbox.height + 20}`);
@@ -1982,43 +2036,6 @@
             inlineSVGStyles(clone);
             const data = new XMLSerializer().serializeToString(clone);
             triggerDownload('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data), 'org-chart.svg');
-        }
-
-        function downloadRaster(svgEl, format) {
-            const clone = svgEl.cloneNode(true);
-            const bbox = svgEl.getBBox();
-            const padding = 20;
-            const w = bbox.width + padding * 2;
-            const h = bbox.height + padding * 2;
-            clone.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${w} ${h}`);
-            clone.setAttribute('width', w);
-            clone.setAttribute('height', h);
-            clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-            clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
-            clone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
-            inlineSVGStyles(clone);
-
-            const data = new XMLSerializer().serializeToString(clone);
-            const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const img = new Image();
-            const scale = 2;
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = w * scale;
-                canvas.height = h * scale;
-                const ctx = canvas.getContext('2d');
-                if (format === 'jpeg') {
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                URL.revokeObjectURL(url);
-                const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-                const quality = format === 'jpeg' ? 0.95 : undefined;
-                triggerDownload(canvas.toDataURL(mimeType, quality), 'org-chart.' + format);
-            };
-            img.src = url;
         }
 
         function inlineSVGStyles(svgClone) {
