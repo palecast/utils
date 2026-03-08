@@ -687,6 +687,25 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="control-section">
+                            <div class="control-section-label">Filter</div>
+                            <div class="control-section-body">
+                                <div class="control-group">
+                                    <label>Field:</label>
+                                    <select id="pivot-filter-field" onchange="onPivotFilterFieldChange()">
+                                        <option value="">None</option>
+                                        <option value="status">Status</option>
+                                        <option value="department">Department</option>
+                                        <option value="location">Location</option>
+                                        <option value="incumbentGender">Gender</option>
+                                    </select>
+                                    <div class="filter-container">
+                                        <button class="btn-secondary btn-small" id="pivot-filter-values-btn" onclick="togglePivotFilterDropdown()" style="display:none">Select values</button>
+                                        <div class="filter-values" id="pivot-filter-values-dropdown"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="pivot-surface" id="pivot-surface">
@@ -1117,26 +1136,50 @@
 
         function onFilterFieldChange() {
             filterField = document.getElementById('filter-field').value;
-            filterValues = new Set();
-            const btn = document.getElementById('filter-values-btn');
-            const dropdown = document.getElementById('filter-values-dropdown');
-
-            if (!filterField) {
-                btn.style.display = 'none';
-                dropdown.classList.remove('open');
-                if (activeTab === 'chart') renderChart();
-                return;
-            }
-
-            const vals = getUniqueValues(filterField);
-            filterValues = new Set(vals);
-            btn.style.display = '';
-            rebuildFilterCheckboxes(vals);
-            if (activeTab === 'chart') renderChart();
+            applyFilterFieldChange();
         }
 
-        function rebuildFilterCheckboxes(vals) {
-            const dropdown = document.getElementById('filter-values-dropdown');
+        function onPivotFilterFieldChange() {
+            filterField = document.getElementById('pivot-filter-field').value;
+            applyFilterFieldChange();
+        }
+
+        function applyFilterFieldChange() {
+            filterValues = new Set();
+            if (filterField) {
+                const vals = getUniqueValues(filterField);
+                filterValues = new Set(vals);
+            }
+            syncFilterUI();
+            if (activeTab === 'chart') renderChart();
+            if (activeTab === 'pivot') renderPivotTable();
+        }
+
+        function syncFilterUI() {
+            // Sync select dropdowns
+            document.getElementById('filter-field').value = filterField;
+            document.getElementById('pivot-filter-field').value = filterField;
+
+            // Sync value buttons and checkboxes
+            const chartBtn = document.getElementById('filter-values-btn');
+            const pivotBtn = document.getElementById('pivot-filter-values-btn');
+
+            if (!filterField) {
+                chartBtn.style.display = 'none';
+                pivotBtn.style.display = 'none';
+                document.getElementById('filter-values-dropdown').classList.remove('open');
+                document.getElementById('pivot-filter-values-dropdown').classList.remove('open');
+            } else {
+                chartBtn.style.display = '';
+                pivotBtn.style.display = '';
+                const vals = getUniqueValues(filterField);
+                rebuildFilterCheckboxes('filter-values-dropdown', vals);
+                rebuildFilterCheckboxes('pivot-filter-values-dropdown', vals);
+            }
+        }
+
+        function rebuildFilterCheckboxes(dropdownId, vals) {
+            const dropdown = document.getElementById(dropdownId);
             let html = '';
             vals.forEach(v => {
                 const checked = filterValues.has(v) ? ' checked' : '';
@@ -1146,21 +1189,30 @@
         }
 
         function toggleFilterDropdown() {
-            const dd = document.getElementById('filter-values-dropdown');
-            dd.classList.toggle('open');
+            document.getElementById('filter-values-dropdown').classList.toggle('open');
+        }
+
+        function togglePivotFilterDropdown() {
+            document.getElementById('pivot-filter-values-dropdown').classList.toggle('open');
         }
 
         function toggleFilterValue(val, checked) {
             if (checked) filterValues.add(val);
             else filterValues.delete(val);
+            syncFilterUI();
             if (activeTab === 'chart') renderChart();
+            if (activeTab === 'pivot') renderPivotTable();
         }
 
-        // Close filter dropdown on outside click
+        // Close filter dropdowns on outside click
         document.addEventListener('click', function(e) {
-            const filterContainer = document.getElementById('filter-values-btn')?.closest('.filter-container');
-            if (filterContainer && !filterContainer.contains(e.target)) {
+            const chartContainer = document.getElementById('filter-values-btn')?.closest('.filter-container');
+            if (chartContainer && !chartContainer.contains(e.target)) {
                 document.getElementById('filter-values-dropdown').classList.remove('open');
+            }
+            const pivotContainer = document.getElementById('pivot-filter-values-btn')?.closest('.filter-container');
+            if (pivotContainer && !pivotContainer.contains(e.target)) {
+                document.getElementById('pivot-filter-values-dropdown').classList.remove('open');
             }
         });
 
@@ -1589,6 +1641,7 @@
             document.getElementById('tab-chart').classList.toggle('active', tab === 'chart');
             document.getElementById('tab-pivot').classList.toggle('active', tab === 'pivot');
             document.getElementById('summary-panel').classList.toggle('visible', tab === 'chart' || tab === 'pivot');
+            if (tab === 'chart' || tab === 'pivot') syncFilterUI();
             if (tab === 'chart') renderChart();
             if (tab === 'pivot') renderPivotTable();
         }
