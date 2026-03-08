@@ -521,18 +521,14 @@
 
         @media print {
             body { height: auto; overflow: visible; }
-            body * { visibility: hidden; }
-            #chart-container, #chart-container * { visibility: visible; }
+            header, .panel, .chart-sidebar, .sidebar-toggle, .summary-panel,
+            .reparent-panel, .tab-bar, .pivot-container { display: none !important; }
+            .container, .panel-main, .design-surface { display: block !important; overflow: visible !important; height: auto !important; }
             #chart-container {
-                position: absolute;
-                left: 0; top: 0;
-                width: 100%; height: auto;
-                overflow: visible;
+                width: 100% !important; height: auto !important;
+                overflow: visible !important;
             }
-            .chart-sidebar { display: none; }
-            .chart-legend { position: absolute; }
-            .reparent-panel { display: none !important; }
-            .summary-panel, .sidebar-toggle { display: none !important; }
+            #chart-container svg { width: 100% !important; height: auto !important; }
         }
     </style>
 </head>
@@ -626,7 +622,7 @@
                                 </div>
                                 <span class="control-divider"></span>
                                 <div class="control-group">
-                                    <label>Fields:</label>
+                                    <label>Visible Fields:</label>
                                     <div class="filter-container" id="fields-container">
                                         <button class="btn-secondary btn-small" id="fields-btn" onclick="toggleFieldsDropdown()">Configure</button>
                                         <div class="filter-values" id="fields-dropdown"></div>
@@ -639,7 +635,7 @@
                             <div class="control-section-body">
                                 <button class="btn-secondary btn-small" onclick="printChart()">&#128424; Print</button>
                                 <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="downloadChart()">&#11015; SVG</button>
+                                <button class="btn-secondary btn-small" onclick="downloadPNG()">&#11015; PNG</button>
                             </div>
                         </div>
                     </div>
@@ -1809,22 +1805,6 @@
         }
 
         // --- Export / Print ---
-        function printChart() {
-            window.print();
-        }
-
-        function downloadChart() {
-            const svgEl = document.querySelector('#chart-container svg');
-            if (!svgEl) return;
-            const clone = svgEl.cloneNode(true);
-            const bbox = svgEl.getBBox();
-            clone.setAttribute('viewBox', `${bbox.x - 10} ${bbox.y - 10} ${bbox.width + 20} ${bbox.height + 20}`);
-            clone.setAttribute('width', bbox.width + 20);
-            clone.setAttribute('height', bbox.height + 20);
-            inlineSVGStyles(clone);
-            const data = new XMLSerializer().serializeToString(clone);
-            triggerDownload('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data), 'org-chart.svg');
-        }
 
         function inlineSVGStyles(svgClone) {
             const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
@@ -1834,6 +1814,7 @@
                     for (const rule of sheet.cssRules) {
                         if (rule.selectorText && (
                             rule.selectorText.includes('.node-') ||
+                            rule.selectorText.includes('.status-') ||
                             rule.selectorText.includes('.legend') ||
                             rule.selectorText.includes('.chart-legend')
                         )) {
@@ -1844,6 +1825,185 @@
             }
             styleEl.textContent = styles.join('\n');
             svgClone.insertBefore(styleEl, svgClone.firstChild);
+        }
+
+        function prepareSvgForExport() {
+            const svgEl = document.querySelector('#chart-container svg');
+            if (!svgEl) return null;
+            const clone = svgEl.cloneNode(true);
+            const bbox = svgEl.getBBox();
+            const pad = 20;
+            const width = bbox.width + pad * 2;
+            const height = bbox.height + pad * 2;
+            clone.setAttribute('viewBox', (bbox.x - pad) + ' ' + (bbox.y - pad) + ' ' + width + ' ' + height);
+            clone.setAttribute('width', width);
+            clone.setAttribute('height', height);
+            // Reset the inner <g> transform to strip zoom/pan
+            const innerG = clone.querySelector('g');
+            if (innerG) {
+                // d3-org-chart wraps everything in a <g> with a zoom transform; remove it
+                const origTransform = innerG.getAttribute('transform');
+                if (origTransform && origTransform.includes('scale')) {
+                    innerG.removeAttribute('transform');
+                }
+            }
+            inlineSVGStyles(clone);
+            return { clone, width, height };
+        }
+
+        function printChart() {
+            const result = prepareSvgForExport();
+            if (!result) return;
+            const svgStr = new XMLSerializer().serializeToString(result.clone);
+            const win = window.open('', '_blank');
+            if (!win) { alert('Please allow popups to print the chart.'); return; }
+            win.document.write('<!DOCTYPE html><html><head><title>Org Chart</title><style>body{margin:0}svg{width:100%;height:auto}</style></head><body>' + svgStr + '</body></html>');
+            win.document.close();
+            win.focus();
+            setTimeout(function() { win.print(); setTimeout(function() { win.close(); }, 1000); }, 300);
+        }
+
+        function convertForeignObjectsToSvg(svgClone) {
+            const fos = svgClone.querySelectorAll('foreignObject');
+            fos.forEach(function(fo) {
+                const x = parseFloat(fo.getAttribute('x')) || 0;
+                const y = parseFloat(fo.getAttribute('y')) || 0;
+                const w = parseFloat(fo.getAttribute('width')) || 180;
+                const h = parseFloat(fo.getAttribute('height')) || 80;
+
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+                // Parse the HTML content
+                const cardDiv = fo.querySelector('.node-card');
+                const titleBar = fo.querySelector('.node-title-bar');
+                const bodyDiv = fo.querySelector('.node-body');
+
+                const titleText = titleBar ? titleBar.textContent.trim() : '';
+                const titleBg = titleBar ? (titleBar.style.backgroundColor || '#667eea') : '#667eea';
+                const titleH = 26;
+                const fontSize = 11;
+                const lineHeight = 15;
+                const padX = 8;
+                const radius = 6;
+
+                // Title bar background
+                const titleRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                titleRect.setAttribute('x', x);
+                titleRect.setAttribute('y', y);
+                titleRect.setAttribute('width', w);
+                titleRect.setAttribute('height', titleH);
+                titleRect.setAttribute('rx', radius);
+                titleRect.setAttribute('ry', radius);
+                titleRect.setAttribute('fill', titleBg);
+                g.appendChild(titleRect);
+
+                // Square off bottom corners of title bar
+                const titleFill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                titleFill.setAttribute('x', x);
+                titleFill.setAttribute('y', y + titleH - radius);
+                titleFill.setAttribute('width', w);
+                titleFill.setAttribute('height', radius);
+                titleFill.setAttribute('fill', titleBg);
+                g.appendChild(titleFill);
+
+                // Title text
+                const titleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                titleTxt.setAttribute('x', x + padX);
+                titleTxt.setAttribute('y', y + titleH / 2 + 4);
+                titleTxt.setAttribute('fill', 'white');
+                titleTxt.setAttribute('font-size', fontSize + 1);
+                titleTxt.setAttribute('font-weight', '600');
+                titleTxt.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif');
+                // Clip long titles
+                const maxTitleChars = Math.floor((w - padX * 2) / (fontSize * 0.58));
+                titleTxt.textContent = titleText.length > maxTitleChars ? titleText.substring(0, maxTitleChars - 1) + '\u2026' : titleText;
+                g.appendChild(titleTxt);
+
+                // Body background
+                const bodyRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                bodyRect.setAttribute('x', x);
+                bodyRect.setAttribute('y', y + titleH);
+                bodyRect.setAttribute('width', w);
+                bodyRect.setAttribute('height', h - titleH);
+                bodyRect.setAttribute('fill', 'white');
+                bodyRect.setAttribute('rx', radius);
+                bodyRect.setAttribute('ry', radius);
+                g.appendChild(bodyRect);
+
+                // Square off top corners of body
+                const bodyFill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                bodyFill.setAttribute('x', x);
+                bodyFill.setAttribute('y', y + titleH);
+                bodyFill.setAttribute('width', w);
+                bodyFill.setAttribute('height', radius);
+                bodyFill.setAttribute('fill', 'white');
+                g.appendChild(bodyFill);
+
+                // Body text lines
+                if (bodyDiv) {
+                    const lines = bodyDiv.querySelectorAll('div');
+                    let lineY = y + titleH + lineHeight;
+                    lines.forEach(function(line) {
+                        if (lineY + lineHeight > y + h) return; // skip if overflows
+                        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        txt.setAttribute('x', x + padX);
+                        txt.setAttribute('y', lineY);
+                        txt.setAttribute('fill', '#333');
+                        txt.setAttribute('font-size', fontSize);
+                        txt.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif');
+                        const maxChars = Math.floor((w - padX * 2) / (fontSize * 0.55));
+                        const text = line.textContent.trim();
+                        txt.textContent = text.length > maxChars ? text.substring(0, maxChars - 1) + '\u2026' : text;
+                        g.appendChild(txt);
+                        lineY += lineHeight;
+                    });
+                }
+
+                // Border
+                const border = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                border.setAttribute('x', x);
+                border.setAttribute('y', y);
+                border.setAttribute('width', w);
+                border.setAttribute('height', h);
+                border.setAttribute('rx', radius);
+                border.setAttribute('ry', radius);
+                border.setAttribute('fill', 'none');
+                border.setAttribute('stroke', '#ddd');
+                border.setAttribute('stroke-width', '1');
+                g.appendChild(border);
+
+                fo.parentNode.replaceChild(g, fo);
+            });
+        }
+
+        function downloadPNG() {
+            const result = prepareSvgForExport();
+            if (!result) return;
+            convertForeignObjectsToSvg(result.clone);
+            const svgStr = new XMLSerializer().serializeToString(result.clone);
+            const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            const scale = 2;
+            const w = result.width;
+            const h = result.height;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = w * scale;
+                canvas.height = h * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(scale, scale);
+                ctx.drawImage(img, 0, 0, w, h);
+                URL.revokeObjectURL(url);
+                canvas.toBlob(function(pngBlob) {
+                    triggerDownload(URL.createObjectURL(pngBlob), 'org-chart.png');
+                }, 'image/png');
+            };
+            img.onerror = function() {
+                URL.revokeObjectURL(url);
+                alert('Failed to render chart image.');
+            };
+            img.src = url;
         }
 
         function triggerDownload(href, filename) {
