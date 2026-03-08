@@ -42,6 +42,9 @@ Most tools share the same purple gradient theme (`#667eea → #764ba2`).
 
 - **Chart.js** (`cdn.jsdelivr.net/npm/chart.js`) — used by `currency-converter.html` and `ccy-tracker.html`
 - **Google Fonts** — used by `ccy-tracker.html` (DM Serif Display, Work Sans)
+- **Tabulator** (`cdn.jsdelivr.net/npm/tabulator-tables@6`) — used by `org-chart.html` for the table/grid view
+- **d3-org-chart** (`cdn.jsdelivr.net/npm/d3-org-chart@3`) + **d3-flextree** — used by `org-chart.html` for the tree visualization
+- **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx`) — used by `org-chart.html` for Excel import/export
 - **frankfurter.dev API** (`api.frankfurter.dev/v1`) — live and historical ECB exchange rates, used by both currency tools. No API key required.
 
 ### State Persistence

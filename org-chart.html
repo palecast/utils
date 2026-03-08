@@ -544,6 +544,7 @@
                 <div class="control-group">
                     <button class="btn-primary" onclick="document.getElementById('file-input').click()">Import</button>
                     <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
+                    <button class="btn-secondary" onclick="loadTestData()">Load test data</button>
                     <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
                     <button class="btn-secondary" onclick="exportExcel()">Export Excel</button>
                 </div>
@@ -1751,6 +1752,49 @@
             return mapping;
         }
 
+        function processImportData(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+            if (!jsonData.length) {
+                alert('No data found in the file.');
+                return;
+            }
+
+            const headerMap = mapHeaders(Object.keys(jsonData[0]));
+            roles = jsonData.map((row, i) => {
+                const role = {
+                    roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
+                    managerRoleId: '', department: '', costToCompany: 0,
+                    location: '', incumbentGender: '', comments: ''
+                };
+                Object.entries(row).forEach(([col, val]) => {
+                    const field = headerMap[col];
+                    if (field) {
+                        if (field === 'costToCompany') {
+                            role[field] = parseFloat(val) || 0;
+                        } else if (field === 'status') {
+                            const s = String(val).toLowerCase().trim();
+                            role[field] = ['filled','vacant','planned','removed'].includes(s) ? s : 'planned';
+                        } else {
+                            role[field] = String(val);
+                        }
+                    }
+                });
+                if (!role.roleId) role.roleId = 'R' + (i + 1);
+                return role;
+            });
+
+            nextId = roles.reduce(function(max, r) {
+                var m = r.roleId.match(/^R(\d+)$/);
+                return m ? Math.max(max, parseInt(m[1]) + 1) : max;
+            }, roles.length + 1);
+            validateRoles();
+            render();
+        }
+
         function importFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1758,46 +1802,7 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-                    if (!jsonData.length) {
-                        alert('No data found in the file.');
-                        return;
-                    }
-
-                    const headerMap = mapHeaders(Object.keys(jsonData[0]));
-                    roles = jsonData.map((row, i) => {
-                        const role = {
-                            roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
-                            managerRoleId: '', department: '', costToCompany: 0,
-                            location: '', incumbentGender: '', comments: ''
-                        };
-                        Object.entries(row).forEach(([col, val]) => {
-                            const field = headerMap[col];
-                            if (field) {
-                                if (field === 'costToCompany') {
-                                    role[field] = parseFloat(val) || 0;
-                                } else if (field === 'status') {
-                                    const s = String(val).toLowerCase().trim();
-                                    role[field] = ['filled','vacant','planned','removed'].includes(s) ? s : 'planned';
-                                } else {
-                                    role[field] = String(val);
-                                }
-                            }
-                        });
-                        if (!role.roleId) role.roleId = 'R' + (i + 1);
-                        return role;
-                    });
-
-                    nextId = roles.reduce(function(max, r) {
-                        var m = r.roleId.match(/^R(\d+)$/);
-                        return m ? Math.max(max, parseInt(m[1]) + 1) : max;
-                    }, roles.length + 1);
-                    validateRoles();
-                    render();
+                    processImportData(e.target.result);
                 } catch (err) {
                     alert('Error importing file: ' + err.message);
                 }
@@ -1805,6 +1810,20 @@
             reader.onerror = function() { alert('Error reading file.'); };
             reader.readAsArrayBuffer(file);
             event.target.value = '';
+        }
+
+        function loadTestData() {
+            fetch('test-data/org-chart-test-data.csv')
+                .then(function(response) {
+                    if (!response.ok) throw new Error('Could not load test data (HTTP ' + response.status + ')');
+                    return response.arrayBuffer();
+                })
+                .then(function(arrayBuffer) {
+                    processImportData(arrayBuffer);
+                })
+                .catch(function(err) {
+                    alert(err.message);
+                });
         }
 
         // --- Export ---
