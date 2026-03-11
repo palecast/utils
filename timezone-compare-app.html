@@ -210,45 +210,173 @@ function getTZAbbr(tz){
 }
 
 // ------- Data: timezones & city labels -------
-const COMMON = [
-  {label:'London, United Kingdom', tz:'Europe/London'},
-  {label:'New York, USA', tz:'America/New_York'},
-  {label:'Berlin, Germany', tz:'Europe/Berlin'},
-  {label:'Johannesburg, South Africa', tz:'Africa/Johannesburg'},
-  {label:'Stuttgart, Germany', tz:'Europe/Berlin'},
-  {label:'Houston, USA', tz:'America/Chicago'},
-  {label:'San Francisco, USA', tz:'America/Los_Angeles'},
-  {label:'Chicago, USA', tz:'America/Chicago'},
-  {label:'Singapore', tz:'Asia/Singapore'},
-  {label:'Tokyo, Japan', tz:'Asia/Tokyo'},
-  {label:'Sydney, Australia', tz:'Australia/Sydney'},
-  {label:'Paris, France', tz:'Europe/Paris'},
-  {label:'Madrid, Spain', tz:'Europe/Madrid'},
-  {label:'Rome, Italy', tz:'Europe/Rome'},
-  {label:'Dublin, Ireland', tz:'Europe/Dublin'},
-  {label:'Toronto, Canada', tz:'America/Toronto'},
-  {label:'Sao Paulo, Brazil', tz:'America/Sao_Paulo'},
-  {label:'Mexico City, Mexico', tz:'America/Mexico_City'},
-  {label:'Dubai, UAE', tz:'Asia/Dubai'},
-  {label:'Mumbai, India', tz:'Asia/Kolkata'},
-  {label:'Hong Kong', tz:'Asia/Hong_Kong'},
-  {label:'Seoul, South Korea', tz:'Asia/Seoul'},
-  {label:'Beijing, China', tz:'Asia/Shanghai'},
-  {label:'Auckland, New Zealand', tz:'Pacific/Auckland'},
-  {label:'Los Angeles, USA', tz:'America/Los_Angeles'},
-  {label:'Zurich, Switzerland', tz:'Europe/Zurich'},
-  {label:'Amsterdam, Netherlands', tz:'Europe/Amsterdam'},
-  {label:'Stockholm, Sweden', tz:'Europe/Stockholm'},
-  {label:'Vienna, Austria', tz:'Europe/Vienna'},
-  {label:'Cape Town, South Africa', tz:'Africa/Johannesburg'},
-  {label:'Warsaw, Poland', tz:'Europe/Warsaw'},
-  {label:'Prague, Czechia', tz:'Europe/Prague'}
+
+// Friendly label overrides for IANA IDs where the zone name is
+// misleading, outdated, or doesn't match the best-known city.
+const LABEL_OVERRIDES = {
+  'Asia/Kolkata':           'Mumbai / Delhi, India',
+  'Asia/Shanghai':          'Beijing / Shanghai, China',
+  'Asia/Hong_Kong':         'Hong Kong',
+  'America/Chicago':        'Chicago, USA',
+  'America/New_York':       'New York, USA',
+  'America/Los_Angeles':    'Los Angeles, USA',
+  'America/Denver':         'Denver, USA',
+  'America/Phoenix':        'Phoenix, USA',
+  'America/Anchorage':      'Anchorage, USA',
+  'Pacific/Honolulu':       'Honolulu, USA',
+  'America/Toronto':        'Toronto, Canada',
+  'America/Vancouver':      'Vancouver, Canada',
+  'America/Edmonton':       'Calgary / Edmonton, Canada',
+  'America/Winnipeg':       'Winnipeg, Canada',
+  'America/Halifax':        'Halifax, Canada',
+  'America/St_Johns':       "St. John's, Canada",
+  'America/Sao_Paulo':      'São Paulo, Brazil',
+  'America/Argentina/Buenos_Aires': 'Buenos Aires, Argentina',
+  'America/Bogota':         'Bogotá, Colombia',
+  'America/Mexico_City':    'Mexico City, Mexico',
+  'Europe/London':          'London, United Kingdom',
+  'Europe/Berlin':          'Berlin, Germany',
+  'Europe/Paris':           'Paris, France',
+  'Europe/Madrid':          'Madrid, Spain',
+  'Europe/Rome':            'Rome, Italy',
+  'Europe/Dublin':          'Dublin, Ireland',
+  'Europe/Zurich':          'Zurich, Switzerland',
+  'Europe/Amsterdam':       'Amsterdam, Netherlands',
+  'Europe/Stockholm':       'Stockholm, Sweden',
+  'Europe/Vienna':          'Vienna, Austria',
+  'Europe/Warsaw':          'Warsaw, Poland',
+  'Europe/Prague':          'Prague, Czechia',
+  'Europe/Bucharest':       'Bucharest, Romania',
+  'Europe/Istanbul':        'Istanbul, Turkey',
+  'Europe/Moscow':          'Moscow, Russia',
+  'Europe/Kyiv':            'Kyiv, Ukraine',
+  'Europe/Kiev':            'Kyiv, Ukraine',
+  'Africa/Johannesburg':    'Johannesburg, South Africa',
+  'Africa/Lagos':           'Lagos, Nigeria',
+  'Africa/Cairo':           'Cairo, Egypt',
+  'Africa/Nairobi':         'Nairobi, Kenya',
+  'Africa/Casablanca':      'Casablanca, Morocco',
+  'Africa/Accra':           'Accra, Ghana',
+  'Africa/Dar_es_Salaam':   'Dar es Salaam, Tanzania',
+  'Asia/Tokyo':             'Tokyo, Japan',
+  'Asia/Seoul':             'Seoul, South Korea',
+  'Asia/Singapore':         'Singapore',
+  'Asia/Dubai':             'Dubai, UAE',
+  'Asia/Riyadh':            'Riyadh, Saudi Arabia',
+  'Asia/Tehran':            'Tehran, Iran',
+  'Asia/Karachi':           'Karachi, Pakistan',
+  'Asia/Dhaka':             'Dhaka, Bangladesh',
+  'Asia/Bangkok':           'Bangkok, Thailand',
+  'Asia/Ho_Chi_Minh':       'Ho Chi Minh City, Vietnam',
+  'Asia/Jakarta':           'Jakarta, Indonesia',
+  'Asia/Manila':            'Manila, Philippines',
+  'Asia/Kuala_Lumpur':      'Kuala Lumpur, Malaysia',
+  'Asia/Taipei':            'Taipei, Taiwan',
+  'Australia/Sydney':       'Sydney, Australia',
+  'Australia/Melbourne':    'Melbourne, Australia',
+  'Australia/Perth':        'Perth, Australia',
+  'Australia/Brisbane':     'Brisbane, Australia',
+  'Australia/Adelaide':     'Adelaide, Australia',
+  'Pacific/Auckland':       'Auckland, New Zealand',
+  'Pacific/Fiji':           'Suva, Fiji',
+};
+
+// Extra searchable aliases — cities that share a tz with another IANA zone
+// but are important enough to surface by name in search results.
+const CITY_ALIASES = [
+  {label:'Stuttgart, Germany',        tz:'Europe/Berlin'},
+  {label:'Munich, Germany',           tz:'Europe/Berlin'},
+  {label:'Frankfurt, Germany',        tz:'Europe/Berlin'},
+  {label:'Houston, USA',              tz:'America/Chicago'},
+  {label:'Dallas, USA',               tz:'America/Chicago'},
+  {label:'San Francisco, USA',        tz:'America/Los_Angeles'},
+  {label:'Seattle, USA',              tz:'America/Los_Angeles'},
+  {label:'Boston, USA',               tz:'America/New_York'},
+  {label:'Washington DC, USA',        tz:'America/New_York'},
+  {label:'Miami, USA',                tz:'America/New_York'},
+  {label:'Atlanta, USA',              tz:'America/New_York'},
+  {label:'Montreal, Canada',          tz:'America/Toronto'},
+  {label:'Cape Town, South Africa',   tz:'Africa/Johannesburg'},
+  {label:'Lima, Peru',                tz:'America/Lima'},
+  {label:'Santiago, Chile',           tz:'America/Santiago'},
+  {label:'Barcelona, Spain',          tz:'Europe/Madrid'},
+  {label:'Milan, Italy',              tz:'Europe/Rome'},
+  {label:'Lisbon, Portugal',          tz:'Europe/Lisbon'},
+  {label:'Copenhagen, Denmark',       tz:'Europe/Copenhagen'},
+  {label:'Helsinki, Finland',         tz:'Europe/Helsinki'},
+  {label:'Oslo, Norway',              tz:'Europe/Oslo'},
+  {label:'Brussels, Belgium',         tz:'Europe/Brussels'},
+  {label:'Athens, Greece',            tz:'Europe/Athens'},
+  {label:'St. Petersburg, Russia',    tz:'Europe/Moscow'},
+  {label:'Colombo, Sri Lanka',        tz:'Asia/Colombo'},
+  {label:'Hanoi, Vietnam',            tz:'Asia/Ho_Chi_Minh'},
+  {label:'Shenzhen, China',           tz:'Asia/Shanghai'},
+  {label:'Guangzhou, China',          tz:'Asia/Shanghai'},
+  {label:'Delhi, India',              tz:'Asia/Kolkata'},
+  {label:'Bangalore, India',          tz:'Asia/Kolkata'},
+  {label:'Hyderabad, India',          tz:'Asia/Kolkata'},
+  {label:'Chennai, India',            tz:'Asia/Kolkata'},
 ];
-// Also allow raw IANA search when browser supports listing
-let ALL_TZ = [];
-try { if (Intl.supportedValuesOf) ALL_TZ = Intl.supportedValuesOf('timeZone'); } catch(e){}
-const EXTRA = ALL_TZ.map(tz=>({label: tz, tz}));
-const DIRECTORY = [...COMMON, ...EXTRA];
+
+// Popularity tiers (5 = megacity, 1 = default) — used to rank search results.
+const POP_TIER = {
+  'Asia/Tokyo':5, 'Asia/Shanghai':5, 'America/New_York':5, 'Europe/London':5,
+  'Asia/Kolkata':5, 'America/Sao_Paulo':5, 'Africa/Lagos':5, 'Africa/Cairo':5,
+  'America/Mexico_City':5, 'Asia/Jakarta':4, 'Asia/Seoul':4, 'Asia/Bangkok':4,
+  'Asia/Dhaka':4, 'Asia/Karachi':4, 'Asia/Manila':4, 'Asia/Dubai':4,
+  'America/Chicago':4, 'America/Los_Angeles':4, 'America/Toronto':4,
+  'Europe/Berlin':4, 'Europe/Paris':4, 'Europe/Madrid':4, 'Europe/Rome':4,
+  'Europe/Moscow':4, 'Europe/Istanbul':4, 'Asia/Singapore':4,
+  'Asia/Hong_Kong':4, 'Asia/Kuala_Lumpur':4, 'Asia/Taipei':4, 'Asia/Ho_Chi_Minh':4,
+  'Asia/Tehran':4, 'Asia/Riyadh':4, 'Africa/Johannesburg':4, 'Africa/Nairobi':3,
+  'Africa/Casablanca':3, 'Africa/Accra':3, 'America/Bogota':4, 'America/Lima':3,
+  'America/Argentina/Buenos_Aires':4, 'America/Santiago':3, 'America/Vancouver':3,
+  'America/Denver':3, 'Europe/Amsterdam':3, 'Europe/Zurich':3, 'Europe/Stockholm':3,
+  'Europe/Vienna':3, 'Europe/Warsaw':3, 'Europe/Prague':3, 'Europe/Bucharest':3,
+  'Europe/Dublin':3, 'Europe/Kyiv':3, 'Europe/Athens':3, 'Europe/Helsinki':3,
+  'Europe/Oslo':3, 'Europe/Copenhagen':3, 'Europe/Brussels':3, 'Europe/Lisbon':3,
+  'Australia/Sydney':3, 'Australia/Melbourne':3, 'Pacific/Auckland':3,
+  'Australia/Perth':3, 'Australia/Brisbane':3, 'Australia/Adelaide':3,
+  'Pacific/Honolulu':2, 'America/Anchorage':2, 'America/Halifax':2,
+  'America/Edmonton':2, 'America/Winnipeg':2, 'America/Phoenix':2,
+  'America/St_Johns':2, 'Pacific/Fiji':2,
+};
+
+const REGION_LABELS = {
+  America:'Americas', Asia:'Asia', Europe:'Europe', Africa:'Africa',
+  Pacific:'Pacific', Indian:'Indian Ocean', Australia:'Australia', Atlantic:'Atlantic',
+  Antarctica:'Antarctica', Arctic:'Arctic',
+};
+
+// Build the searchable directory from browser-supported IANA zones
+function buildDirectory() {
+  let zones = [];
+  try { if (Intl.supportedValuesOf) zones = Intl.supportedValuesOf('timeZone'); } catch(e){}
+
+  // Derive friendly labels from IANA IDs, with overrides
+  const fromIANA = zones
+    .filter(tz => tz.includes('/') && !tz.startsWith('Etc/'))
+    .map(tz => {
+      if (LABEL_OVERRIDES[tz]) return { label: LABEL_OVERRIDES[tz], tz, tier: POP_TIER[tz] || 1 };
+      const parts = tz.split('/');
+      const city = parts[parts.length - 1].replace(/_/g, ' ');
+      const region = REGION_LABELS[parts[0]] || parts[0];
+      return { label: city + ', ' + region, tz, tier: POP_TIER[tz] || 1 };
+    });
+
+  // Merge in aliases (only if the alias label isn't already present)
+  const labelSet = new Set(fromIANA.map(e => e.label.toLowerCase()));
+  const aliases = CITY_ALIASES
+    .filter(a => !labelSet.has(a.label.toLowerCase()))
+    .map(a => ({ label: a.label, tz: a.tz, tier: POP_TIER[a.tz] || 2 }));
+
+  // Combine and sort by tier (descending), then alphabetical
+  const combined = [...fromIANA, ...aliases];
+  combined.sort((a, b) => b.tier - a.tier || a.label.localeCompare(b.label));
+  return combined;
+}
+
+const DIRECTORY = buildDirectory();
 
 // ------- State -------
 const STORAGE_KEY = 'world-timeboard-state-v1';
@@ -510,6 +638,13 @@ search.addEventListener('input', ()=>{
   const q = search.value.trim().toLowerCase();
   if (!q){ closeDropdown(); return; }
   const results = DIRECTORY.filter(x=> x.label.toLowerCase().includes(q) || x.tz.toLowerCase().includes(q));
+  // Boost entries whose label starts with the query
+  results.sort((a, b) => {
+    const aStarts = a.label.toLowerCase().startsWith(q) ? 1 : 0;
+    const bStarts = b.label.toLowerCase().startsWith(q) ? 1 : 0;
+    if (bStarts !== aStarts) return bStarts - aStarts;
+    return (b.tier||1) - (a.tier||1);
+  });
   if (results.length){ openDropdown(results); } else { closeDropdown(); }
 });
 search.addEventListener('keydown', (e)=>{
