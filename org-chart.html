@@ -193,8 +193,12 @@
         /* Status badges */
         .status-filled { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
         .status-vacant { background: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .status-pending-start { background: #d1ecf1; color: #0c5460; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
         .status-planned { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .status-on-hold { background: #ffecd2; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .status-sunsetting { background: #e8daef; color: #4a235a; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
         .status-removed { background: #e2e3e5; color: #383d41; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .status-earmarked { background: #cce5ff; color: #004085; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
 
         /* Tabulator theme overrides */
         #tabulator-grid {
@@ -403,8 +407,12 @@
         .summary-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
         .summary-pill.filled { background: #d4edda; color: #155724; }
         .summary-pill.vacant { background: #f8d7da; color: #721c24; }
+        .summary-pill.pending-start { background: #d1ecf1; color: #0c5460; }
         .summary-pill.planned { background: #fff3cd; color: #856404; }
+        .summary-pill.on-hold { background: #ffecd2; color: #856404; }
+        .summary-pill.sunsetting { background: #e8daef; color: #4a235a; }
         .summary-pill.removed { background: #e2e3e5; color: #383d41; }
+        .summary-pill.earmarked { background: #cce5ff; color: #004085; }
 
         /* Pivot table */
         .pivot-surface { flex: 1; min-width: 0; overflow: auto; padding: 16px; }
@@ -752,7 +760,7 @@
         let colorField = '';
         let colorMap = {};
         let maxDepth = 0; // 0 = show all
-        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPlanned: false, hcRemoved: false, costFilled: false, costVacant: false, costPlanned: false, costRemoved: false };
+        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPendingStart: false, hcPlanned: false, hcOnHold: false, hcSunsetting: false, hcRemoved: false, hcEarmarked: false, costFilled: false, costVacant: false, costPendingStart: false, costPlanned: false, costOnHold: false, costSunsetting: false, costRemoved: false, costEarmarked: false };
         let chartInstance = null;
         let tabulatorGrid = null;
         let isEditing = false;
@@ -781,7 +789,7 @@
             { field: 'comments',        type: 'input' },
         ];
 
-        const STATUS_COLORS = { filled: '#27ae60', vacant: '#e74c3c', planned: '#f39c12', removed: '#95a5a6' };
+        const STATUS_COLORS = { filled: '#27ae60', vacant: '#e74c3c', 'pending start': '#17a2b8', planned: '#f39c12', 'on hold': '#e67e22', sunsetting: '#9b59b6', removed: '#95a5a6', earmarked: '#3498db' };
         const PALETTE = ['#27ae60','#e74c3c','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#2c3e50','#d35400','#c0392b'];
 
         function escapeHtml(str) {
@@ -900,9 +908,9 @@
                         { title: 'Title', field: 'roleTitle', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
                             title: 'Status', field: 'status', editor: 'list',
-                            editorParams: { values: ['filled', 'vacant', 'planned', 'removed'] },
-                            width: 90,
-                            headerFilter: 'list', headerFilterParams: { values: { '': 'All', filled: 'Filled', vacant: 'Vacant', planned: 'Planned', removed: 'Removed' } }
+                            editorParams: { values: ['filled', 'vacant', 'pending start', 'planned', 'on hold', 'sunsetting', 'removed', 'earmarked'] },
+                            width: 110,
+                            headerFilter: 'list', headerFilterParams: { values: { '': 'All', filled: 'Filled', vacant: 'Vacant', 'pending start': 'Pending Start', planned: 'Planned', 'on hold': 'On Hold', sunsetting: 'Sunsetting', removed: 'Removed', earmarked: 'Earmarked' } }
                         },
                         { title: 'Incumbent', field: 'incumbentName', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
@@ -1108,8 +1116,8 @@
 
         function computeCumulativeFields(node) {
             if (!node) return;
-            const statuses = ['filled', 'vacant', 'planned', 'removed'];
-            let headcount = (node.status === 'filled' || node.status === 'planned') ? 1 : 0;
+            const statuses = ['filled', 'vacant', 'pending start', 'planned', 'on hold', 'sunsetting', 'removed', 'earmarked'];
+            let headcount = (node.status === 'filled' || node.status === 'pending start' || node.status === 'planned' || node.status === 'earmarked') ? 1 : 0;
             let cost = node.costToCompany || 0;
             const perStatus = {};
             statuses.forEach(s => {
@@ -1286,9 +1294,9 @@
 
         // --- Field visibility ---
         function renderFieldsDropdown() {
-            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern', cost: 'Cost', comments: 'Comments', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPlanned: 'HC Planned', hcRemoved: 'HC Removed', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPlanned: 'Cost Planned', costRemoved: 'Cost Removed' };
+            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern', cost: 'Cost', comments: 'Comments', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPendingStart: 'HC Pending Start', hcPlanned: 'HC Planned', hcOnHold: 'HC On Hold', hcSunsetting: 'HC Sunsetting', hcRemoved: 'HC Removed', hcEarmarked: 'HC Earmarked', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPendingStart: 'Cost Pending Start', costPlanned: 'Cost Planned', costOnHold: 'Cost On Hold', costSunsetting: 'Cost Sunsetting', costRemoved: 'Cost Removed', costEarmarked: 'Cost Earmarked' };
             const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'employmentType', 'workingPattern', 'cost', 'comments'];
-            const computedFields = ['headcount', 'cumulativeCost', 'hcFilled', 'hcVacant', 'hcPlanned', 'hcRemoved', 'costFilled', 'costVacant', 'costPlanned', 'costRemoved'];
+            const computedFields = ['headcount', 'cumulativeCost', 'hcFilled', 'hcVacant', 'hcPendingStart', 'hcPlanned', 'hcOnHold', 'hcSunsetting', 'hcRemoved', 'hcEarmarked', 'costFilled', 'costVacant', 'costPendingStart', 'costPlanned', 'costOnHold', 'costSunsetting', 'costRemoved', 'costEarmarked'];
             const dropdown = document.getElementById('fields-dropdown');
             let html = '';
             baseFields.forEach(f => {
@@ -1362,7 +1370,7 @@
             computeCumulativeFields(tree);
 
             // Build a lookup from tree nodes to get cumulative values
-            const perStatusKeys = ['hc_filled','hc_vacant','hc_planned','hc_removed','cost_filled','cost_vacant','cost_planned','cost_removed'];
+            const perStatusKeys = ['hc_filled','hc_vacant','hc_pending start','hc_planned','hc_on hold','hc_sunsetting','hc_removed','hc_earmarked','cost_filled','cost_vacant','cost_pending start','cost_planned','cost_on hold','cost_sunsetting','cost_removed','cost_earmarked'];
             const cumulMap = {};
             function walkTree(node) {
                 const entry = { cumulativeHeadcount: node.cumulativeHeadcount, cumulativeCost: node.cumulativeCost };
@@ -1449,7 +1457,7 @@
                 html += '<div class="node-incumbent">' + escapeHtml(role.incumbentName) + '</div>';
             }
             if (chartFields.status && role.status) {
-                html += '<div class="node-status"><span class="status-' + escapeHtml(role.status) + '">' + escapeHtml(role.status.charAt(0).toUpperCase() + role.status.slice(1)) + '</span></div>';
+                html += '<div class="node-status"><span class="status-' + escapeHtml(role.status.replace(/\s+/g, '-')) + '">' + escapeHtml(role.status.charAt(0).toUpperCase() + role.status.slice(1)) + '</span></div>';
             }
             if (chartFields.department && role.department) {
                 html += '<div class="node-meta">' + escapeHtml(role.department) + '</div>';
@@ -1482,12 +1490,20 @@
             const metaFields = [
                 { key: 'hcFilled', prop: 'hc_filled', label: 'HC Filled' },
                 { key: 'hcVacant', prop: 'hc_vacant', label: 'HC Vacant' },
+                { key: 'hcPendingStart', prop: 'hc_pending start', label: 'HC Pending Start' },
                 { key: 'hcPlanned', prop: 'hc_planned', label: 'HC Planned' },
+                { key: 'hcOnHold', prop: 'hc_on hold', label: 'HC On Hold' },
+                { key: 'hcSunsetting', prop: 'hc_sunsetting', label: 'HC Sunsetting' },
                 { key: 'hcRemoved', prop: 'hc_removed', label: 'HC Removed' },
+                { key: 'hcEarmarked', prop: 'hc_earmarked', label: 'HC Earmarked' },
                 { key: 'costFilled', prop: 'cost_filled', label: 'Cost Filled', isCost: true },
                 { key: 'costVacant', prop: 'cost_vacant', label: 'Cost Vacant', isCost: true },
+                { key: 'costPendingStart', prop: 'cost_pending start', label: 'Cost Pending Start', isCost: true },
                 { key: 'costPlanned', prop: 'cost_planned', label: 'Cost Planned', isCost: true },
-                { key: 'costRemoved', prop: 'cost_removed', label: 'Cost Removed', isCost: true }
+                { key: 'costOnHold', prop: 'cost_on hold', label: 'Cost On Hold', isCost: true },
+                { key: 'costSunsetting', prop: 'cost_sunsetting', label: 'Cost Sunsetting', isCost: true },
+                { key: 'costRemoved', prop: 'cost_removed', label: 'Cost Removed', isCost: true },
+                { key: 'costEarmarked', prop: 'cost_earmarked', label: 'Cost Earmarked', isCost: true }
             ];
             metaFields.forEach(mf => {
                 if (chartFields[mf.key] && role[mf.prop] !== undefined) {
@@ -1632,8 +1648,8 @@
 
             const total = filtered.length;
             const totalCost = filtered.reduce(function(s, r) { return s + (r.costToCompany || 0); }, 0);
-            const statusCounts = { filled: 0, vacant: 0, planned: 0, removed: 0 };
-            const statusCosts = { filled: 0, vacant: 0, planned: 0, removed: 0 };
+            const statusCounts = { filled: 0, vacant: 0, 'pending start': 0, planned: 0, 'on hold': 0, sunsetting: 0, removed: 0, earmarked: 0 };
+            const statusCosts = { filled: 0, vacant: 0, 'pending start': 0, planned: 0, 'on hold': 0, sunsetting: 0, removed: 0, earmarked: 0 };
             filtered.forEach(function(r) {
                 const s = r.status || 'planned';
                 statusCounts[s] = (statusCounts[s] || 0) + 1;
@@ -1661,9 +1677,9 @@
             html += '<div class="summary-stat"><span class="summary-stat-label">Total Roles</span><span class="summary-stat-value">' + total + '</span></div>';
             html += '<div class="summary-stat"><span class="summary-stat-label">Total Cost</span><span class="summary-stat-value">' + fmtCost(totalCost) + '</span></div>';
             html += '<div class="summary-stat"><span class="summary-stat-label">Status</span><div class="summary-pills">';
-            ['filled', 'vacant', 'planned', 'removed'].forEach(function(s) {
+            ['filled', 'vacant', 'pending start', 'planned', 'on hold', 'sunsetting', 'removed', 'earmarked'].forEach(function(s) {
                 if (statusCounts[s]) {
-                    html += '<span class="summary-pill ' + s + '">' + statusCounts[s] + ' ' + s + '</span>';
+                    html += '<span class="summary-pill ' + s.replace(/\s+/g, '-') + '">' + statusCounts[s] + ' ' + s + '</span>';
                 }
             });
             html += '</div></div>';
@@ -1820,7 +1836,7 @@
                             role[field] = parseFloat(val) || 0;
                         } else if (field === 'status') {
                             const s = String(val).toLowerCase().trim();
-                            role[field] = ['filled','vacant','planned','removed'].includes(s) ? s : 'planned';
+                            role[field] = ['filled','vacant','pending start','planned','on hold','sunsetting','removed','earmarked'].includes(s) ? s : 'planned';
                         } else {
                             role[field] = String(val);
                         }
