@@ -1114,18 +1114,18 @@
             // Day-of-week headers
             const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-            // Build calendar using DOM methods for safety
-            calendarGrid.textContent = '';
+            // Build calendar into a fragment first to avoid intermediate paint states
+            const fragment = document.createDocumentFragment();
 
             // Spacer above month column, then day-of-week headers
             const spacer = document.createElement('div');
-            calendarGrid.appendChild(spacer);
+            fragment.appendChild(spacer);
 
             dayNames.forEach(d => {
                 const header = document.createElement('div');
                 header.className = 'calendar-day-header';
                 header.textContent = d;
-                calendarGrid.appendChild(header);
+                fragment.appendChild(header);
             });
 
             // Pass 1: group days into weeks
@@ -1163,7 +1163,7 @@
                 monthCell.className = 'calendar-month-cell';
                 monthCell.textContent = group.label;
                 monthCell.style.gridRow = `span ${group.weeks.length}`;
-                calendarGrid.appendChild(monthCell);
+                fragment.appendChild(monthCell);
 
                 group.weeks.forEach(week => {
                     week.forEach(date => {
@@ -1219,10 +1219,13 @@
                             cell.appendChild(nameSpan);
                         }
 
-                        calendarGrid.appendChild(cell);
+                        fragment.appendChild(cell);
                     });
                 });
             });
+
+            calendarGrid.textContent = '';
+            calendarGrid.appendChild(fragment);
         }
 
         // Initialize
