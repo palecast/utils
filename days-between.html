@@ -318,8 +318,26 @@
 
         .calendar-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: 28px repeat(7, 1fr);
             gap: 4px;
+        }
+
+        .calendar-month-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            font-size: 0.7em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 6px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            padding: 4px 0;
+            min-width: 0;
         }
 
         .calendar-day-header {
@@ -328,16 +346,6 @@
             color: #667eea;
             padding: 8px 4px;
             font-size: 0.85em;
-        }
-
-        .calendar-month-label {
-            grid-column: 1 / -1;
-            color: #667eea;
-            font-weight: 600;
-            font-size: 0.95em;
-            padding: 12px 4px 6px;
-            border-bottom: 1px solid #e0e0e0;
-            margin-bottom: 4px;
         }
 
         .calendar-day {
@@ -396,6 +404,12 @@
         }
 
         @media (max-width: 768px) {
+            .calendar-grid {
+                grid-template-columns: 22px repeat(7, 1fr);
+            }
+            .calendar-month-cell {
+                font-size: 0.6em;
+            }
             .calendar-day {
                 min-height: 32px;
                 padding: 4px 2px;
@@ -1103,6 +1117,10 @@
             // Build calendar using DOM methods for safety
             calendarGrid.textContent = '';
 
+            // Spacer above month column, then day-of-week headers
+            const spacer = document.createElement('div');
+            calendarGrid.appendChild(spacer);
+
             dayNames.forEach(d => {
                 const header = document.createElement('div');
                 header.className = 'calendar-day-header';
@@ -1110,78 +1128,101 @@
                 calendarGrid.appendChild(header);
             });
 
-            // Iterate day by day
-            const current = new Date(weekStart);
-            let lastMonth = -1;
-
-            while (current <= weekEnd) {
-                const year = current.getFullYear();
-                const month = current.getMonth();
-                const day = current.getDate();
-                const dow = current.getDay();
-                const monthStr = String(month + 1).padStart(2, '0');
-                const dayStr = String(day).padStart(2, '0');
-                const dateStr = `${year}-${monthStr}-${dayStr}`;
-
-                // Insert month label when month changes on a Monday
-                if (month !== lastMonth && (dow === 1 || lastMonth === -1)) {
-                    const monthLabel = document.createElement('div');
-                    monthLabel.className = 'calendar-month-label';
-                    monthLabel.textContent = current.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-                    calendarGrid.appendChild(monthLabel);
-                    lastMonth = month;
-                } else if (month !== lastMonth) {
-                    lastMonth = month;
+            // Pass 1: group days into weeks
+            const weeks = [];
+            const cursor = new Date(weekStart);
+            while (cursor <= weekEnd) {
+                const week = [];
+                for (let i = 0; i < 7; i++) {
+                    week.push(new Date(cursor));
+                    cursor.setDate(cursor.getDate() + 1);
                 }
-
-                // Determine classes
-                const classes = ['calendar-day'];
-                const isInRange = current >= rangeStart && current <= rangeEnd;
-                const isWeekend = dow === 0 || dow === 6;
-                const holidayName = holidayMap[dateStr];
-
-                if (holidayName && isInRange) {
-                    classes.push('holiday');
-                } else if (isWeekend) {
-                    classes.push('weekend');
-                } else {
-                    classes.push('working');
-                }
-
-                if (!isInRange) {
-                    classes.push('outside');
-                }
-
-                if (dateStr === todayStr) {
-                    classes.push('today');
-                }
-
-                const cell = document.createElement('div');
-                cell.className = classes.join(' ');
-
-                const numberSpan = document.createElement('span');
-                numberSpan.className = 'day-number';
-                numberSpan.textContent = day;
-                cell.appendChild(numberSpan);
-
-                if (day === 1) {
-                    const monthSpan = document.createElement('span');
-                    monthSpan.className = 'day-month-name';
-                    monthSpan.textContent = current.toLocaleDateString('en-GB', { month: 'short' });
-                    cell.appendChild(monthSpan);
-                }
-
-                if (holidayName && isInRange) {
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'day-holiday-name';
-                    nameSpan.title = holidayName;
-                    nameSpan.textContent = holidayName;
-                    cell.appendChild(nameSpan);
-                }
-
-                calendarGrid.appendChild(cell);
-                current.setDate(current.getDate() + 1);
+                weeks.push(week);
             }
+
+            // Group weeks by month of their Monday
+            const monthGroups = [];
+            let currentGroup = null;
+            weeks.forEach(week => {
+                const monday = week[0];
+                const monthKey = `${monday.getFullYear()}-${monday.getMonth()}`;
+                if (!currentGroup || currentGroup.monthKey !== monthKey) {
+                    currentGroup = {
+                        monthKey,
+                        label: monday.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+                        weeks: []
+                    };
+                    monthGroups.push(currentGroup);
+                }
+                currentGroup.weeks.push(week);
+            });
+
+            // Pass 2: render month cell + day cells for each group
+            monthGroups.forEach(group => {
+                const monthCell = document.createElement('div');
+                monthCell.className = 'calendar-month-cell';
+                monthCell.textContent = group.label;
+                monthCell.style.gridRow = `span ${group.weeks.length}`;
+                calendarGrid.appendChild(monthCell);
+
+                group.weeks.forEach(week => {
+                    week.forEach(date => {
+                        const year = date.getFullYear();
+                        const month = date.getMonth();
+                        const day = date.getDate();
+                        const dow = date.getDay();
+                        const monthStr = String(month + 1).padStart(2, '0');
+                        const dayStr = String(day).padStart(2, '0');
+                        const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+                        const classes = ['calendar-day'];
+                        const isInRange = date >= rangeStart && date <= rangeEnd;
+                        const isWeekend = dow === 0 || dow === 6;
+                        const holidayName = holidayMap[dateStr];
+
+                        if (holidayName && isInRange) {
+                            classes.push('holiday');
+                        } else if (isWeekend) {
+                            classes.push('weekend');
+                        } else {
+                            classes.push('working');
+                        }
+
+                        if (!isInRange) {
+                            classes.push('outside');
+                        }
+
+                        if (dateStr === todayStr) {
+                            classes.push('today');
+                        }
+
+                        const cell = document.createElement('div');
+                        cell.className = classes.join(' ');
+
+                        const numberSpan = document.createElement('span');
+                        numberSpan.className = 'day-number';
+                        numberSpan.textContent = day;
+                        cell.appendChild(numberSpan);
+
+                        if (day === 1) {
+                            const monthSpan = document.createElement('span');
+                            monthSpan.className = 'day-month-name';
+                            monthSpan.textContent = date.toLocaleDateString('en-GB', { month: 'short' });
+                            cell.appendChild(monthSpan);
+                        }
+
+                        if (holidayName && isInRange) {
+                            const nameSpan = document.createElement('span');
+                            nameSpan.className = 'day-holiday-name';
+                            nameSpan.title = holidayName;
+                            nameSpan.textContent = holidayName;
+                            cell.appendChild(nameSpan);
+                        }
+
+                        calendarGrid.appendChild(cell);
+                    });
+                });
+            });
         }
 
         // Initialize
