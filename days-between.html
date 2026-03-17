@@ -1159,11 +1159,14 @@
             });
 
             // Pass 2: render month cell + day cells for each group
+            // Use explicit grid-row line numbers instead of `span N` to work around a Safari
+            // bug where writing-mode: vertical-rl causes span N to be miscalculated.
+            let currentRow = 2; // row 1 is the header row (Mon–Sun)
             monthGroups.forEach(group => {
                 const monthCell = document.createElement('div');
                 monthCell.className = 'calendar-month-cell';
                 monthCell.textContent = group.label;
-                monthCell.style.gridRow = `span ${group.weeks.length}`;
+                monthCell.style.gridRow = `${currentRow} / ${currentRow + group.weeks.length}`;
                 fragment.appendChild(monthCell);
 
                 group.weeks.forEach(week => {
@@ -1223,6 +1226,7 @@
                         fragment.appendChild(cell);
                     });
                 });
+                currentRow += group.weeks.length;
             });
 
             calendarGrid.replaceChildren(fragment);
