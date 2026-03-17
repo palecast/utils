@@ -377,6 +377,14 @@
             font-weight: 500;
         }
 
+        .day-month-name {
+            font-size: 0.65em;
+            color: #667eea;
+            margin-top: 1px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
         .day-holiday-name {
             font-size: 0.7em;
             margin-top: 2px;
@@ -1155,6 +1163,13 @@
                 numberSpan.className = 'day-number';
                 numberSpan.textContent = day;
                 cell.appendChild(numberSpan);
+
+                if (day === 1) {
+                    const monthSpan = document.createElement('span');
+                    monthSpan.className = 'day-month-name';
+                    monthSpan.textContent = current.toLocaleDateString('en-GB', { month: 'short' });
+                    cell.appendChild(monthSpan);
+                }
 
                 if (holidayName && isInRange) {
                     const nameSpan = document.createElement('span');
