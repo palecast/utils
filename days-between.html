@@ -338,6 +338,7 @@
             transform: rotate(180deg);
             padding: 4px 0;
             min-width: 0;
+            grid-column: 1;
         }
 
         .calendar-day-header {
@@ -1224,8 +1225,7 @@
                 });
             });
 
-            calendarGrid.textContent = '';
-            calendarGrid.appendChild(fragment);
+            calendarGrid.replaceChildren(fragment);
         }
 
         // Initialize
@@ -1248,8 +1248,11 @@
                 await updateDisplay();
             });
 
-            // Initial calculation
-            await updateDisplay();
+            // Initial calculation — only needed if fetchPublicHolidays didn't run
+            // (i.e. no country was selected, so updateDisplay was never called)
+            if (!currentCountryCode) {
+                await updateDisplay();
+            }
         });
     </script>
 </body>
