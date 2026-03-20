@@ -696,6 +696,7 @@ function renderBase(ctx, W, H, yearData, year, todayDoy) {
 function drawHoverLine(canvas, dayIdx, days) {
     if (!offscreen) return;
     const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(offscreen, 0, 0);
 
     const dpr  = window.devicePixelRatio || 1;
@@ -818,7 +819,7 @@ function positionTooltip(tooltip, canvas, clientX, clientY) {
 
 function hideTooltip(tooltip, canvas) {
     tooltip.style.display = 'none';
-    if (offscreen) canvas.getContext('2d').drawImage(offscreen, 0, 0);
+    if (offscreen) { const ctx = canvas.getContext('2d'); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(offscreen, 0, 0); }
 }
 
 function clientXToDay(canvas, clientX, days) {
