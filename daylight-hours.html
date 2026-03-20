@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daylight Hours Visualizer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 28px;
+            padding-top: 20px;
+        }
+        header h1 { font-size: 2rem; font-weight: 600; margin-bottom: 8px; }
+        header p  { font-size: 1rem; opacity: 0.9; }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 22px;
+            flex-wrap: wrap;
+        }
+
+        .city-selector {
+            position: relative;
+            flex: 1;
+            min-width: 240px;
+            max-width: 380px;
+        }
+
+        .city-input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            color: #1f2937;
+        }
+        .city-input:focus { border-color: #667eea; }
+
+        .city-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            max-height: 264px;
+            overflow-y: auto;
+            z-index: 200;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+            display: none;
+        }
+        .city-dropdown.open { display: block; }
+
+        .city-option {
+            padding: 9px 16px;
+            cursor: pointer;
+            font-size: 0.93rem;
+            color: #1f2937;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .city-option:hover, .city-option.highlighted { background: #f3f4f6; }
+        .city-option .country { color: #9ca3af; font-size: 0.83rem; }
+
+        .chart-wrapper {
+            position: relative;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        canvas#chart {
+            display: block;
+            cursor: crosshair;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(12, 16, 40, 0.93);
+            color: #f0f0ff;
+            padding: 10px 14px;
+            border-radius: 9px;
+            font-size: 0.83rem;
+            pointer-events: none;
+            display: none;
+            white-space: nowrap;
+            z-index: 50;
+            line-height: 1.65;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .tooltip-date { font-weight: 600; font-size: 0.88rem; margin-bottom: 3px; color: #c4b5fd; }
+        .tooltip-row  { display: flex; gap: 8px; }
+        .tooltip-label { opacity: 0.65; min-width: 72px; }
+
+        .stats {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        .stat-pill {
+            padding: 7px 15px;
+            border-radius: 20px;
+            font-size: 0.84rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .stat-pill.shortest { background: #1e1b4b; color: #a5b4fc; }
+        .stat-pill.longest  { background: #fef3c7; color: #92400e; }
+        .stat-pill.today    { background: #ede9fe; color: #5b21b6; }
+        .stat-label { opacity: 0.7; font-weight: 400; }
+
+        .notice {
+            font-size: 0.76rem;
+            color: #9ca3af;
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        footer {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+            padding: 18px 0 10px;
+        }
+        footer a { color: rgba(255,255,255,0.85); }
+
+        @media (max-width: 768px) {
+            .card { padding: 18px 16px; }
+            header h1 { font-size: 1.5rem; }
+            .city-selector { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>&#9728;&#65039; Daylight Hours Visualizer</h1>
+        <p>See how sunrise and sunset shift through the year for any city</p>
+    </header>
+
+    <div class="card">
+        <div class="controls">
+            <div class="city-selector" id="citySelector">
+                <input type="text" class="city-input" id="cityInput"
+                       placeholder="Search for a city…" autocomplete="off" spellcheck="false">
+                <div class="city-dropdown" id="cityDropdown"></div>
+            </div>
+        </div>
+
+        <div class="chart-wrapper" id="chartWrapper">
+            <canvas id="chart"></canvas>
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+        <p class="notice">Times shown in standard time (DST not applied) · NOAA simplified solar algorithm</p>
+    </div>
+
+    <footer><a href="/disclaimer">Disclaimer</a> · No ads, no tracking.</footer>
+</div>
+
+<script>
+// ─── City data ────────────────────────────────────────────────────────────────
+// [name, countryCode, lat, lon, utcOffsetHours]
+const CITIES = [
+// Japan
+["Tokyo","JP",35.6762,139.6503,9],["Osaka","JP",34.6937,135.5023,9],
+["Kyoto","JP",35.0116,135.7681,9],["Sapporo","JP",43.0642,141.3469,9],
+["Nagoya","JP",35.1815,136.9066,9],["Fukuoka","JP",33.5904,130.4017,9],
+["Hiroshima","JP",34.3963,132.4596,9],["Sendai","JP",38.2682,140.8694,9],
+["Naha","JP",26.2124,127.6809,9],
+// Korea
+["Seoul","KR",37.5665,126.9780,9],["Busan","KR",35.1796,129.0756,9],
+["Incheon","KR",37.4563,126.7052,9],
+// China
+["Beijing","CN",39.9042,116.4074,8],["Shanghai","CN",31.2304,121.4737,8],
+["Guangzhou","CN",23.1291,113.2644,8],["Shenzhen","CN",22.5431,114.0579,8],
+["Chengdu","CN",30.5728,104.0668,8],["Xian","CN",34.3416,108.9398,8],
+["Wuhan","CN",30.5928,114.3055,8],["Hangzhou","CN",30.2741,120.1551,8],
+["Nanjing","CN",32.0603,118.7969,8],["Chongqing","CN",29.5630,106.5516,8],
+["Tianjin","CN",39.3434,117.3616,8],["Harbin","CN",45.8038,126.5349,8],
+["Kunming","CN",25.0389,102.7183,8],["Dalian","CN",38.9140,121.6147,8],
+["Qingdao","CN",36.0671,120.3826,8],["Zhengzhou","CN",34.7466,113.6253,8],
+["Urumqi","CN",43.8256,87.6168,6],["Lhasa","CN",29.6500,91.1000,8],
+// Hong Kong / Taiwan
+["Hong Kong","HK",22.3193,114.1694,8],["Taipei","TW",25.0330,121.5654,8],
+["Kaohsiung","TW",22.6273,120.3014,8],
+// Southeast Asia
+["Bangkok","TH",13.7563,100.5018,7],["Chiang Mai","TH",18.7883,98.9853,7],
+["Phuket","TH",7.8804,98.3923,7],["Ho Chi Minh City","VN",10.8231,106.6297,7],
+["Hanoi","VN",21.0285,105.8542,7],["Da Nang","VN",16.0471,108.2068,7],
+["Manila","PH",14.5995,120.9842,8],["Cebu","PH",10.3157,123.8854,8],
+["Singapore","SG",1.3521,103.8198,8],["Kuala Lumpur","MY",3.1390,101.6869,8],
+["Penang","MY",5.4141,100.3288,8],["Jakarta","ID",-6.2088,106.8456,7],
+["Surabaya","ID",-7.2504,112.7688,7],["Bandung","ID",-6.9175,107.6191,7],
+["Medan","ID",3.5952,98.6722,7],["Bali","ID",-8.3405,115.0920,8],
+["Yangon","MM",16.8661,96.1951,6.5],["Phnom Penh","KH",11.5564,104.9282,7],
+["Vientiane","LA",17.9757,102.6331,7],["Colombo","LK",6.9271,79.8612,5.5],
+// South Asia
+["Mumbai","IN",19.0760,72.8777,5.5],["Delhi","IN",28.7041,77.1025,5.5],
+["Bangalore","IN",12.9716,77.5946,5.5],["Chennai","IN",13.0827,80.2707,5.5],
+["Kolkata","IN",22.5726,88.3639,5.5],["Hyderabad","IN",17.3850,78.4867,5.5],
+["Pune","IN",18.5204,73.8567,5.5],["Ahmedabad","IN",23.0225,72.5714,5.5],
+["Jaipur","IN",26.9124,75.7873,5.5],["Lucknow","IN",26.8467,80.9462,5.5],
+["Surat","IN",21.1702,72.8311,5.5],["Kochi","IN",9.9312,76.2673,5.5],
+["Kathmandu","NP",27.7172,85.3240,5.75],
+["Karachi","PK",24.8607,67.0011,5],["Lahore","PK",31.5204,74.3587,5],
+["Islamabad","PK",33.7294,73.0931,5],["Dhaka","BD",23.8103,90.4125,6],
+// Central / West Asia
+["Kabul","AF",34.5253,69.1783,4.5],["Tehran","IR",35.6892,51.3890,3.5],
+["Isfahan","IR",32.6546,51.6680,3.5],["Mashhad","IR",36.2605,59.6168,3.5],
+["Baku","AZ",40.4093,49.8671,4],["Tbilisi","GE",41.6938,44.8015,4],
+["Yerevan","AM",40.1872,44.5152,4],["Almaty","KZ",43.2220,76.8512,6],
+["Nur-Sultan","KZ",51.1694,71.4491,6],["Tashkent","UZ",41.2995,69.2401,5],
+["Bishkek","KG",42.8746,74.5698,6],["Ashgabat","TM",37.9601,58.3261,5],
+["Dushanbe","TJ",38.5598,68.7870,5],
+// Russia & Mongolia
+["Ulaanbaatar","MN",47.8864,106.9057,8],
+["Moscow","RU",55.7558,37.6173,3],["St. Petersburg","RU",59.9311,30.3609,3],
+["Murmansk","RU",68.9585,33.0827,3],["Novosibirsk","RU",55.0084,82.9357,7],
+["Krasnoyarsk","RU",56.0097,92.7917,7],["Irkutsk","RU",52.2978,104.2964,8],
+["Yakutsk","RU",62.0355,129.6755,9],["Vladivostok","RU",43.1332,131.9113,10],
+["Yekaterinburg","RU",56.8389,60.6057,5],["Kazan","RU",55.8304,49.0661,3],
+// Middle East
+["Dubai","AE",25.2048,55.2708,4],["Abu Dhabi","AE",24.4539,54.3773,4],
+["Muscat","OM",23.6100,58.5922,4],["Riyadh","SA",24.7136,46.6753,3],
+["Jeddah","SA",21.4858,39.1925,3],["Doha","QA",25.2854,51.5310,3],
+["Kuwait City","KW",29.3759,47.9774,3],["Manama","BH",26.2235,50.5876,3],
+["Beirut","LB",33.8938,35.5018,2],["Amman","JO",31.9539,35.9106,2],
+["Jerusalem","IL",31.7683,35.2137,2],["Tel Aviv","IL",32.0853,34.7818,2],
+["Damascus","SY",33.5138,36.2765,2],["Baghdad","IQ",33.3152,44.3661,3],
+["Sanaa","YE",15.3694,44.1910,3],
+// Turkey
+["Istanbul","TR",41.0082,28.9784,3],["Ankara","TR",39.9334,32.8597,3],
+["Izmir","TR",38.4192,27.1287,3],
+// Scandinavia
+["Tromso","NO",69.6489,18.9551,1],["Longyearbyen","NO",78.2232,15.6267,1],
+["Oslo","NO",59.9139,10.7522,1],["Bergen","NO",60.3913,5.3221,1],
+["Stockholm","SE",59.3293,18.0686,1],["Gothenburg","SE",57.7089,11.9746,1],
+["Malmo","SE",55.6050,13.0038,1],["Copenhagen","DK",55.6761,12.5683,1],
+["Aarhus","DK",56.1629,10.2039,1],["Helsinki","FI",60.1699,24.9384,2],
+["Reykjavik","IS",64.1265,-21.8174,0],
+// UK / Ireland
+["London","GB",51.5074,-0.1278,0],["Birmingham","GB",52.4862,-1.8904,0],
+["Manchester","GB",53.4808,-2.2426,0],["Edinburgh","GB",55.9533,-3.1883,0],
+["Glasgow","GB",55.8642,-4.2518,0],["Dublin","IE",53.3498,-6.2603,0],
+["Belfast","GB",54.5973,-5.9301,0],
+// Western Europe
+["Paris","FR",48.8566,2.3522,1],["Lyon","FR",45.7640,4.8357,1],
+["Marseille","FR",43.2965,5.3698,1],["Bordeaux","FR",44.8378,-0.5792,1],
+["Toulouse","FR",43.6047,1.4442,1],["Nice","FR",43.7102,7.2620,1],
+["Amsterdam","NL",52.3676,4.9041,1],["Rotterdam","NL",51.9244,4.4777,1],
+["The Hague","NL",52.0705,4.3007,1],["Brussels","BE",50.8503,4.3517,1],
+["Antwerp","BE",51.2194,4.4025,1],["Luxembourg","LU",49.6117,6.1319,1],
+["Berlin","DE",52.5200,13.4050,1],["Munich","DE",48.1351,11.5820,1],
+["Hamburg","DE",53.5753,10.0153,1],["Frankfurt","DE",50.1109,8.6821,1],
+["Cologne","DE",50.9333,6.9667,1],["Dusseldorf","DE",51.2217,6.7762,1],
+["Stuttgart","DE",48.7758,9.1829,1],["Nuremberg","DE",49.4521,11.0767,1],
+["Dresden","DE",51.0504,13.7373,1],["Leipzig","DE",51.3397,12.3731,1],
+["Bremen","DE",53.0793,8.8017,1],["Vienna","AT",48.2082,16.3738,1],
+["Graz","AT",47.0707,15.4395,1],["Salzburg","AT",47.8095,13.0550,1],
+["Zurich","CH",47.3769,8.5417,1],["Geneva","CH",46.2044,6.1432,1],
+["Bern","CH",46.9480,7.4474,1],["Basel","CH",47.5596,7.5886,1],
+// Iberian Peninsula
+["Madrid","ES",40.4168,-3.7038,1],["Barcelona","ES",41.3851,2.1734,1],
+["Seville","ES",37.3891,-5.9845,1],["Valencia","ES",39.4699,-0.3763,1],
+["Bilbao","ES",43.2630,-2.9350,1],["Malaga","ES",36.7213,-4.4213,1],
+["Palma","ES",39.5696,2.6502,1],["Lisbon","PT",38.7169,-9.1395,0],
+["Porto","PT",41.1579,-8.6291,0],
+// Italy
+["Rome","IT",41.9028,12.4964,1],["Milan","IT",45.4642,9.1900,1],
+["Naples","IT",40.8518,14.2681,1],["Turin","IT",45.0703,7.6869,1],
+["Venice","IT",45.4408,12.3155,1],["Florence","IT",43.7696,11.2558,1],
+["Bologna","IT",44.4949,11.3426,1],["Palermo","IT",38.1157,13.3615,1],
+// Greece / Balkans / Malta
+["Athens","GR",37.9838,23.7275,2],["Thessaloniki","GR",40.6401,22.9444,2],
+["Valletta","MT",35.8997,14.5146,1],["Nicosia","CY",35.1856,33.3823,2],
+["Zagreb","HR",45.8150,15.9819,1],["Belgrade","RS",44.8176,20.4633,1],
+["Sarajevo","BA",43.8563,18.4131,1],["Ljubljana","SI",46.0569,14.5058,1],
+["Skopje","MK",41.9981,21.4254,1],["Tirana","AL",41.3275,19.8187,1],
+["Podgorica","ME",42.4304,19.2594,1],
+["Sofia","BG",42.6977,23.3219,2],["Bucharest","RO",44.4268,26.1025,2],
+["Cluj-Napoca","RO",46.7712,23.6236,2],
+// Eastern Europe
+["Warsaw","PL",52.2297,21.0122,1],["Krakow","PL",50.0647,19.9450,1],
+["Gdansk","PL",54.3520,18.6466,1],["Wroclaw","PL",51.1079,17.0385,1],
+["Poznan","PL",52.4064,16.9252,1],["Prague","CZ",50.0755,14.4378,1],
+["Brno","CZ",49.1951,16.6068,1],["Budapest","HU",47.4979,19.0402,1],
+["Bratislava","SK",48.1486,17.1077,1],
+["Kyiv","UA",50.4501,30.5234,2],["Lviv","UA",49.8397,24.0297,2],
+["Minsk","BY",53.9045,27.5615,3],
+["Riga","LV",56.9496,24.1052,2],["Tallinn","EE",59.4370,24.7536,2],
+["Vilnius","LT",54.6872,25.2797,2],
+// Africa - North
+["Cairo","EG",30.0444,31.2357,2],["Alexandria","EG",31.2001,29.9187,2],
+["Luxor","EG",25.6872,32.6396,2],["Casablanca","MA",33.5731,-7.5898,1],
+["Marrakech","MA",31.6295,-7.9811,1],["Rabat","MA",34.0209,-6.8416,1],
+["Tunis","TN",36.8065,10.1815,1],["Algiers","DZ",36.7372,3.0863,1],
+["Tripoli","LY",32.8872,13.1913,2],["Khartoum","SD",15.5007,32.5599,3],
+// Africa - West
+["Dakar","SN",14.6928,-17.4467,0],["Abidjan","CI",5.3600,-4.0083,0],
+["Accra","GH",5.6037,-0.1870,0],["Lagos","NG",6.5244,3.3792,1],
+["Abuja","NG",9.0765,7.3986,1],["Bamako","ML",12.6392,-8.0029,0],
+["Conakry","GN",9.6412,-13.5784,0],["Freetown","SL",8.4857,-13.2317,0],
+["Monrovia","LR",6.2907,-10.7605,0],["Ouagadougou","BF",12.3714,-1.5197,0],
+["Niamey","NE",13.5137,2.1098,1],["Ndjamena","TD",12.1348,15.0557,1],
+["Libreville","GA",0.3901,9.4544,1],["Douala","CM",4.0511,9.7679,1],
+["Yaounde","CM",3.8480,11.5021,1],
+// Africa - East
+["Addis Ababa","ET",9.0320,38.7469,3],["Nairobi","KE",-1.2864,36.8172,3],
+["Mombasa","KE",-4.0435,39.6682,3],["Kampala","UG",0.3476,32.5825,3],
+["Kigali","RW",-1.9441,30.0619,2],["Dar es Salaam","TZ",-6.7924,39.2083,3],
+["Zanzibar","TZ",-6.1659,39.1989,3],["Asmara","ER",15.3394,38.9310,3],
+["Djibouti","DJ",11.5886,43.1451,3],["Mogadishu","SO",2.0469,45.3182,3],
+["Harare","ZW",-17.8252,31.0335,2],["Lusaka","ZM",-15.3875,28.3228,2],
+["Lilongwe","MW",-13.9626,33.7741,2],
+// Africa - South
+["Johannesburg","ZA",-26.2041,28.0473,2],["Cape Town","ZA",-33.9249,18.4241,2],
+["Durban","ZA",-29.8587,31.0218,2],["Pretoria","ZA",-25.7479,28.2293,2],
+["Maputo","MZ",-25.9654,32.5892,2],["Windhoek","NA",-22.5597,17.0832,2],
+["Gaborone","BW",-24.6282,25.9231,2],["Antananarivo","MG",-18.9137,47.5361,3],
+// Africa - Central
+["Kinshasa","CD",-4.4419,15.2663,1],["Luanda","AO",-8.8368,13.2343,1],
+// North America - USA
+["New York","US",40.7128,-74.0060,-5],["Los Angeles","US",34.0522,-118.2437,-8],
+["Chicago","US",41.8781,-87.6298,-6],["Houston","US",29.7604,-95.3698,-6],
+["Phoenix","US",33.4484,-112.0740,-7],["Philadelphia","US",39.9526,-75.1652,-5],
+["San Antonio","US",29.4241,-98.4936,-6],["San Diego","US",32.7157,-117.1611,-8],
+["Dallas","US",32.7767,-96.7970,-6],["San Jose","US",37.3382,-121.8863,-8],
+["Seattle","US",47.6062,-122.3321,-8],["Denver","US",39.7392,-104.9903,-7],
+["Boston","US",42.3601,-71.0589,-5],["Atlanta","US",33.7490,-84.3880,-5],
+["Miami","US",25.7617,-80.1918,-5],["Minneapolis","US",44.9778,-93.2650,-6],
+["Portland","US",45.5051,-122.6750,-8],["Las Vegas","US",36.1699,-115.1398,-8],
+["Washington DC","US",38.9072,-77.0369,-5],["Nashville","US",36.1627,-86.7816,-6],
+["Charlotte","US",35.2271,-80.8431,-5],["Detroit","US",42.3314,-83.0458,-5],
+["Memphis","US",35.1495,-90.0490,-6],["New Orleans","US",29.9511,-90.0715,-6],
+["Tampa","US",27.9506,-82.4572,-5],["Orlando","US",28.5383,-81.3792,-5],
+["Sacramento","US",38.5816,-121.4944,-8],["Salt Lake City","US",40.7608,-111.8910,-7],
+["Kansas City","US",39.0997,-94.5786,-6],["St. Louis","US",38.6270,-90.1994,-6],
+["Baltimore","US",39.2904,-76.6122,-5],["Cleveland","US",41.4993,-81.6944,-5],
+["Pittsburgh","US",40.4406,-79.9959,-5],["Indianapolis","US",39.7684,-86.1581,-5],
+["Columbus","US",39.9612,-82.9988,-5],["Albuquerque","US",35.0844,-106.6504,-7],
+["Tucson","US",32.2226,-110.9747,-7],["Anchorage","US",61.2181,-149.9003,-9],
+["Fairbanks","US",64.8401,-147.7200,-9],["Juneau","US",58.3005,-134.4197,-9],
+["Honolulu","US",21.3069,-157.8583,-10],
+// Canada
+["Toronto","CA",43.6532,-79.3832,-5],["Vancouver","CA",49.2827,-123.1207,-8],
+["Montreal","CA",45.5017,-73.5673,-5],["Calgary","CA",51.0447,-114.0719,-7],
+["Ottawa","CA",45.4215,-75.6972,-5],["Edmonton","CA",53.5461,-113.4938,-7],
+["Winnipeg","CA",49.8951,-97.1384,-6],["Halifax","CA",44.6488,-63.5752,-4],
+["Quebec City","CA",46.8139,-71.2080,-5],["Yellowknife","CA",62.4540,-114.3718,-7],
+["Whitehorse","CA",60.7212,-135.0568,-8],["Saskatoon","CA",52.1332,-106.6700,-6],
+// Mexico / Central America / Caribbean
+["Mexico City","MX",19.4326,-99.1332,-6],["Guadalajara","MX",20.6597,-103.3496,-6],
+["Monterrey","MX",25.6866,-100.3161,-6],["Tijuana","MX",32.5149,-117.0382,-8],
+["Cancun","MX",21.1619,-86.8515,-6],["Guatemala City","GT",14.6349,-90.5069,-6],
+["San Jose CR","CR",9.9281,-84.0907,-6],["Panama City","PA",8.9936,-79.5197,-5],
+["Havana","CU",23.1136,-82.3666,-5],["Santo Domingo","DO",18.4861,-69.9312,-4],
+["San Juan PR","PR",18.4655,-66.1057,-4],["Kingston","JM",17.9970,-76.7936,-5],
+["Port-au-Prince","HT",18.5944,-72.3074,-5],
+// South America
+["Sao Paulo","BR",-23.5505,-46.6333,-3],["Rio de Janeiro","BR",-22.9068,-43.1729,-3],
+["Brasilia","BR",-15.7801,-47.9292,-3],["Salvador","BR",-12.9714,-38.5014,-3],
+["Fortaleza","BR",-3.7172,-38.5433,-3],["Manaus","BR",-3.1190,-60.0217,-4],
+["Recife","BR",-8.0476,-34.8770,-3],["Porto Alegre","BR",-30.0346,-51.2177,-3],
+["Belem","BR",-1.4558,-48.5044,-3],["Belo Horizonte","BR",-19.9167,-43.9345,-3],
+["Buenos Aires","AR",-34.6037,-58.3816,-3],["Cordoba AR","AR",-31.4201,-64.1888,-3],
+["Rosario","AR",-32.9468,-60.6393,-3],["Mendoza","AR",-32.8895,-68.8458,-3],
+["Ushuaia","AR",-54.8019,-68.3030,-3],
+["Santiago","CL",-33.4569,-70.6483,-4],["Concepcion","CL",-36.8270,-73.0498,-4],
+["Valparaiso","CL",-33.0472,-71.6127,-4],["Punta Arenas","CL",-53.1638,-70.9171,-3],
+["Lima","PE",-12.0464,-77.0428,-5],["Arequipa","PE",-16.4090,-71.5375,-5],
+["Bogota","CO",4.7110,-74.0721,-5],["Medellin","CO",6.2442,-75.5812,-5],
+["Cali","CO",3.4516,-76.5320,-5],["Cartagena","CO",10.3910,-75.4794,-5],
+["Quito","EC",-0.1807,-78.4678,-5],["Guayaquil","EC",-2.1962,-79.8862,-5],
+["Caracas","VE",10.4806,-66.9036,-4],["Maracaibo","VE",10.6544,-71.6338,-4],
+["Montevideo","UY",-34.9011,-56.1645,-3],["La Paz","BO",-16.5000,-68.1501,-4],
+["Santa Cruz BO","BO",-17.7833,-63.1821,-4],["Asuncion","PY",-25.2867,-57.6470,-4],
+// Oceania
+["Sydney","AU",-33.8688,151.2093,10],["Melbourne","AU",-37.8136,144.9631,10],
+["Brisbane","AU",-27.4698,153.0251,10],["Perth","AU",-31.9505,115.8605,8],
+["Adelaide","AU",-34.9285,138.6007,9.5],["Darwin","AU",-12.4634,130.8456,9.5],
+["Hobart","AU",-42.8821,147.3272,10],["Canberra","AU",-35.2809,149.1300,10],
+["Gold Coast","AU",-28.0167,153.4000,10],["Cairns","AU",-16.9186,145.7781,10],
+["Alice Springs","AU",-23.6980,133.8807,9.5],["Townsville","AU",-19.2590,146.8169,10],
+["Auckland","NZ",-36.8509,174.7645,12],["Wellington","NZ",-41.2924,174.7787,12],
+["Christchurch","NZ",-43.5321,172.6362,12],["Queenstown","NZ",-45.0312,168.6626,12],
+["Dunedin","NZ",-45.8788,170.5028,12],
+["Port Moresby","PG",-9.4438,147.1803,10],["Suva","FJ",-18.1416,178.4419,12],
+["Noumea","NC",-22.2763,166.4572,11],["Papeete","PF",-17.5516,-149.5585,-10],
+];
+
+const COUNTRY_NAMES = {
+    AF:"Afghanistan",AL:"Albania",DZ:"Algeria",AM:"Armenia",AO:"Angola",AR:"Argentina",
+    AU:"Australia",AT:"Austria",AZ:"Azerbaijan",BH:"Bahrain",BD:"Bangladesh",BY:"Belarus",
+    BE:"Belgium",BO:"Bolivia",BA:"Bosnia",BR:"Brazil",BF:"Burkina Faso",KH:"Cambodia",
+    CM:"Cameroon",CA:"Canada",CL:"Chile",CN:"China",CO:"Colombia",CR:"Costa Rica",
+    HR:"Croatia",CU:"Cuba",CY:"Cyprus",CZ:"Czech Republic",CD:"DR Congo",DK:"Denmark",
+    DJ:"Djibouti",DO:"Dominican Republic",EC:"Ecuador",EG:"Egypt",
+    ER:"Eritrea",EE:"Estonia",ET:"Ethiopia",FJ:"Fiji",FI:"Finland",FR:"France",
+    GA:"Gabon",GE:"Georgia",DE:"Germany",GH:"Ghana",GR:"Greece",GT:"Guatemala",
+    GN:"Guinea",HT:"Haiti",HK:"Hong Kong",HU:"Hungary",IS:"Iceland",
+    IN:"India",ID:"Indonesia",IQ:"Iraq",IE:"Ireland",IL:"Israel",IT:"Italy",
+    JM:"Jamaica",JP:"Japan",JO:"Jordan",KZ:"Kazakhstan",KE:"Kenya",KG:"Kyrgyzstan",
+    LA:"Laos",LV:"Latvia",LB:"Lebanon",LR:"Liberia",LY:"Libya",LT:"Lithuania",
+    LU:"Luxembourg",MG:"Madagascar",MW:"Malawi",MY:"Malaysia",ML:"Mali",MT:"Malta",
+    MX:"Mexico",MN:"Mongolia",ME:"Montenegro",MA:"Morocco",MZ:"Mozambique",
+    MM:"Myanmar",NA:"Namibia",NP:"Nepal",NL:"Netherlands",NZ:"New Zealand",NE:"Niger",
+    NG:"Nigeria",MK:"North Macedonia",NO:"Norway",OM:"Oman",PK:"Pakistan",PA:"Panama",
+    PY:"Paraguay",PE:"Peru",PH:"Philippines",PL:"Poland",PT:"Portugal",PR:"Puerto Rico",
+    QA:"Qatar",RO:"Romania",RU:"Russia",RW:"Rwanda",SA:"Saudi Arabia",SN:"Senegal",
+    RS:"Serbia",SL:"Sierra Leone",SG:"Singapore",SK:"Slovakia",SI:"Slovenia",
+    SO:"Somalia",ZA:"South Africa",KR:"South Korea",ES:"Spain",LK:"Sri Lanka",
+    SD:"Sudan",SE:"Sweden",CH:"Switzerland",SY:"Syria",TW:"Taiwan",TJ:"Tajikistan",
+    TZ:"Tanzania",TH:"Thailand",TN:"Tunisia",TR:"Turkey",TM:"Turkmenistan",
+    UG:"Uganda",UA:"Ukraine",AE:"United Arab Emirates",GB:"United Kingdom",
+    US:"United States",UY:"Uruguay",UZ:"Uzbekistan",VE:"Venezuela",VN:"Vietnam",
+    YE:"Yemen",ZM:"Zambia",ZW:"Zimbabwe",NC:"New Caledonia",PF:"French Polynesia",
+    PG:"Papua New Guinea",BW:"Botswana",
+};
+
+// ─── Solar calculation (NOAA simplified) ─────────────────────────────────────
+function getDayOfYear(date) {
+    const start = new Date(date.getFullYear(), 0, 0);
+    return Math.floor((date - start) / 86400000);
+}
+
+function solarCalc(doy, lat, lon, utcOffset) {
+    const g = (2 * Math.PI / 365) * (doy - 1);
+
+    const eqtime = 229.18 * (
+        0.000075
+        + 0.001868 * Math.cos(g)    - 0.032077 * Math.sin(g)
+        - 0.014615 * Math.cos(2*g)  - 0.04089  * Math.sin(2*g)
+    );
+
+    const decl = 0.006918
+        - 0.399912 * Math.cos(g)   + 0.070257 * Math.sin(g)
+        - 0.006758 * Math.cos(2*g) + 0.000907 * Math.sin(2*g)
+        - 0.002697 * Math.cos(3*g) + 0.001480 * Math.sin(3*g);
+
+    const latRad = lat * Math.PI / 180;
+    const cosHA = Math.cos(90.833 * Math.PI / 180)
+                / (Math.cos(latRad) * Math.cos(decl))
+                - Math.tan(latRad) * Math.tan(decl);
+
+    if (cosHA >= 1)  return { polarNight: true };
+    if (cosHA <= -1) return { midnightSun: true };
+
+    const ha = Math.acos(cosHA);
+    const solarNoon = 720 - 4 * lon - eqtime;
+    const haDeg = ha * 180 / Math.PI;
+
+    return {
+        sunrise: solarNoon - 4 * haDeg + utcOffset * 60,
+        sunset:  solarNoon + 4 * haDeg + utcOffset * 60,
+    };
+}
+
+function computeYear(year, lat, lon, utcOffset) {
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const days = isLeap ? 366 : 365;
+    const data = [];
+    for (let d = 1; d <= days; d++) data.push(solarCalc(d, lat, lon, utcOffset));
+    return data;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function minToHHMM(m) {
+    if (m == null) return '\u2014';
+    m = ((m % 1440) + 1440) % 1440;
+    const h = Math.floor(m / 60), mm = Math.round(m % 60);
+    return String(h).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+}
+
+function minToDuration(m) {
+    const h = Math.floor(m / 60), mm = Math.round(m % 60);
+    return h + 'h ' + String(mm).padStart(2,'0') + 'm';
+}
+
+function doyToDate(doy, year) { return new Date(year, 0, doy); }
+
+function dateLabel(date) {
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function monthBoundaries(isLeap) {
+    const md = [31, isLeap ? 29 : 28, 31,30,31,30,31,31,30,31,30,31];
+    const b = [0];
+    for (const d of md) b.push(b[b.length-1] + d);
+    return b;
+}
+
+const SOLAR_EVENTS = [
+    { doy: 80 }, { doy: 172 }, { doy: 265 }, { doy: 355 },
+];
+
+// ─── Canvas drawing ───────────────────────────────────────────────────────────
+const C_NIGHT  = '#0d1b4b';
+const C_DAY    = '#fbbf24';
+const C_GRID   = 'rgba(255,255,255,0.11)';
+const C_TODAY  = '#f472b6';
+const C_EVENT  = 'rgba(255,255,255,0.22)';
+const TWILIGHT = 28; // minutes
+const PAD = { L:46, R:14, T:18, B:30 };
+
+let offscreen = null;
+
+function drawChart(canvas, yearData, year, todayDoy) {
+    const dpr   = window.devicePixelRatio || 1;
+    const dispW = canvas.parentElement.clientWidth - 2;
+    const dispH = Math.min(500, Math.max(300, Math.round(dispW * 0.44)));
+
+    canvas.style.width  = dispW + 'px';
+    canvas.style.height = dispH + 'px';
+    canvas.width  = Math.round(dispW * dpr);
+    canvas.height = Math.round(dispH * dpr);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    renderBase(ctx, dispW, dispH, yearData, year, todayDoy);
+
+    offscreen = document.createElement('canvas');
+    offscreen.width  = canvas.width;
+    offscreen.height = canvas.height;
+    offscreen.getContext('2d').drawImage(canvas, 0, 0);
+}
+
+function renderBase(ctx, W, H, yearData, year, todayDoy) {
+    const isLeap = yearData.length === 366;
+    const days   = yearData.length;
+    const cW = W - PAD.L - PAD.R;
+    const cH = H - PAD.T - PAD.B;
+    const dayPx = cW / days;
+    const minPx = cH / 1440;
+    const twPx  = TWILIGHT * minPx;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Night background
+    ctx.fillStyle = C_NIGHT;
+    ctx.fillRect(PAD.L, PAD.T, cW, cH);
+
+    // Clip to chart area for the ribbon drawing
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(PAD.L, PAD.T, cW, cH);
+    ctx.clip();
+
+    for (let d = 0; d < days; d++) {
+        const r = yearData[d];
+        const x = PAD.L + d * dayPx;
+        const w = dayPx + 0.6; // slight overlap prevents sub-pixel gaps
+
+        if (r.polarNight) continue;
+
+        if (r.midnightSun) {
+            ctx.fillStyle = C_DAY;
+            ctx.fillRect(x, PAD.T, w, cH);
+            continue;
+        }
+
+        const sr = Math.max(0, Math.min(1440, r.sunrise));
+        const ss = Math.max(0, Math.min(1440, r.sunset));
+        const srY = PAD.T + sr * minPx;
+        const ssY = PAD.T + ss * minPx;
+
+        // Solid daylight band
+        const bTop = srY + twPx;
+        const bBot = ssY - twPx;
+        if (bBot > bTop) {
+            ctx.fillStyle = C_DAY;
+            ctx.fillRect(x, bTop, w, bBot - bTop);
+        }
+
+        // Sunrise twilight gradient
+        const sr0 = Math.max(PAD.T, srY - twPx);
+        const sr1 = Math.min(PAD.T + cH, srY + twPx);
+        if (sr1 > sr0) {
+            const g = ctx.createLinearGradient(0, sr0, 0, sr1);
+            g.addColorStop(0, C_NIGHT); g.addColorStop(1, C_DAY);
+            ctx.fillStyle = g;
+            ctx.fillRect(x, sr0, w, sr1 - sr0);
+        }
+
+        // Sunset twilight gradient
+        const ss0 = Math.max(PAD.T, ssY - twPx);
+        const ss1 = Math.min(PAD.T + cH, ssY + twPx);
+        if (ss1 > ss0) {
+            const g = ctx.createLinearGradient(0, ss0, 0, ss1);
+            g.addColorStop(0, C_DAY); g.addColorStop(1, C_NIGHT);
+            ctx.fillStyle = g;
+            ctx.fillRect(x, ss0, w, ss1 - ss0);
+        }
+    }
+    ctx.restore();
+
+    // Hour grid
+    ctx.strokeStyle = C_GRID;
+    ctx.lineWidth = 0.5;
+    for (let h = 0; h <= 24; h++) {
+        const y = PAD.T + (h / 24) * cH;
+        ctx.beginPath(); ctx.moveTo(PAD.L, y); ctx.lineTo(PAD.L + cW, y); ctx.stroke();
+    }
+
+    // Hour labels
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const hStep = cH < 380 ? 4 : 2;
+    for (let h = 0; h <= 24; h += hStep) {
+        const y = PAD.T + (h / 24) * cH;
+        ctx.fillText(String(h).padStart(2,'0') + ':00', PAD.L - 5, y);
+    }
+
+    // Month lines + labels
+    const mB = monthBoundaries(isLeap);
+    ctx.strokeStyle = C_GRID;
+    ctx.lineWidth = 0.75;
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '10.5px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+
+    for (let m = 0; m < 12; m++) {
+        const x = PAD.L + (mB[m] / days) * cW;
+        ctx.beginPath(); ctx.moveTo(x, PAD.T); ctx.lineTo(x, PAD.T + cH); ctx.stroke();
+        const midX = PAD.L + ((mB[m] + mB[m+1]) / 2 / days) * cW;
+        ctx.fillText(MONTHS_SHORT[m], midX, PAD.T + cH + 5);
+    }
+    ctx.beginPath();
+    ctx.moveTo(PAD.L + cW, PAD.T); ctx.lineTo(PAD.L + cW, PAD.T + cH); ctx.stroke();
+
+    // Solstice/equinox markers
+    ctx.strokeStyle = C_EVENT;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 6]);
+    for (const ev of SOLAR_EVENTS) {
+        const x = PAD.L + ((ev.doy - 1) / days) * cW;
+        ctx.beginPath(); ctx.moveTo(x, PAD.T); ctx.lineTo(x, PAD.T + cH); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Today marker
+    if (todayDoy >= 1 && todayDoy <= days) {
+        const x = PAD.L + ((todayDoy - 0.5) / days) * cW;
+        ctx.strokeStyle = C_TODAY;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(x, PAD.T); ctx.lineTo(x, PAD.T + cH); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = C_TODAY;
+        ctx.font = 'bold 10px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+        const align = x < PAD.L + cW / 2 ? 'left' : 'right';
+        ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('Today', x + (align === 'left' ? 3 : -3), PAD.T - 4);
+    }
+
+    // Chart border
+    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PAD.L, PAD.T, cW, cH);
+}
+
+function drawHoverLine(canvas, dayIdx, days) {
+    if (!offscreen) return;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(offscreen, 0, 0);
+
+    const dpr  = window.devicePixelRatio || 1;
+    const dispW = parseFloat(canvas.style.width);
+    const dispH = parseFloat(canvas.style.height);
+    const cW = dispW - PAD.L - PAD.R;
+    const cH = dispH - PAD.T - PAD.B;
+    const x  = PAD.L + (dayIdx + 0.5) / days * cW;
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, PAD.T); ctx.lineTo(x, PAD.T + cH); ctx.stroke();
+    ctx.restore();
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+function computeStats(yearData, todayDoy) {
+    let shortest = { dur: Infinity, doy: -1 };
+    let longest  = { dur: -Infinity, doy: -1 };
+
+    yearData.forEach((r, i) => {
+        if (r.polarNight || r.midnightSun) return;
+        const dur = r.sunset - r.sunrise;
+        if (dur < shortest.dur) { shortest = { dur, doy: i + 1 }; }
+        if (dur > longest.dur)  { longest  = { dur, doy: i + 1 }; }
+    });
+
+    const tr = yearData[todayDoy - 1];
+    let todayDur = null;
+    if (tr) {
+        if (tr.midnightSun) todayDur = 1440;
+        else if (!tr.polarNight) todayDur = tr.sunset - tr.sunrise;
+    }
+
+    return { shortest, longest, todayDur };
+}
+
+function renderStats(container, yearData, year, todayDoy) {
+    while (container.firstChild) container.removeChild(container.firstChild);
+    const { shortest, longest, todayDur } = computeStats(yearData, todayDoy);
+
+    function makePill(cls, labelText, valueText) {
+        const pill = document.createElement('div');
+        pill.className = 'stat-pill ' + cls;
+        const lbl = document.createElement('span');
+        lbl.className = 'stat-label';
+        lbl.textContent = labelText;
+        const val = document.createElement('span');
+        val.textContent = valueText;
+        pill.appendChild(lbl);
+        pill.appendChild(val);
+        return pill;
+    }
+
+    if (shortest.doy > 0) {
+        const d = dateLabel(doyToDate(shortest.doy, year));
+        container.appendChild(makePill('shortest', 'Shortest day', d + ' \u00b7 ' + minToDuration(shortest.dur)));
+    }
+    if (longest.doy > 0) {
+        const d = dateLabel(doyToDate(longest.doy, year));
+        container.appendChild(makePill('longest', 'Longest day', d + ' \u00b7 ' + minToDuration(longest.dur)));
+    }
+    if (todayDur !== null) {
+        container.appendChild(makePill('today', 'Today', minToDuration(todayDur)));
+    }
+}
+
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+function buildTooltip(tooltip, dayIdx, yearData, year) {
+    while (tooltip.firstChild) tooltip.removeChild(tooltip.firstChild);
+
+    const r       = yearData[dayIdx];
+    const date    = doyToDate(dayIdx + 1, year);
+    const dateStr = date.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+
+    const dateEl = document.createElement('div');
+    dateEl.className = 'tooltip-date';
+    dateEl.textContent = dateStr;
+    tooltip.appendChild(dateEl);
+
+    function addRow(label, value) {
+        const row = document.createElement('div');
+        row.className = 'tooltip-row';
+        const lbl = document.createElement('span');
+        lbl.className = 'tooltip-label';
+        lbl.textContent = label;
+        const val = document.createElement('span');
+        val.textContent = value;
+        row.appendChild(lbl);
+        row.appendChild(val);
+        tooltip.appendChild(row);
+    }
+
+    if (r.polarNight) {
+        addRow('', 'Polar night');
+    } else if (r.midnightSun) {
+        addRow('', 'Midnight sun');
+    } else {
+        addRow('Sunrise', minToHHMM(r.sunrise));
+        addRow('Sunset',  minToHHMM(r.sunset));
+        addRow('Daylight', minToDuration(r.sunset - r.sunrise));
+    }
+}
+
+function positionTooltip(tooltip, canvas, clientX, clientY) {
+    tooltip.style.display = 'block';
+    const wrapper = canvas.parentElement;
+    const rect    = wrapper.getBoundingClientRect();
+    let tx = clientX - rect.left + 14;
+    let ty = clientY - rect.top  - 10;
+    if (tx + tooltip.offsetWidth + 4 > wrapper.clientWidth) {
+        tx = clientX - rect.left - tooltip.offsetWidth - 14;
+    }
+    ty = Math.max(4, Math.min(ty, wrapper.clientHeight - tooltip.offsetHeight - 4));
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top  = ty + 'px';
+}
+
+function hideTooltip(tooltip, canvas) {
+    tooltip.style.display = 'none';
+    if (offscreen) canvas.getContext('2d').drawImage(offscreen, 0, 0);
+}
+
+function clientXToDay(canvas, clientX, days) {
+    const rect = canvas.getBoundingClientRect();
+    const dispW = parseFloat(canvas.style.width);
+    const cW = dispW - PAD.L - PAD.R;
+    const cx = clientX - rect.left - PAD.L;
+    return Math.max(0, Math.min(days - 1, Math.floor((cx / cW) * days)));
+}
+
+// ─── Dropdown ─────────────────────────────────────────────────────────────────
+let dropItems = [];
+let dropHover = -1;
+
+function filterCities(q) {
+    if (!q.trim()) return [];
+    const lq = q.trim().toLowerCase();
+    return CITIES.filter(c =>
+        c[0].toLowerCase().includes(lq) ||
+        (COUNTRY_NAMES[c[1]] || '').toLowerCase().includes(lq)
+    ).slice(0, 60);
+}
+
+function renderDropdown(items, dropdown, onSelect) {
+    while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+    dropHover = -1;
+    if (!items.length) { dropdown.classList.remove('open'); return; }
+
+    items.forEach((c, i) => {
+        const div = document.createElement('div');
+        div.className = 'city-option';
+
+        const name = document.createElement('span');
+        name.textContent = c[0];
+
+        const country = document.createElement('span');
+        country.className = 'country';
+        country.textContent = COUNTRY_NAMES[c[1]] || c[1];
+
+        div.appendChild(name);
+        div.appendChild(country);
+        div.addEventListener('mousedown', e => { e.preventDefault(); onSelect(c); });
+        dropdown.appendChild(div);
+    });
+    dropdown.classList.add('open');
+}
+
+function moveHighlight(delta, dropdown) {
+    const opts = dropdown.querySelectorAll('.city-option');
+    if (!opts.length) return;
+    dropHover = Math.max(-1, Math.min(opts.length - 1, dropHover + delta));
+    opts.forEach((el, i) => el.classList.toggle('highlighted', i === dropHover));
+    if (dropHover >= 0) opts[dropHover].scrollIntoView({ block: 'nearest' });
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+const YEAR      = new Date().getFullYear();
+const TODAY_DOY = getDayOfYear(new Date());
+
+let currentCity     = null;
+let currentYearData = null;
+
+function loadCity(city) {
+    currentCity     = city;
+    currentYearData = computeYear(YEAR, city[2], city[3], city[4]);
+
+    const canvas  = document.getElementById('chart');
+    const stats   = document.getElementById('stats');
+    const tooltip = document.getElementById('tooltip');
+
+    tooltip.style.display = 'none';
+    offscreen = null;
+
+    drawChart(canvas, currentYearData, YEAR, TODAY_DOY);
+    renderStats(stats, currentYearData, YEAR, TODAY_DOY);
+
+    try { localStorage.setItem('daylightCity', JSON.stringify(city)); } catch(e) { /* quota */ }
+}
+
+(function init() {
+    const input    = document.getElementById('cityInput');
+    const dropdown = document.getElementById('cityDropdown');
+    const canvas   = document.getElementById('chart');
+    const tooltip  = document.getElementById('tooltip');
+
+    function selectCity(city) {
+        const country = COUNTRY_NAMES[city[1]] || city[1];
+        input.value = city[0] + ', ' + country;
+        dropdown.classList.remove('open');
+        dropItems = [];
+        loadCity(city);
+    }
+
+    input.addEventListener('input', () => {
+        dropItems = filterCities(input.value);
+        renderDropdown(dropItems, dropdown, selectCity);
+    });
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown')  { e.preventDefault(); moveHighlight(1, dropdown); }
+        else if (e.key === 'ArrowUp')   { e.preventDefault(); moveHighlight(-1, dropdown); }
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            const pick = dropHover >= 0 ? dropItems[dropHover] : dropItems[0];
+            if (pick) selectCity(pick);
+        } else if (e.key === 'Escape') {
+            dropdown.classList.remove('open');
+        }
+    });
+
+    input.addEventListener('blur',  () => setTimeout(() => dropdown.classList.remove('open'), 150));
+    input.addEventListener('focus', () => { if (dropItems.length) dropdown.classList.add('open'); });
+
+    // Pointer interaction
+    function handlePointer(clientX, clientY) {
+        if (!currentYearData) return;
+        const rect  = canvas.getBoundingClientRect();
+        const x     = clientX - rect.left;
+        const dispW = parseFloat(canvas.style.width);
+        if (x < PAD.L || x > dispW - PAD.R) { hideTooltip(tooltip, canvas); return; }
+
+        const dayIdx = clientXToDay(canvas, clientX, currentYearData.length);
+        drawHoverLine(canvas, dayIdx, currentYearData.length);
+        buildTooltip(tooltip, dayIdx, currentYearData, YEAR);
+        positionTooltip(tooltip, canvas, clientX, clientY);
+    }
+
+    canvas.addEventListener('mousemove',  e => handlePointer(e.clientX, e.clientY));
+    canvas.addEventListener('mouseleave', () => hideTooltip(tooltip, canvas));
+    canvas.addEventListener('touchmove',  e => {
+        e.preventDefault();
+        const t = e.touches[0];
+        handlePointer(t.clientX, t.clientY);
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => hideTooltip(tooltip, canvas));
+
+    // Resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => { if (currentCity) loadCity(currentCity); }, 180);
+    });
+
+    // Restore saved city or default to London
+    let defaultCity = CITIES.find(c => c[0] === 'London') || CITIES[0];
+    try {
+        const saved = JSON.parse(localStorage.getItem('daylightCity'));
+        if (Array.isArray(saved) && saved.length === 5) defaultCity = saved;
+    } catch(e) { /* ignore */ }
+
+    selectCity(defaultCity);
+}());
+</script>
+</body>
+</html>
