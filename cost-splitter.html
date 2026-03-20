@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cost Splitter</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -18,17 +14,130 @@
             padding: 20px;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         h1 {
-            text-align: center;
             color: white;
-            margin-bottom: 30px;
-            font-size: 2.5em;
+            font-size: 2.2em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .header-controls select {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(255,255,255,0.9);
+            color: #2c3e50;
+        }
+
+        .header-controls button {
+            padding: 8px 14px;
+            font-size: 13px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: white;
+        }
+
+        .header-controls button:hover {
+            background: rgba(255,255,255,0.35);
+            transform: translateY(-1px);
+        }
+
+        .header-controls button:disabled {
+            opacity: 0.4;
+            cursor: default;
+            transform: none;
+        }
+
+        /* Scenario tabs */
+        .scenarios-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .scenario-tab {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.25);
+            color: white;
+            border: 2px solid transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .scenario-tab:hover { background: rgba(255,255,255,0.35); transform: none; }
+
+        .scenario-tab.active {
+            background: white;
+            color: #667eea;
+            border-color: white;
+        }
+
+        .scenario-tab .tab-delete {
+            font-size: 14px;
+            line-height: 1;
+            opacity: 0.6;
+            padding: 0 2px;
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-weight: 700;
+            transform: none;
+        }
+
+        .scenario-tab .tab-delete:hover { opacity: 1; background: none; transform: none; }
+
+        .scenario-tab-add {
+            padding: 8px 14px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 2px dashed rgba(255,255,255,0.5);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .scenario-tab-add:hover { background: rgba(255,255,255,0.25); transform: none; }
+
+        /* Warning banner */
+        .warning-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
         }
 
         .main-grid {
@@ -54,28 +163,31 @@
 
         .input-group {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 15px;
+            flex-wrap: wrap;
         }
 
-        input[type="text"],
-        input[type="number"] {
+        input[type="text"], input[type="number"], select.inline-select {
             flex: 1;
-            padding: 12px;
+            min-width: 80px;
+            padding: 10px 12px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 14px;
             transition: border-color 0.3s;
+            background: white;
         }
 
-        input[type="text"]:focus,
-        input[type="number"]:focus {
+        input[type="text"]:focus, input[type="number"]:focus, select.inline-select:focus {
             outline: none;
             border-color: #667eea;
         }
 
+        select.inline-select { cursor: pointer; }
+
         button {
-            padding: 12px 24px;
+            padding: 10px 20px;
             background: #667eea;
             color: white;
             border: none;
@@ -83,98 +195,78 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
-            transition: background 0.3s, transform 0.1s;
+            transition: background 0.2s, transform 0.1s;
+            white-space: nowrap;
         }
 
-        button:hover {
-            background: #5568d3;
-            transform: translateY(-1px);
-        }
+        button:hover { background: #5568d3; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
 
-        button:active {
-            transform: translateY(0);
-        }
+        .btn-small { padding: 5px 10px; font-size: 12px; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-secondary { background: #95a5a6; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-edit { background: #f39c12; }
+        .btn-edit:hover { background: #e67e22; }
+        .btn-save { background: #27ae60; }
+        .btn-save:hover { background: #229954; }
 
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        .btn-danger {
-            background: #e74c3c;
-        }
-
-        .btn-danger:hover {
-            background: #c0392b;
-        }
-
-        .cost-item,
-        .group-item {
+        .cost-item, .group-item {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 13px 15px;
             border-radius: 8px;
             margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s;
+            align-items: flex-start;
+            transition: all 0.2s;
         }
 
         .cost-item {
-            cursor: move;
+            cursor: grab;
             border: 2px solid transparent;
+            touch-action: none;
         }
 
-        .cost-item:hover {
-            background: #e9ecef;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .cost-item.dragging {
-            opacity: 0.5;
-            transform: scale(1.05);
-        }
-
-        .cost-item.assigned {
-            background: #fff3cd;
-            border-color: #ffc107;
-        }
+        .cost-item:active { cursor: grabbing; }
+        .cost-item:hover { background: #e9ecef; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .cost-item.dragging { opacity: 0.4; transform: scale(1.03); }
+        .cost-item.assigned { background: #fff3cd; border-color: #ffc107; }
 
         .group-item {
             border: 2px dashed transparent;
+            flex-direction: column;
         }
 
-        .group-item.drag-over {
-            border-color: #667eea;
-            background: #e7f3ff;
-        }
+        .group-item.drag-over { border-color: #667eea; background: #e7f3ff; }
 
-        .item-details {
-            flex: 1;
-        }
+        .item-details { flex: 1; }
 
-        .item-title {
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 4px;
-        }
-
-        .item-subtitle {
-            font-size: 12px;
-            color: #7f8c8d;
-        }
+        .item-title { font-weight: 600; color: #2c3e50; margin-bottom: 3px; }
+        .item-subtitle { font-size: 12px; color: #7f8c8d; }
 
         .item-amount {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 700;
             color: #667eea;
-            margin-right: 10px;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .total-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
+            padding: 16px 20px;
             border-radius: 8px;
             margin-top: 20px;
         }
@@ -182,16 +274,12 @@
         .total-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
             font-size: 16px;
         }
 
         .total-row.grand-total {
             font-size: 20px;
             font-weight: 700;
-            padding-top: 10px;
-            border-top: 2px solid rgba(255,255,255,0.3);
-            margin-top: 10px;
         }
 
         .amount-type-toggle {
@@ -203,7 +291,7 @@
         }
 
         .toggle-btn {
-            padding: 12px 14px;
+            padding: 10px 13px;
             background: white;
             color: #666;
             border: none;
@@ -215,73 +303,65 @@
             transform: none;
         }
 
-        .toggle-btn:hover {
-            background: #f0f0f0;
-            transform: none;
-        }
+        .toggle-btn:hover { background: #f0f0f0; transform: none; }
+        .toggle-btn.active { background: #667eea; color: white; }
+        .toggle-btn.active:hover { background: #5568d3; }
 
-        .toggle-btn.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .toggle-btn.active:hover {
-            background: #5568d3;
-        }
-
-        .person-list {
-            margin-left: 20px;
-            margin-top: 10px;
-        }
+        .person-list { margin-top: 8px; }
 
         .person-item {
             background: white;
-            padding: 8px 12px;
+            padding: 7px 12px;
             border-radius: 6px;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
             font-size: 14px;
+            gap: 8px;
         }
 
-        .person-name {
-            color: #2c3e50;
-        }
+        .person-name { color: #2c3e50; flex: 1; }
 
-        .person-amount {
-            font-weight: 600;
-            color: #667eea;
-        }
+        .person-amount { font-weight: 600; color: #667eea; white-space: nowrap; }
 
-        .group-total {
-            font-weight: 700;
-            color: #667eea;
-            font-size: 18px;
-        }
-
-        .empty-state {
+        .person-weight-input {
+            width: 55px;
+            padding: 4px 6px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 12px;
             text-align: center;
-            padding: 40px;
-            color: #95a5a6;
         }
+
+        .group-total { font-weight: 700; color: #667eea; font-size: 17px; }
+
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .empty-state { text-align: center; padding: 35px; color: #95a5a6; }
 
         .assigned-label {
             display: inline-block;
             background: #ffc107;
             color: #856404;
-            padding: 4px 8px;
+            padding: 3px 7px;
             border-radius: 4px;
             font-size: 11px;
             font-weight: 600;
-            margin-left: 8px;
+            margin-left: 6px;
         }
 
         .drag-instructions {
             background: #e7f3ff;
-            padding: 12px;
+            padding: 10px 12px;
             border-radius: 6px;
-            margin-bottom: 15px;
-            font-size: 13px;
+            margin-bottom: 12px;
+            font-size: 12px;
             color: #0c5460;
             border-left: 4px solid #667eea;
         }
@@ -299,12 +379,10 @@
             margin-top: 5px;
         }
 
-        .cost-item {
-            position: relative;
-        }
+        .cost-item { position: relative; }
 
         .group-selector-title {
-            padding: 12px;
+            padding: 10px 12px;
             font-weight: 600;
             color: #667eea;
             border-bottom: 1px solid #e0e0e0;
@@ -312,24 +390,14 @@
         }
 
         .group-selector-item {
-            padding: 10px 12px;
+            padding: 9px 12px;
             cursor: pointer;
             transition: background 0.2s;
             font-size: 14px;
         }
 
-        .group-selector-item:hover {
-            background: #f0f0f0;
-        }
-
-        .group-selector-item:last-child {
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .group-selector-cancel {
-            color: #e74c3c;
-            font-weight: 600;
-        }
+        .group-selector-item:hover { background: #f0f0f0; }
+        .group-selector-item.group-selector-cancel { color: #e74c3c; font-weight: 600; border-top: 1px solid #e0e0e0; }
 
         .group-detail {
             margin-top: 10px;
@@ -345,523 +413,1207 @@
             color: #555;
         }
 
-        .detail-row .detail-label {
+        .detail-label {
             display: inline-block;
             font-size: 10px;
             background: #e0e0e0;
             color: #555;
             border-radius: 3px;
             padding: 1px 5px;
-            margin-left: 6px;
+            margin-left: 5px;
             vertical-align: middle;
         }
 
-        .detail-row.assigned-row .detail-label {
-            background: #ffc107;
-            color: #856404;
+        .assigned-row .detail-label { background: #ffc107; color: #856404; }
+
+        /* Edit mode */
+        .edit-form {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
         }
 
+        .edit-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .edit-input {
+            flex: 1;
+            min-width: 80px;
+            padding: 7px 10px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        /* Settlements */
+        .settlements-panel { margin-top: 20px; }
+
+        .settlement-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            background: #f0fff4;
+            border: 1px solid #a8e6c2;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .settlement-arrow { color: #27ae60; font-weight: 700; font-size: 18px; }
+        .settlement-amount { font-weight: 700; color: #27ae60; margin-left: auto; }
+        .settlement-from { font-weight: 600; color: #e74c3c; }
+        .settlement-to { font-weight: 600; color: #2980b9; }
+
+        .balances-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .balance-chip {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .balance-positive { background: #d4edda; color: #155724; }
+        .balance-negative { background: #f8d7da; color: #721c24; }
+
+        /* Touch drag ghost */
+        .touch-drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.7;
+            transform: scale(1.05) rotate(1deg);
+            border-radius: 8px;
+            background: #fff3cd;
+            padding: 10px 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+            max-width: 240px;
+        }
+
+        /* Weights toggle */
+        .weights-toggle {
+            font-size: 11px;
+            padding: 3px 8px;
+            background: #ecf0f1;
+            color: #555;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transform: none;
+        }
+
+        .weights-toggle:hover { background: #dfe6e9; transform: none; }
+        .weights-toggle.active { background: #667eea; color: white; }
+
         @media (max-width: 768px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-
-            h1 {
-                font-size: 1.8em;
-            }
-
-            .input-group {
-                flex-direction: column;
-            }
+            .main-grid { grid-template-columns: 1fr; }
+            h1 { font-size: 1.6em; }
+            .header-bar { flex-direction: column; gap: 8px; }
+            .input-group { flex-direction: column; }
+            .amount-type-toggle { align-self: flex-start; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>💰 Cost Splitter</h1>
+<div class="container">
+    <div class="header-bar">
+        <h1>&#x1F4B0; Cost Splitter</h1>
+        <div class="header-controls">
+            <select id="currencySelect" onchange="setCurrency(this.value)">
+                <option value="USD">$ USD</option>
+                <option value="EUR">&#x20AC; EUR</option>
+                <option value="GBP">&#xA3; GBP</option>
+                <option value="JPY">&#xA5; JPY</option>
+                <option value="CAD">$ CAD</option>
+                <option value="AUD">$ AUD</option>
+                <option value="CHF">Fr CHF</option>
+                <option value="CNY">&#xA5; CNY</option>
+                <option value="INR">&#x20B9; INR</option>
+                <option value="MXN">$ MXN</option>
+            </select>
+            <button id="undoBtn" onclick="undo()" disabled title="Undo (Ctrl+Z)">&#x21A9; Undo</button>
+            <button id="redoBtn" onclick="redo()" disabled title="Redo (Ctrl+Y)">&#x21AA; Redo</button>
+            <button onclick="exportSummary()" title="Copy summary to clipboard">&#x1F4CB; Export</button>
+        </div>
+    </div>
 
-        <div class="main-grid">
-            <!-- Costs Panel -->
-            <div class="panel">
-                <h2>Costs</h2>
-                
-                <div class="drag-instructions">
-                    💡 Drag a cost to a group OR click "Allocate" to assign it exclusively to that group
+    <div class="scenarios-bar" id="scenariosBar"></div>
+
+    <div id="percentWarning" class="warning-banner" style="display:none;">
+        &#x26A0;&#xFE0F; All costs are percentage-based — they compute against a $0 subtotal, so all amounts will be $0. Add at least one fixed-dollar cost first.
+    </div>
+
+    <div class="main-grid">
+        <div class="panel">
+            <h2>Costs</h2>
+            <div class="drag-instructions">
+                &#x1F4A1; Drag a cost to a group OR click "Allocate" to assign it exclusively to that group
+            </div>
+            <div class="input-group">
+                <input type="text" id="costDescription" placeholder="Description (e.g., Pizza)">
+                <div class="amount-type-toggle">
+                    <button type="button" class="toggle-btn active" id="toggleDollar" onclick="setAmountType('dollar')">$</button>
+                    <button type="button" class="toggle-btn" id="togglePercent" onclick="setAmountType('percent')">%</button>
                 </div>
-
-                <div class="input-group">
-                    <input type="text" id="costDescription" placeholder="Description (e.g., Pizza)">
-                    <div class="amount-type-toggle">
-                        <button type="button" class="toggle-btn active" id="toggleDollar" onclick="setAmountType('dollar')">$</button>
-                        <button type="button" class="toggle-btn" id="togglePercent" onclick="setAmountType('percent')">%</button>
-                    </div>
-                    <input type="number" id="costAmount" placeholder="Amount" step="0.01" min="0">
-                    <button onclick="addCost()">Add Cost</button>
-                </div>
-
-                <div id="costList"></div>
-
-                <div class="total-section">
-                    <div class="total-row grand-total" style="padding-top: 0; border-top: none; margin-top: 0;">
-                        <span>Total:</span>
-                        <span id="grandTotal">0.00</span>
-                    </div>
+                <input type="number" id="costAmount" placeholder="Amount" step="0.01" min="0">
+                <select class="inline-select" id="costPaidBy" style="display:none;">
+                    <option value="">Paid by&#x2026;</option>
+                </select>
+                <button onclick="addCost()">Add</button>
+            </div>
+            <div id="costList"></div>
+            <div class="total-section">
+                <div class="total-row grand-total" style="padding-top:0;border-top:none;margin-top:0;">
+                    <span>Total:</span>
+                    <span id="grandTotal">&#x2014;</span>
                 </div>
             </div>
+        </div>
 
-            <!-- Groups Panel -->
-            <div class="panel">
-                <h2>Groups</h2>
-
-                <div class="drag-instructions">
-                    💡 Enter comma-separated names (e.g., Alice, Bob) to auto-create a group with individual names
-                </div>
-
-                <div class="input-group">
-                    <input type="text" id="groupName" placeholder="Group name or comma-separated names (e.g., Alice, Bob, Carol)">
-                    <input type="number" id="groupSize" placeholder="# of people" min="1" value="1">
-                    <button onclick="addGroup()">Add Group</button>
-                </div>
-
-                <div id="groupList"></div>
-
-                <div class="total-section" id="groupTotalSection" style="display:none;">
-                    <div class="total-row grand-total" style="padding-top:0;border-top:none;margin-top:0;">
-                        <span>Total:</span>
-                        <span id="groupGrandTotal">0.00</span>
-                    </div>
+        <div class="panel">
+            <h2>Groups</h2>
+            <div class="drag-instructions">
+                &#x1F4A1; Enter comma-separated names (e.g., Alice, Bob) to auto-create a group with individual names
+            </div>
+            <div class="input-group">
+                <input type="text" id="groupName" placeholder="Group name or comma-separated names (e.g., Alice, Bob)">
+                <input type="number" id="groupSize" placeholder="# people" min="1" value="1" style="max-width:90px;">
+                <button onclick="addGroup()">Add</button>
+            </div>
+            <div id="groupList"></div>
+            <div class="total-section" id="groupTotalSection" style="display:none;">
+                <div class="total-row grand-total" style="padding-top:0;border-top:none;margin-top:0;">
+                    <span>Total:</span>
+                    <span id="groupGrandTotal">&#x2014;</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        let costs = [];
-        let groups = [];
-        let amountType = 'dollar';
-        let nextCostId = 1;
-        let nextGroupId = 1;
-        let expandedGroups = new Set();
+    <div id="settlementsPanel" class="panel settlements-panel" style="display:none;">
+        <h2>Settlements</h2>
+        <p style="color:#666;font-size:13px;margin-bottom:12px;">Minimum transactions to settle all debts, based on who paid each cost.</p>
+        <div id="balancesList" class="balances-grid"></div>
+        <div id="settlementsList"></div>
+    </div>
+</div>
 
-        function setAmountType(type) {
-            amountType = type;
-            document.getElementById('toggleDollar').classList.toggle('active', type === 'dollar');
-            document.getElementById('togglePercent').classList.toggle('active', type === 'percent');
-            const amountInput = document.getElementById('costAmount');
-            amountInput.placeholder = type === 'percent' ? 'e.g. 10' : 'Amount';
+<script>
+    // ── State ─────────────────────────────────────────────────────────────────
+    let scenarios = [];
+    let activeScenarioId = null;
+    let currencyCode = 'USD';
+    let amountType = 'dollar';
+    let expandedGroups = new Set();
+    let editingCostId = null;
+    let editingGroupId = null;
+    let nextScenarioId = 1;
+
+    // Undo/redo stacks — serialized snapshots
+    let undoStack = [];
+    let redoStack = [];
+
+    // Touch drag state
+    let touchDragCostId = null;
+    let touchGhost = null;
+    let touchTargetGroupId = null;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function fmt(amount) {
+        try {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency', currency: currencyCode,
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            }).format(amount);
+        } catch (e) {
+            return '$' + amount.toFixed(2);
         }
+    }
 
-        function toggleAllocation(costId) {
-            const cost = costs.find(c => c.id === costId);
-            if (!cost) return;
+    function getScenario() {
+        return scenarios.find(s => s.id === activeScenarioId);
+    }
 
-            // If already allocated, make it shared
-            if (cost.assignedToGroup) {
-                cost.assignedToGroup = null;
-                render();
-            } else {
-                // Show group selection for allocation
-                showGroupSelector(costId);
-            }
-        }
+    function getAllPeople(sc) {
+        sc = sc || getScenario();
+        if (!sc) return [];
+        const names = new Set();
+        sc.groups.forEach(g => g.people.forEach(p => names.add(p.name)));
+        return [...names];
+    }
 
-        function showGroupSelector(costId) {
-            if (groups.length === 0) {
-                alert('Please add at least one group first');
-                return;
-            }
+    // ── Undo / Redo ───────────────────────────────────────────────────────────
+    function snapshot() {
+        return JSON.stringify({ scenarios, activeScenarioId, currencyCode });
+    }
 
-            // Hide any existing selector
-            document.querySelectorAll('.group-selector').forEach(el => el.remove());
+    function pushHistory() {
+        undoStack.push(snapshot());
+        if (undoStack.length > 60) undoStack.shift();
+        redoStack = [];
+    }
 
-            const costElement = document.querySelector(`[data-cost-id="${costId}"]`);
-            if (!costElement) return;
+    function undo() {
+        if (!undoStack.length) return;
+        redoStack.push(snapshot());
+        restoreSnapshot(undoStack.pop());
+    }
 
-            const selector = document.createElement('div');
-            selector.className = 'group-selector';
-            selector.innerHTML = `
-                <div class="group-selector-title">Allocate to which group?</div>
-                ${groups.map(group => `
-                    <div class="group-selector-item" onclick="event.stopPropagation(); allocateCostToGroup(${costId}, ${group.id})">
-                        ${escapeHtml(group.name)}
-                    </div>
-                `).join('')}
-                <div class="group-selector-item group-selector-cancel" onclick="event.stopPropagation(); closeGroupSelector()">
-                    Cancel
-                </div>
-            `;
+    function redo() {
+        if (!redoStack.length) return;
+        undoStack.push(snapshot());
+        restoreSnapshot(redoStack.pop());
+    }
 
-            costElement.appendChild(selector);
-        }
-
-        function closeGroupSelector() {
-            document.querySelectorAll('.group-selector').forEach(el => el.remove());
-        }
-
-        function allocateCostToGroup(costId, groupId) {
-            const cost = costs.find(c => c.id === costId);
-            if (cost) {
-                cost.assignedToGroup = groupId;
-                closeGroupSelector();
-                render();
-            }
-        }
-
-        function addCost() {
-            const description = document.getElementById('costDescription').value.trim();
-            const inputValue = parseFloat(document.getElementById('costAmount').value);
-
-            if (!description || isNaN(inputValue) || inputValue <= 0) {
-                alert('Please enter a valid description and amount');
-                return;
-            }
-
-            const isPercent = amountType === 'percent';
-            costs.push({
-                id: nextCostId++,
-                description,
-                amount: isPercent ? 0 : inputValue,
-                assignedToGroup: null,
-                isPercent,
-                percentValue: isPercent ? inputValue : 0
-            });
-
-            document.getElementById('costDescription').value = '';
-            document.getElementById('costAmount').value = '';
-            document.getElementById('costDescription').focus();
-
-            render();
-        }
-
-        function removeCost(id) {
-            costs = costs.filter(c => c.id !== id);
-            render();
-        }
-
-        function addGroup() {
-            const nameInput = document.getElementById('groupName').value.trim();
-            const size = parseInt(document.getElementById('groupSize').value);
-
-            if (!nameInput) {
-                alert('Please enter a group name or comma-separated list of names');
-                return;
-            }
-
-            let people = [];
-            let groupName = nameInput;
-
-            // Check if input contains commas (comma-separated list of names)
-            if (nameInput.includes(',')) {
-                const names = nameInput.split(',').map(n => n.trim()).filter(n => n);
-                
-                if (names.length === 0) {
-                    alert('Please enter valid names separated by commas');
-                    return;
-                }
-
-                // Create individual people from the list
-                people = names.map(name => ({ name }));
-                groupName = names.join(', '); // Use formatted list as group name
-            } else {
-                // Single name or generic group
-                if (!size || size < 1) {
-                    alert('Please enter a valid number of people');
-                    return;
-                }
-
-                for (let i = 0; i < size; i++) {
-                    people.push({ name: size === 1 ? nameInput : `${nameInput} (Person ${i + 1})` });
-                }
-                groupName = nameInput;
-            }
-
-            groups.push({
-                id: nextGroupId++,
-                name: groupName,
-                people
-            });
-
-            document.getElementById('groupName').value = '';
-            document.getElementById('groupSize').value = '1';
-            document.getElementById('groupName').focus();
-
-            render();
-        }
-
-        function removeGroup(id) {
-            // Unassign any costs assigned to this group
-            costs.forEach(cost => {
-                if (cost.assignedToGroup === id) {
-                    cost.assignedToGroup = null;
-                }
-            });
-            
-            groups = groups.filter(g => g.id !== id);
-            render();
-        }
-
-        function calculateTotals() {
-            // Pass 1: sum all fixed costs
-            const fixedTotal = costs
-                .filter(c => !c.isPercent)
-                .reduce((sum, c) => sum + c.amount, 0);
-
-            // Pass 2: compute amounts for percentage costs
-            costs.filter(c => c.isPercent).forEach(c => {
-                c.amount = (c.percentValue / 100) * fixedTotal;
-            });
-
-            const sharedCosts = costs.filter(c => c.assignedToGroup === null);
-            const sharedTotal = sharedCosts.reduce((sum, c) => sum + c.amount, 0);
-            const totalPeople = groups.reduce((sum, g) => sum + g.people.length, 0);
-
-            return { sharedTotal, totalPeople };
-        }
-
-        function toggleGroupDetail(groupId) {
-            if (expandedGroups.has(groupId)) expandedGroups.delete(groupId);
-            else expandedGroups.add(groupId);
-            render();
-        }
-
-        function getGroupCostBreakdown(group) {
-            const { totalPeople } = calculateTotals();
-            const rows = [];
-            for (const cost of costs) {
-                if (cost.assignedToGroup === null && totalPeople > 0) {
-                    rows.push({
-                        description: cost.description,
-                        amount: (group.people.length / totalPeople) * cost.amount,
-                        type: 'shared'
-                    });
-                } else if (cost.assignedToGroup === group.id) {
-                    rows.push({ description: cost.description, amount: cost.amount, type: 'assigned' });
-                }
-            }
-            return rows;
-        }
-
-        function calculateGroupShare(group) {
-            const { sharedTotal, totalPeople } = calculateTotals();
-            
-            // Calculate share of shared costs
-            const sharedShare = totalPeople > 0 
-                ? (group.people.length / totalPeople) * sharedTotal 
-                : 0;
-
-            // Add any costs assigned directly to this group
-            const assignedCosts = costs
-                .filter(c => c.assignedToGroup === group.id)
-                .reduce((sum, c) => sum + c.amount, 0);
-
-            return sharedShare + assignedCosts;
-        }
-
-        function handleDragStart(e, costId) {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', costId);
-            e.target.classList.add('dragging');
-        }
-
-        function handleDragEnd(e) {
-            e.target.classList.remove('dragging');
-            document.querySelectorAll('.drag-over').forEach(el => {
-                el.classList.remove('drag-over');
-            });
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-        }
-
-        function handleDragEnter(e, groupId) {
-            e.preventDefault();
-            e.currentTarget.classList.add('drag-over');
-        }
-
-        function handleDragLeave(e) {
-            e.currentTarget.classList.remove('drag-over');
-        }
-
-        function handleDrop(e, groupId) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('drag-over');
-
-            const costId = parseInt(e.dataTransfer.getData('text/plain'));
-            const cost = costs.find(c => c.id === costId);
-
-            if (cost) {
-                // Toggle assignment: if already assigned to this group, unassign
-                if (cost.assignedToGroup === groupId) {
-                    cost.assignedToGroup = null;
-                } else {
-                    cost.assignedToGroup = groupId;
-                }
-                render();
-            }
-        }
-
-        function render() {
-            calculateTotals(); // compute percentage cost amounts before rendering
-            renderCosts();
-            renderGroups();
-            renderTotals();
-        }
-
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-
-        function renderCosts() {
-            const costList = document.getElementById('costList');
-            
-            if (costs.length === 0) {
-                costList.innerHTML = '<div class="empty-state">No costs added yet</div>';
-                return;
-            }
-
-            costList.innerHTML = costs.map(cost => {
-                const assignedGroup = cost.assignedToGroup 
-                    ? groups.find(g => g.id === cost.assignedToGroup)
-                    : null;
-
-                const allocateButtonText = cost.assignedToGroup ? 'Make Shared' : 'Allocate';
-                const allocateButtonClass = cost.assignedToGroup ? 'btn-small' : 'btn-small';
-
-                const subtitle = cost.isPercent
-                    ? `${cost.percentValue}% of subtotal — ${cost.amount.toFixed(2)}${assignedGroup ? ' · Assigned exclusively to this group' : ''}`
-                    : (assignedGroup ? 'Assigned exclusively to this group' : 'Shared cost');
-
-                return `
-                    <div class="cost-item ${cost.assignedToGroup ? 'assigned' : ''}"
-                         draggable="true"
-                         data-cost-id="${cost.id}"
-                         ondragstart="handleDragStart(event, ${cost.id})"
-                         ondragend="handleDragEnd(event)">
-                        <div class="item-details">
-                            <div class="item-title">
-                                ${escapeHtml(cost.description)}
-                                ${assignedGroup ? `<span class="assigned-label">→ ${escapeHtml(assignedGroup.name)}</span>` : ''}
-                            </div>
-                            <div class="item-subtitle">${subtitle}</div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div class="item-amount">${cost.amount.toFixed(2)}</div>
-                            <button class="${allocateButtonClass}" onclick="event.stopPropagation(); toggleAllocation(${cost.id});">${allocateButtonText}</button>
-                            <button class="btn-small btn-danger" onclick="event.stopPropagation(); removeCost(${cost.id})">✕</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderGroups() {
-            const groupList = document.getElementById('groupList');
-
-            if (groups.length === 0) {
-                groupList.innerHTML = '<div class="empty-state">No groups added yet</div>';
-                return;
-            }
-
-            groupList.innerHTML = groups.map(group => {
-                const groupTotal = calculateGroupShare(group);
-                const perPerson = groupTotal / group.people.length;
-                const isExpanded = expandedGroups.has(group.id);
-                const breakdown = isExpanded ? getGroupCostBreakdown(group) : [];
-
-                const detailHtml = isExpanded ? `
-                    <div class="group-detail">
-                        ${breakdown.length === 0
-                            ? '<div class="detail-row" style="color:#95a5a6;">No costs apply to this group yet</div>'
-                            : breakdown.map(row => `
-                                <div class="detail-row ${row.type === 'assigned' ? 'assigned-row' : ''}">
-                                    <span>${escapeHtml(row.description)}<span class="detail-label">${row.type === 'assigned' ? 'assigned' : 'shared'}</span></span>
-                                    <span>${row.amount.toFixed(2)}</span>
-                                </div>
-                            `).join('')
-                        }
-                    </div>
-                ` : '';
-
-                return `
-                    <div class="group-item"
-                         ondragover="handleDragOver(event)"
-                         ondragenter="handleDragEnter(event, ${group.id})"
-                         ondragleave="handleDragLeave(event)"
-                         ondrop="handleDrop(event, ${group.id})">
-                        <div style="flex: 1;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                <div>
-                                    <div class="item-title">${escapeHtml(group.name)}</div>
-                                    <div class="item-subtitle">${group.people.length} ${group.people.length === 1 ? 'person' : 'people'}</div>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div class="group-total">${groupTotal.toFixed(2)}</div>
-                                    <button class="btn-small" onclick="toggleGroupDetail(${group.id})">Details ${isExpanded ? '▾' : '▸'}</button>
-                                    <button class="btn-small btn-danger" onclick="removeGroup(${group.id})">✕</button>
-                                </div>
-                            </div>
-                            <div class="person-list">
-                                ${group.people.map(person => `
-                                    <div class="person-item">
-                                        <span class="person-name">${escapeHtml(person.name)}</span>
-                                        <span class="person-amount">${perPerson.toFixed(2)}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                            ${detailHtml}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderTotals() {
-            calculateTotals(); // ensures percentage cost amounts are up to date
-            const grandTotal = costs.reduce((sum, c) => sum + c.amount, 0);
-            document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
-
-            const groupTotalSection = document.getElementById('groupTotalSection');
-            groupTotalSection.style.display = groups.length > 0 ? '' : 'none';
-            document.getElementById('groupGrandTotal').textContent = grandTotal.toFixed(2);
-        }
-
-        // Allow Enter key to add costs
-        document.getElementById('costAmount').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') addCost();
-        });
-
-        document.getElementById('costDescription').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('costAmount').focus();
-            }
-        });
-
-        // Allow Enter key to add groups
-        document.getElementById('groupSize').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') addGroup();
-        });
-
-        document.getElementById('groupName').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('groupSize').focus();
-            }
-        });
-
-        // Close group selector when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.group-selector') && !e.target.closest('button')) {
-                closeGroupSelector();
-            }
-        });
-
-        // Initial render
+    function restoreSnapshot(snap) {
+        const data = JSON.parse(snap);
+        scenarios = data.scenarios;
+        activeScenarioId = data.activeScenarioId;
+        currencyCode = data.currencyCode || 'USD';
+        document.getElementById('currencySelect').value = currencyCode;
+        editingCostId = null;
+        editingGroupId = null;
+        saveState();
         render();
-    </script>
+    }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
+    function saveState() {
+        try {
+            localStorage.setItem('costSplitterState', JSON.stringify({
+                scenarios, activeScenarioId, currencyCode
+            }));
+        } catch (e) {}
+        document.getElementById('undoBtn').disabled = undoStack.length === 0;
+        document.getElementById('redoBtn').disabled = redoStack.length === 0;
+    }
+
+    function loadState() {
+        try {
+            const raw = localStorage.getItem('costSplitterState');
+            if (raw) {
+                const data = JSON.parse(raw);
+                scenarios = data.scenarios || [];
+                activeScenarioId = data.activeScenarioId || null;
+                currencyCode = data.currencyCode || 'USD';
+                document.getElementById('currencySelect').value = currencyCode;
+                // Ensure schema consistency
+                scenarios.forEach(sc => {
+                    sc.groups.forEach(g => {
+                        g.people.forEach(p => { if (!p.weight) p.weight = 1; });
+                        if (g.useWeights === undefined) g.useWeights = false;
+                    });
+                    sc.costs.forEach(c => { if (c.paidBy === undefined) c.paidBy = ''; });
+                });
+                // Restore nextScenarioId
+                if (scenarios.length) {
+                    nextScenarioId = Math.max(...scenarios.map(s => s.id)) + 1;
+                }
+            }
+        } catch (e) {}
+
+        if (!scenarios.length) {
+            createScenario('Default', false);
+        }
+        if (!activeScenarioId || !scenarios.find(s => s.id === activeScenarioId)) {
+            activeScenarioId = scenarios[0].id;
+        }
+    }
+
+    // ── Scenarios ─────────────────────────────────────────────────────────────
+    function createScenario(name, save) {
+        const id = nextScenarioId++;
+        const sc = { id, name, costs: [], groups: [], nextCostId: 1, nextGroupId: 1 };
+        scenarios.push(sc);
+        if (!activeScenarioId) activeScenarioId = id;
+        if (save !== false) { saveState(); render(); }
+        return sc;
+    }
+
+    function switchScenario(id) {
+        activeScenarioId = id;
+        editingCostId = null;
+        editingGroupId = null;
+        saveState();
+        render();
+    }
+
+    function addScenario() {
+        const name = prompt('Scenario name:', 'New Scenario');
+        if (!name) return;
+        pushHistory();
+        const sc = createScenario(name.trim(), false);
+        activeScenarioId = sc.id;
+        saveState();
+        render();
+    }
+
+    function deleteScenario(id) {
+        if (scenarios.length <= 1) { alert('Cannot delete the only scenario.'); return; }
+        if (!confirm('Delete this scenario?')) return;
+        pushHistory();
+        scenarios = scenarios.filter(s => s.id !== id);
+        if (activeScenarioId === id) activeScenarioId = scenarios[0].id;
+        saveState();
+        render();
+    }
+
+    function renameScenario(id) {
+        const sc = scenarios.find(s => s.id === id);
+        if (!sc) return;
+        const name = prompt('Rename scenario:', sc.name);
+        if (!name) return;
+        pushHistory();
+        sc.name = name.trim();
+        saveState();
+        render();
+    }
+
+    // ── Currency ──────────────────────────────────────────────────────────────
+    function setCurrency(code) {
+        pushHistory();
+        currencyCode = code;
+        saveState();
+        render();
+    }
+
+    // ── Amount type toggle ────────────────────────────────────────────────────
+    function setAmountType(type) {
+        amountType = type;
+        document.getElementById('toggleDollar').classList.toggle('active', type === 'dollar');
+        document.getElementById('togglePercent').classList.toggle('active', type === 'percent');
+        document.getElementById('costAmount').placeholder = type === 'percent' ? 'e.g. 10' : 'Amount';
+    }
+
+    // ── Costs ─────────────────────────────────────────────────────────────────
+    function addCost() {
+        const description = document.getElementById('costDescription').value.trim();
+        const inputValue = parseFloat(document.getElementById('costAmount').value);
+        const paidBy = document.getElementById('costPaidBy').value || '';
+
+        if (!description || isNaN(inputValue) || inputValue <= 0) {
+            alert('Please enter a valid description and amount.');
+            return;
+        }
+
+        pushHistory();
+        const sc = getScenario();
+        const isPercent = amountType === 'percent';
+        sc.costs.push({
+            id: sc.nextCostId++,
+            description,
+            amount: isPercent ? 0 : inputValue,
+            assignedToGroup: null,
+            isPercent,
+            percentValue: isPercent ? inputValue : 0,
+            paidBy
+        });
+
+        document.getElementById('costDescription').value = '';
+        document.getElementById('costAmount').value = '';
+        document.getElementById('costPaidBy').value = '';
+        document.getElementById('costDescription').focus();
+        saveAndRender();
+    }
+
+    function removeCost(id) {
+        pushHistory();
+        const sc = getScenario();
+        sc.costs = sc.costs.filter(c => c.id !== id);
+        if (editingCostId === id) editingCostId = null;
+        saveAndRender();
+    }
+
+    function startEditCost(id) {
+        editingCostId = id;
+        editingGroupId = null;
+        render();
+        setTimeout(() => {
+            const el = document.getElementById('editCostDesc_' + id);
+            if (el) el.focus();
+        }, 0);
+    }
+
+    function cancelEditCost() { editingCostId = null; render(); }
+
+    function saveEditCost(id) {
+        const descEl = document.getElementById('editCostDesc_' + id);
+        const amtEl = document.getElementById('editCostAmt_' + id);
+        const paidEl = document.getElementById('editCostPaid_' + id);
+
+        const desc = descEl ? descEl.value.trim() : '';
+        const amt = parseFloat(amtEl ? amtEl.value : 0);
+
+        if (!desc || isNaN(amt) || amt <= 0) { alert('Invalid values.'); return; }
+
+        pushHistory();
+        const sc = getScenario();
+        const cost = sc.costs.find(c => c.id === id);
+        if (!cost) return;
+
+        cost.description = desc;
+        if (cost.isPercent) cost.percentValue = amt;
+        else cost.amount = amt;
+        if (paidEl) cost.paidBy = paidEl.value;
+
+        editingCostId = null;
+        saveAndRender();
+    }
+
+    function toggleAllocation(costId) {
+        const sc = getScenario();
+        const cost = sc.costs.find(c => c.id === costId);
+        if (!cost) return;
+        if (cost.assignedToGroup) {
+            pushHistory();
+            cost.assignedToGroup = null;
+            saveAndRender();
+        } else {
+            showGroupSelector(costId);
+        }
+    }
+
+    function showGroupSelector(costId) {
+        const sc = getScenario();
+        if (!sc.groups.length) { alert('Please add at least one group first.'); return; }
+        document.querySelectorAll('.group-selector').forEach(el => el.remove());
+
+        const costEl = document.querySelector('[data-cost-id="' + costId + '"]');
+        if (!costEl) return;
+
+        const sel = document.createElement('div');
+        sel.className = 'group-selector';
+
+        const title = document.createElement('div');
+        title.className = 'group-selector-title';
+        title.textContent = 'Allocate to which group?';
+        sel.appendChild(title);
+
+        sc.groups.forEach(g => {
+            const item = document.createElement('div');
+            item.className = 'group-selector-item';
+            item.textContent = g.name;
+            item.addEventListener('click', e => { e.stopPropagation(); allocateCostToGroup(costId, g.id); });
+            sel.appendChild(item);
+        });
+
+        const cancel = document.createElement('div');
+        cancel.className = 'group-selector-item group-selector-cancel';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', e => { e.stopPropagation(); closeGroupSelector(); });
+        sel.appendChild(cancel);
+
+        costEl.appendChild(sel);
+    }
+
+    function closeGroupSelector() {
+        document.querySelectorAll('.group-selector').forEach(el => el.remove());
+    }
+
+    function allocateCostToGroup(costId, groupId) {
+        pushHistory();
+        const sc = getScenario();
+        const cost = sc.costs.find(c => c.id === costId);
+        if (cost) cost.assignedToGroup = groupId;
+        closeGroupSelector();
+        saveAndRender();
+    }
+
+    // ── Groups ────────────────────────────────────────────────────────────────
+    function addGroup() {
+        const nameInput = document.getElementById('groupName').value.trim();
+        const size = parseInt(document.getElementById('groupSize').value);
+
+        if (!nameInput) { alert('Please enter a group name or comma-separated names.'); return; }
+
+        let people = [];
+        let groupName = nameInput;
+
+        if (nameInput.includes(',')) {
+            const names = nameInput.split(',').map(n => n.trim()).filter(n => n);
+            if (!names.length) { alert('Please enter valid names separated by commas.'); return; }
+            people = names.map(name => ({ name, weight: 1 }));
+            groupName = names.join(', ');
+        } else {
+            if (!size || size < 1) { alert('Please enter a valid number of people.'); return; }
+            for (let i = 0; i < size; i++) {
+                people.push({ name: size === 1 ? nameInput : nameInput + ' (Person ' + (i + 1) + ')', weight: 1 });
+            }
+            groupName = nameInput;
+        }
+
+        pushHistory();
+        const sc = getScenario();
+        sc.groups.push({ id: sc.nextGroupId++, name: groupName, people, useWeights: false });
+
+        document.getElementById('groupName').value = '';
+        document.getElementById('groupSize').value = '1';
+        document.getElementById('groupName').focus();
+        saveAndRender();
+    }
+
+    function removeGroup(id) {
+        pushHistory();
+        const sc = getScenario();
+        sc.costs.forEach(c => { if (c.assignedToGroup === id) c.assignedToGroup = null; });
+        sc.groups = sc.groups.filter(g => g.id !== id);
+        if (editingGroupId === id) editingGroupId = null;
+        saveAndRender();
+    }
+
+    function startEditGroup(id) {
+        editingGroupId = id;
+        editingCostId = null;
+        render();
+        setTimeout(() => {
+            const el = document.getElementById('editGroupName_' + id);
+            if (el) el.focus();
+        }, 0);
+    }
+
+    function cancelEditGroup() { editingGroupId = null; render(); }
+
+    function saveEditGroup(id) {
+        const nameEl = document.getElementById('editGroupName_' + id);
+        const name = nameEl ? nameEl.value.trim() : '';
+        if (!name) { alert('Please enter a valid name.'); return; }
+
+        pushHistory();
+        const sc = getScenario();
+        const group = sc.groups.find(g => g.id === id);
+        if (!group) return;
+        group.name = name;
+
+        group.people.forEach((p, i) => {
+            const pnEl = document.getElementById('editPersonName_' + id + '_' + i);
+            const pwEl = document.getElementById('editPersonWeight_' + id + '_' + i);
+            if (pnEl && pnEl.value.trim()) p.name = pnEl.value.trim();
+            if (pwEl) p.weight = Math.max(0.01, parseFloat(pwEl.value) || 1);
+        });
+
+        editingGroupId = null;
+        saveAndRender();
+    }
+
+    function toggleWeights(groupId) {
+        const sc = getScenario();
+        const group = sc.groups.find(g => g.id === groupId);
+        if (!group) return;
+        pushHistory();
+        group.useWeights = !group.useWeights;
+        saveAndRender();
+    }
+
+    function updateWeight(groupId, personIdx, value) {
+        const sc = getScenario();
+        const group = sc.groups.find(g => g.id === groupId);
+        if (!group) return;
+        group.people[personIdx].weight = Math.max(0.01, parseFloat(value) || 1);
+        saveAndRender();
+    }
+
+    function toggleGroupDetail(groupId) {
+        if (expandedGroups.has(groupId)) expandedGroups.delete(groupId);
+        else expandedGroups.add(groupId);
+        render();
+    }
+
+    // ── Calculations ──────────────────────────────────────────────────────────
+    function calculateTotals() {
+        const sc = getScenario();
+        const fixedTotal = sc.costs.filter(c => !c.isPercent).reduce((s, c) => s + c.amount, 0);
+        sc.costs.filter(c => c.isPercent).forEach(c => { c.amount = (c.percentValue / 100) * fixedTotal; });
+
+        const sharedTotal = sc.costs.filter(c => c.assignedToGroup === null).reduce((s, c) => s + c.amount, 0);
+        return { sharedTotal };
+    }
+
+    function getGroupTotalWeight(group) {
+        return group.people.reduce((s, p) => s + (p.weight || 1), 0);
+    }
+
+    function getAllWeight(sc) {
+        return sc.groups.reduce((s, g) => s + (g.useWeights ? getGroupTotalWeight(g) : g.people.length), 0);
+    }
+
+    function getPersonShare(group, personIdx) {
+        calculateTotals();
+        const sc = getScenario();
+        const person = group.people[personIdx];
+        const allWeight = getAllWeight(sc);
+        const groupWeight = group.useWeights ? getGroupTotalWeight(group) : group.people.length;
+        const pw = group.useWeights ? (person.weight || 1) : 1;
+
+        let share = 0;
+
+        // Share of shared costs
+        if (allWeight > 0) {
+            sc.costs.filter(c => c.assignedToGroup === null).forEach(cost => {
+                const groupShare = (groupWeight / allWeight) * cost.amount;
+                share += (pw / groupWeight) * groupShare;
+            });
+        }
+
+        // Share of costs assigned to this group
+        sc.costs.filter(c => c.assignedToGroup === group.id).forEach(cost => {
+            share += (pw / groupWeight) * cost.amount;
+        });
+
+        return share;
+    }
+
+    function calculateGroupShare(group) {
+        calculateTotals();
+        const sc = getScenario();
+        const allWeight = getAllWeight(sc);
+        const groupWeight = group.useWeights ? getGroupTotalWeight(group) : group.people.length;
+
+        const sharedShare = allWeight > 0
+            ? (groupWeight / allWeight) * sc.costs.filter(c => c.assignedToGroup === null).reduce((s, c) => s + c.amount, 0)
+            : 0;
+
+        return sharedShare + sc.costs.filter(c => c.assignedToGroup === group.id).reduce((s, c) => s + c.amount, 0);
+    }
+
+    function getGroupCostBreakdown(group) {
+        calculateTotals();
+        const sc = getScenario();
+        const allWeight = getAllWeight(sc);
+        const groupWeight = group.useWeights ? getGroupTotalWeight(group) : group.people.length;
+        const rows = [];
+
+        sc.costs.forEach(cost => {
+            if (cost.assignedToGroup === null && allWeight > 0) {
+                rows.push({ description: cost.description, amount: (groupWeight / allWeight) * cost.amount, type: 'shared' });
+            } else if (cost.assignedToGroup === group.id) {
+                rows.push({ description: cost.description, amount: cost.amount, type: 'assigned' });
+            }
+        });
+        return rows;
+    }
+
+    // ── Settlements ───────────────────────────────────────────────────────────
+    function calculateSettlements() {
+        calculateTotals();
+        const sc = getScenario();
+        const paidCosts = sc.costs.filter(c => c.paidBy);
+        if (!paidCosts.length) return null;
+
+        const balances = {};
+        const allWeight = getAllWeight(sc);
+
+        paidCosts.forEach(cost => {
+            balances[cost.paidBy] = (balances[cost.paidBy] || 0) + cost.amount;
+
+            sc.groups.forEach(group => {
+                const applies = cost.assignedToGroup === null || cost.assignedToGroup === group.id;
+                if (!applies) return;
+
+                const groupWeight = group.useWeights ? getGroupTotalWeight(group) : group.people.length;
+                let groupShare = 0;
+                if (cost.assignedToGroup === null && allWeight > 0) {
+                    groupShare = (groupWeight / allWeight) * cost.amount;
+                } else if (cost.assignedToGroup === group.id) {
+                    groupShare = cost.amount;
+                }
+
+                group.people.forEach(p => {
+                    const pw = group.useWeights ? (p.weight || 1) : 1;
+                    balances[p.name] = (balances[p.name] || 0) - (pw / groupWeight) * groupShare;
+                });
+            });
+        });
+
+        // Minimize transactions
+        const creditors = [], debtors = [];
+        Object.entries(balances).forEach(([name, bal]) => {
+            if (bal > 0.005) creditors.push({ name, amount: bal });
+            else if (bal < -0.005) debtors.push({ name, amount: -bal });
+        });
+        creditors.sort((a, b) => b.amount - a.amount);
+        debtors.sort((a, b) => b.amount - a.amount);
+
+        const transactions = [];
+        let i = 0, j = 0;
+        while (i < creditors.length && j < debtors.length) {
+            const c = creditors[i], d = debtors[j];
+            const amount = Math.min(c.amount, d.amount);
+            transactions.push({ from: d.name, to: c.name, amount });
+            c.amount -= amount;
+            d.amount -= amount;
+            if (c.amount < 0.005) i++;
+            if (d.amount < 0.005) j++;
+        }
+
+        return { balances, transactions };
+    }
+
+    // ── Drag and Drop (mouse) ─────────────────────────────────────────────────
+    function handleDragStart(e, costId) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(costId));
+        e.target.classList.add('dragging');
+    }
+
+    function handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    }
+
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+    function handleDragEnter(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+    function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+
+    function handleDrop(e, groupId) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        const costId = parseInt(e.dataTransfer.getData('text/plain'));
+        const sc = getScenario();
+        const cost = sc.costs.find(c => c.id === costId);
+        if (cost) {
+            pushHistory();
+            cost.assignedToGroup = cost.assignedToGroup === groupId ? null : groupId;
+            saveAndRender();
+        }
+    }
+
+    // ── Touch Drag ────────────────────────────────────────────────────────────
+    function handleTouchStartDrag(e, costId) {
+        if (e.touches.length !== 1) return;
+        touchDragCostId = costId;
+        const touch = e.touches[0];
+
+        touchGhost = document.createElement('div');
+        touchGhost.className = 'touch-drag-ghost';
+        const sc = getScenario();
+        const cost = sc.costs.find(c => c.id === costId);
+        // Use textContent to safely set text from user data
+        touchGhost.textContent = cost ? cost.description : '';
+        touchGhost.style.left = (touch.clientX - 60) + 'px';
+        touchGhost.style.top = (touch.clientY - 20) + 'px';
+        document.body.appendChild(touchGhost);
+        e.currentTarget.classList.add('dragging');
+        e.preventDefault();
+    }
+
+    function handleTouchMoveDrag(e) {
+        if (!touchDragCostId || !touchGhost) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchGhost.style.left = (touch.clientX - 60) + 'px';
+        touchGhost.style.top = (touch.clientY - 20) + 'px';
+
+        touchGhost.style.display = 'none';
+        const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+        touchGhost.style.display = '';
+
+        document.querySelectorAll('.group-item').forEach(el => el.classList.remove('drag-over'));
+        const groupEl = elUnder && elUnder.closest('[data-group-id]');
+        if (groupEl) {
+            groupEl.classList.add('drag-over');
+            touchTargetGroupId = parseInt(groupEl.dataset.groupId);
+        } else {
+            touchTargetGroupId = null;
+        }
+    }
+
+    function handleTouchEndDrag() {
+        if (!touchDragCostId) return;
+        document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        if (touchGhost) { touchGhost.remove(); touchGhost = null; }
+
+        if (touchTargetGroupId !== null) {
+            const sc = getScenario();
+            const cost = sc.costs.find(c => c.id === touchDragCostId);
+            if (cost) {
+                pushHistory();
+                cost.assignedToGroup = cost.assignedToGroup === touchTargetGroupId ? null : touchTargetGroupId;
+                saveAndRender();
+            }
+        }
+
+        touchDragCostId = null;
+        touchTargetGroupId = null;
+    }
+
+    // ── Export ────────────────────────────────────────────────────────────────
+    function exportSummary() {
+        calculateTotals();
+        const sc = getScenario();
+        const lines = ['Cost Splitter — ' + sc.name, ''];
+
+        const grandTotal = sc.costs.reduce((s, c) => s + c.amount, 0);
+        lines.push('Total: ' + fmt(grandTotal), '');
+
+        lines.push('── Costs ──');
+        sc.costs.forEach(c => {
+            const assignedGroup = c.assignedToGroup ? sc.groups.find(g => g.id === c.assignedToGroup) : null;
+            const tag = assignedGroup ? ' [-> ' + assignedGroup.name + ']' : ' [shared]';
+            const paid = c.paidBy ? ' (paid by ' + c.paidBy + ')' : '';
+            lines.push('  ' + c.description + tag + paid + ': ' + fmt(c.amount));
+        });
+
+        if (sc.groups.length) {
+            lines.push('', '── Groups ──');
+            sc.groups.forEach(g => {
+                lines.push('  ' + g.name + ': ' + fmt(calculateGroupShare(g)));
+                g.people.forEach((p, i) => {
+                    lines.push('    * ' + p.name + ': ' + fmt(getPersonShare(g, i)));
+                });
+            });
+        }
+
+        const settlements = calculateSettlements();
+        if (settlements && settlements.transactions.length) {
+            lines.push('', '── Settlements ──');
+            settlements.transactions.forEach(t => {
+                lines.push('  ' + t.from + ' -> ' + t.to + ': ' + fmt(t.amount));
+            });
+        }
+
+        const text = lines.join('\n');
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => alert('Summary copied to clipboard!'));
+        } else {
+            prompt('Copy the summary below:', text);
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    function saveAndRender() { saveState(); render(); }
+
+    function render() {
+        calculateTotals();
+        renderScenarios();
+        renderPaidByDropdown();
+        renderPercentWarning();
+        renderCosts();
+        renderGroups();
+        renderTotals();
+        renderSettlements();
+    }
+
+    function renderScenarios() {
+        const bar = document.getElementById('scenariosBar');
+        // Build using DOM to avoid innerHTML with user data
+        bar.innerHTML = '';
+        scenarios.forEach(sc => {
+            const tab = document.createElement('div');
+            tab.className = 'scenario-tab' + (sc.id === activeScenarioId ? ' active' : '');
+            tab.addEventListener('dblclick', () => renameScenario(sc.id));
+
+            const label = document.createElement('span');
+            label.textContent = sc.name;
+            label.style.cursor = 'pointer';
+            label.addEventListener('click', () => switchScenario(sc.id));
+            tab.appendChild(label);
+
+            if (scenarios.length > 1) {
+                const del = document.createElement('button');
+                del.className = 'tab-delete';
+                del.textContent = '\u2715';
+                del.addEventListener('click', e => { e.stopPropagation(); deleteScenario(sc.id); });
+                tab.appendChild(del);
+            }
+
+            bar.appendChild(tab);
+        });
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'scenario-tab-add';
+        addBtn.textContent = '+ New';
+        addBtn.addEventListener('click', addScenario);
+        bar.appendChild(addBtn);
+    }
+
+    function renderPaidByDropdown() {
+        const sc = getScenario();
+        const people = getAllPeople(sc);
+        const sel = document.getElementById('costPaidBy');
+        sel.style.display = people.length ? '' : 'none';
+
+        const prevVal = sel.value;
+        sel.innerHTML = '';
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = 'Paid by\u2026';
+        sel.appendChild(blank);
+        people.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            if (prevVal === p) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+
+    function renderPercentWarning() {
+        const sc = getScenario();
+        const hasFixed = sc.costs.some(c => !c.isPercent);
+        const hasPercent = sc.costs.some(c => c.isPercent);
+        document.getElementById('percentWarning').style.display = (hasPercent && !hasFixed) ? '' : 'none';
+    }
+
+    function renderCosts() {
+        const sc = getScenario();
+        const costList = document.getElementById('costList');
+        const people = getAllPeople(sc);
+
+        if (!sc.costs.length) {
+            costList.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = 'No costs added yet';
+            costList.appendChild(empty);
+            return;
+        }
+
+        costList.innerHTML = sc.costs.map(cost => {
+            const assignedGroup = cost.assignedToGroup ? sc.groups.find(g => g.id === cost.assignedToGroup) : null;
+
+            if (editingCostId === cost.id) {
+                const currentAmt = cost.isPercent ? cost.percentValue : cost.amount;
+                const paidOpts = people.map(p =>
+                    '<option value="' + escapeHtml(p) + '"' + (cost.paidBy === p ? ' selected' : '') + '>' + escapeHtml(p) + '</option>'
+                ).join('');
+                return '<div class="cost-item assigned" data-cost-id="' + cost.id + '" style="cursor:default;flex-direction:column;">' +
+                    '<div class="edit-form">' +
+                    '<div class="edit-row">' +
+                    '<input class="edit-input" id="editCostDesc_' + cost.id + '" type="text" value="' + escapeHtml(cost.description) + '" placeholder="Description">' +
+                    '<input class="edit-input" id="editCostAmt_' + cost.id + '" type="number" value="' + currentAmt + '" step="0.01" min="0" style="max-width:100px;">' +
+                    (people.length ? '<select class="edit-input" id="editCostPaid_' + cost.id + '" style="max-width:130px;"><option value="">Paid by\u2026</option>' + paidOpts + '</select>' : '<input type="hidden" id="editCostPaid_' + cost.id + '" value="">') +
+                    '</div>' +
+                    '<div class="edit-row" style="justify-content:flex-end;">' +
+                    '<button class="btn-small btn-save" onclick="saveEditCost(' + cost.id + ')">Save</button>' +
+                    '<button class="btn-small btn-secondary" onclick="cancelEditCost()">Cancel</button>' +
+                    '</div></div></div>';
+            }
+
+            const subtitle = cost.isPercent
+                ? cost.percentValue + '% of subtotal \u2014 ' + fmt(cost.amount) + (assignedGroup ? ' \u00B7 Assigned' : '')
+                : (assignedGroup ? 'Assigned exclusively' : 'Shared cost');
+
+            const assignedTag = assignedGroup
+                ? '<span class="assigned-label">\u2192 ' + escapeHtml(assignedGroup.name) + '</span>'
+                : '';
+            const paidTag = cost.paidBy
+                ? '<span style="font-size:11px;background:#d4edda;color:#155724;padding:2px 6px;border-radius:3px;margin-left:4px;">paid by ' + escapeHtml(cost.paidBy) + '</span>'
+                : '';
+
+            return '<div class="cost-item ' + (cost.assignedToGroup ? 'assigned' : '') + '"' +
+                ' draggable="true"' +
+                ' data-cost-id="' + cost.id + '"' +
+                ' ondragstart="handleDragStart(event,' + cost.id + ')"' +
+                ' ondragend="handleDragEnd(event)"' +
+                ' ontouchstart="handleTouchStartDrag(event,' + cost.id + ')">' +
+                '<div class="item-details">' +
+                '<div class="item-title">' + escapeHtml(cost.description) + assignedTag + paidTag + '</div>' +
+                '<div class="item-subtitle">' + subtitle + '</div>' +
+                '</div>' +
+                '<div class="item-actions">' +
+                '<div class="item-amount">' + fmt(cost.amount) + '</div>' +
+                '<button class="btn-small" onclick="event.stopPropagation();toggleAllocation(' + cost.id + ')">' + (cost.assignedToGroup ? 'Make Shared' : 'Allocate') + '</button>' +
+                '<button class="btn-small btn-edit" onclick="event.stopPropagation();startEditCost(' + cost.id + ')">\u270E</button>' +
+                '<button class="btn-small btn-danger" onclick="event.stopPropagation();removeCost(' + cost.id + ')">\u2715</button>' +
+                '</div></div>';
+        }).join('');
+    }
+
+    function renderGroups() {
+        const sc = getScenario();
+        const groupList = document.getElementById('groupList');
+
+        if (!sc.groups.length) {
+            groupList.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            empty.textContent = 'No groups added yet';
+            groupList.appendChild(empty);
+            return;
+        }
+
+        groupList.innerHTML = sc.groups.map(group => {
+            const groupTotal = calculateGroupShare(group);
+            const isExpanded = expandedGroups.has(group.id);
+            const breakdown = isExpanded ? getGroupCostBreakdown(group) : [];
+
+            if (editingGroupId === group.id) {
+                const peopleRows = group.people.map((p, i) =>
+                    '<div class="edit-row">' +
+                    '<input class="edit-input" id="editPersonName_' + group.id + '_' + i + '" type="text" value="' + escapeHtml(p.name) + '" placeholder="Name">' +
+                    '<label style="font-size:12px;color:#666;white-space:nowrap;">Weight: ' +
+                    '<input class="person-weight-input" id="editPersonWeight_' + group.id + '_' + i + '" type="number" value="' + (p.weight || 1) + '" step="0.1" min="0.01">' +
+                    '</label></div>'
+                ).join('');
+
+                return '<div class="group-item" data-group-id="' + group.id + '">' +
+                    '<div class="edit-form">' +
+                    '<div class="edit-row"><input class="edit-input" id="editGroupName_' + group.id + '" type="text" value="' + escapeHtml(group.name) + '" placeholder="Group name"></div>' +
+                    peopleRows +
+                    '<div class="edit-row" style="justify-content:flex-end;">' +
+                    '<button class="btn-small btn-save" onclick="saveEditGroup(' + group.id + ')">Save</button>' +
+                    '<button class="btn-small btn-secondary" onclick="cancelEditGroup()">Cancel</button>' +
+                    '</div></div></div>';
+            }
+
+            const detailHtml = isExpanded ? '<div class="group-detail">' + (
+                breakdown.length === 0
+                    ? '<div class="detail-row" style="color:#95a5a6;">No costs apply yet</div>'
+                    : breakdown.map(row =>
+                        '<div class="detail-row ' + (row.type === 'assigned' ? 'assigned-row' : '') + '">' +
+                        '<span>' + escapeHtml(row.description) + '<span class="detail-label">' + row.type + '</span></span>' +
+                        '<span>' + fmt(row.amount) + '</span></div>'
+                    ).join('')
+            ) + '</div>' : '';
+
+            const personRows = group.people.map((person, i) => {
+                const share = getPersonShare(group, i);
+                const weightInput = group.useWeights
+                    ? '<label style="font-size:11px;color:#999;">wt: <input class="person-weight-input" type="number" value="' + (person.weight || 1) + '" step="0.1" min="0.01" onchange="updateWeight(' + group.id + ',' + i + ',this.value)" onclick="event.stopPropagation()"></label>'
+                    : '';
+                return '<div class="person-item">' +
+                    '<span class="person-name">' + escapeHtml(person.name) + '</span>' +
+                    weightInput +
+                    '<span class="person-amount">' + fmt(share) + '</span>' +
+                    '</div>';
+            }).join('');
+
+            return '<div class="group-item" data-group-id="' + group.id + '"' +
+                ' ondragover="handleDragOver(event)"' +
+                ' ondragenter="handleDragEnter(event)"' +
+                ' ondragleave="handleDragLeave(event)"' +
+                ' ondrop="handleDrop(event,' + group.id + ')">' +
+                '<div class="group-header">' +
+                '<div>' +
+                '<div class="item-title">' + escapeHtml(group.name) + '</div>' +
+                '<div class="item-subtitle">' + group.people.length + ' ' + (group.people.length === 1 ? 'person' : 'people') + '</div>' +
+                '</div>' +
+                '<div class="item-actions">' +
+                '<div class="group-total">' + fmt(groupTotal) + '</div>' +
+                '<button class="btn-small" onclick="toggleGroupDetail(' + group.id + ')">Details ' + (isExpanded ? '\u25BE' : '\u25B8') + '</button>' +
+                '<button class="weights-toggle' + (group.useWeights ? ' active' : '') + '" onclick="toggleWeights(' + group.id + ')" title="Toggle unequal splits">\u2696</button>' +
+                '<button class="btn-small btn-edit" onclick="startEditGroup(' + group.id + ')">\u270E</button>' +
+                '<button class="btn-small btn-danger" onclick="removeGroup(' + group.id + ')">\u2715</button>' +
+                '</div></div>' +
+                '<div class="person-list">' + personRows + '</div>' +
+                detailHtml +
+                '</div>';
+        }).join('');
+    }
+
+    function renderTotals() {
+        const sc = getScenario();
+        calculateTotals();
+        const grandTotal = sc.costs.reduce((s, c) => s + c.amount, 0);
+        document.getElementById('grandTotal').textContent = fmt(grandTotal);
+
+        const groupTotalSection = document.getElementById('groupTotalSection');
+        groupTotalSection.style.display = sc.groups.length ? '' : 'none';
+        if (sc.groups.length) {
+            document.getElementById('groupGrandTotal').textContent = fmt(grandTotal);
+        }
+    }
+
+    function renderSettlements() {
+        const panel = document.getElementById('settlementsPanel');
+        const result = calculateSettlements();
+
+        if (!result || !result.transactions.length) {
+            panel.style.display = 'none';
+            return;
+        }
+
+        panel.style.display = '';
+
+        // Build balances using DOM
+        const balancesEl = document.getElementById('balancesList');
+        balancesEl.innerHTML = '';
+        Object.entries(result.balances)
+            .filter(([, bal]) => Math.abs(bal) > 0.005)
+            .sort((a, b) => b[1] - a[1])
+            .forEach(([name, bal]) => {
+                const chip = document.createElement('span');
+                chip.className = 'balance-chip ' + (bal > 0.005 ? 'balance-positive' : 'balance-negative');
+                chip.textContent = bal > 0.005
+                    ? name + ' is owed ' + fmt(bal)
+                    : name + ' owes ' + fmt(-bal);
+                balancesEl.appendChild(chip);
+            });
+
+        // Build transactions using DOM
+        const listEl = document.getElementById('settlementsList');
+        listEl.innerHTML = '';
+        result.transactions.forEach(t => {
+            const item = document.createElement('div');
+            item.className = 'settlement-item';
+
+            const from = document.createElement('span');
+            from.className = 'settlement-from';
+            from.textContent = t.from;
+
+            const arrow = document.createElement('span');
+            arrow.className = 'settlement-arrow';
+            arrow.textContent = '\u2192';
+
+            const to = document.createElement('span');
+            to.className = 'settlement-to';
+            to.textContent = t.to;
+
+            const amount = document.createElement('span');
+            amount.className = 'settlement-amount';
+            amount.textContent = fmt(t.amount);
+
+            item.appendChild(from);
+            item.appendChild(arrow);
+            item.appendChild(to);
+            item.appendChild(amount);
+            listEl.appendChild(item);
+        });
+    }
+
+    // ── Event listeners ───────────────────────────────────────────────────────
+    document.getElementById('costAmount').addEventListener('keypress', e => { if (e.key === 'Enter') addCost(); });
+    document.getElementById('costDescription').addEventListener('keypress', e => { if (e.key === 'Enter') document.getElementById('costAmount').focus(); });
+    document.getElementById('groupSize').addEventListener('keypress', e => { if (e.key === 'Enter') addGroup(); });
+    document.getElementById('groupName').addEventListener('keypress', e => { if (e.key === 'Enter') document.getElementById('groupSize').focus(); });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.group-selector') && !e.target.closest('button')) closeGroupSelector();
+    });
+
+    document.addEventListener('touchmove', handleTouchMoveDrag, { passive: false });
+    document.addEventListener('touchend', handleTouchEndDrag);
+
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    loadState();
+    render();
+</script>
 </body>
 </html>
