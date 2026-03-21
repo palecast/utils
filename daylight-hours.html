@@ -50,7 +50,7 @@
 
         .city-input {
             width: 100%;
-            padding: 10px 16px;
+            padding: 10px 62px 10px 16px;
             border: 2px solid #e5e7eb;
             border-radius: 10px;
             font-size: 1rem;
@@ -76,6 +76,53 @@
             display: none;
         }
         .city-clear:hover { color: #4b5563; }
+
+        .city-fav {
+            position: absolute;
+            right: 34px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #9ca3af;
+            padding: 2px 4px;
+            line-height: 1;
+            display: none;
+        }
+        .city-fav:hover { color: #6b7280; }
+        .city-fav.is-fav { color: #f59e0b; }
+
+        .fav-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .fav-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px 6px 12px;
+            background: #ede9fe;
+            color: #5b21b6;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.84rem;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+        .fav-pill:hover { background: #ddd6fe; }
+        .fav-pill-remove {
+            font-size: 0.8rem;
+            opacity: 0.45;
+            line-height: 1;
+            padding: 0 1px;
+        }
+        .fav-pill-remove:hover { opacity: 1; }
 
         .city-dropdown {
             position: absolute;
@@ -174,6 +221,7 @@
             .card { padding: 18px 16px; }
             header h1 { font-size: 1.5rem; }
             .city-selector { max-width: 100%; }
+            .fav-pills { width: 100%; }
         }
     </style>
 </head>
@@ -189,9 +237,11 @@
             <div class="city-selector" id="citySelector">
                 <input type="text" class="city-input" id="cityInput"
                        placeholder="Search for a city…" autocomplete="off" spellcheck="false">
+                <button type="button" class="city-fav" id="cityFav" title="Toggle favourite">☆</button>
                 <button type="button" class="city-clear" id="cityClear" title="Clear">×</button>
                 <div class="city-dropdown" id="cityDropdown"></div>
             </div>
+            <div class="fav-pills" id="favPills"></div>
         </div>
 
         <div class="chart-wrapper" id="chartWrapper">
@@ -919,9 +969,80 @@ function loadCity(city) {
 (function init() {
     const input    = document.getElementById('cityInput');
     const clearBtn = document.getElementById('cityClear');
+    const favBtn   = document.getElementById('cityFav');
+    const favPills = document.getElementById('favPills');
     const dropdown = document.getElementById('cityDropdown');
     const canvas   = document.getElementById('chart');
     const tooltip  = document.getElementById('tooltip');
+
+    const FAV_KEY = 'daylightFavourites';
+
+    function loadFavourites() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(FAV_KEY));
+            if (Array.isArray(raw)) return raw;
+        } catch(e) {}
+        return [];
+    }
+
+    function saveFavourites(favs) {
+        try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch(e) {}
+    }
+
+    function isFavourite(city) {
+        return loadFavourites().some(f => f[0] === city[0] && f[1] === city[1]);
+    }
+
+    function addFavourite(city) {
+        const favs = loadFavourites();
+        if (!favs.some(f => f[0] === city[0] && f[1] === city[1])) {
+            favs.push(city);
+            saveFavourites(favs);
+        }
+    }
+
+    function removeFavourite(city) {
+        saveFavourites(loadFavourites().filter(f => !(f[0] === city[0] && f[1] === city[1])));
+    }
+
+    function updateFavButton() {
+        if (!currentCity) { favBtn.style.display = 'none'; return; }
+        favBtn.style.display = 'block';
+        if (isFavourite(currentCity)) {
+            favBtn.textContent = '★';
+            favBtn.classList.add('is-fav');
+        } else {
+            favBtn.textContent = '☆';
+            favBtn.classList.remove('is-fav');
+        }
+    }
+
+    function renderFavPills() {
+        while (favPills.firstChild) favPills.removeChild(favPills.firstChild);
+        loadFavourites().forEach(city => {
+            const pill = document.createElement('button');
+            pill.type = 'button';
+            pill.className = 'fav-pill';
+
+            const label = document.createElement('span');
+            label.textContent = city[0];
+
+            const remove = document.createElement('span');
+            remove.className = 'fav-pill-remove';
+            remove.textContent = '×';
+            remove.addEventListener('click', e => {
+                e.stopPropagation();
+                removeFavourite(city);
+                renderFavPills();
+                updateFavButton();
+            });
+
+            pill.appendChild(label);
+            pill.appendChild(remove);
+            pill.addEventListener('click', () => selectCity(city));
+            favPills.appendChild(pill);
+        });
+    }
 
     function selectCity(city) {
         const country = COUNTRY_NAMES[city[1]] || city[1];
@@ -930,18 +1051,34 @@ function loadCity(city) {
         dropdown.classList.remove('open');
         dropItems = [];
         loadCity(city);
+        updateFavButton();
     }
+
+    favBtn.addEventListener('click', () => {
+        if (!currentCity) return;
+        if (isFavourite(currentCity)) {
+            removeFavourite(currentCity);
+        } else {
+            addFavourite(currentCity);
+        }
+        updateFavButton();
+        renderFavPills();
+    });
 
     clearBtn.addEventListener('click', () => {
         input.value = '';
         clearBtn.style.display = 'none';
+        favBtn.style.display = 'none';
         input.focus();
         dropItems = filterCities('');
         renderDropdown(dropItems, dropdown, selectCity);
     });
 
     input.addEventListener('input', () => {
-        if (!input.value) clearBtn.style.display = 'none';
+        if (!input.value) {
+            clearBtn.style.display = 'none';
+            favBtn.style.display = 'none';
+        }
         dropItems = filterCities(input.value);
         renderDropdown(dropItems, dropdown, selectCity);
     });
@@ -998,6 +1135,7 @@ function loadCity(city) {
         if (Array.isArray(saved) && saved.length === 5) defaultCity = saved;
     } catch(e) { /* ignore */ }
 
+    renderFavPills();
     selectCity(defaultCity);
 }());
 </script>
