@@ -34,17 +34,20 @@
             letter-spacing: 1.2px; color: rgba(120,190,240,0.55); margin-bottom: 16px;
         }
 
-        /* ── Globe section ── */
-        .globe-section {
-            display: flex; gap: 24px; align-items: flex-start;
+        /* ── Location section ── */
+        .location-section {
             background: rgba(255,255,255,0.035);
             border: 1px solid rgba(255,255,255,0.07);
             border-radius: 20px; padding: 24px; margin-bottom: 16px;
         }
-        .globe-wrap { flex-shrink: 0; position: relative; display: flex; flex-direction: column; align-items: center; }
-        #globeCanvas { display: block; cursor: grab; border-radius: 50%; }
-        #globeCanvas:active { cursor: grabbing; }
-        .globe-hint { margin-top: 10px; font-size: 0.7rem; color: rgba(100,170,220,0.38); }
+        .popular-spots { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+        .popular-pill {
+            padding: 5px 11px; background: rgba(255,255,255,0.06);
+            color: rgba(180,220,255,0.7); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; font-size: 0.78rem; cursor: pointer; font-family: inherit;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .popular-pill:hover { background: rgba(62,207,223,0.12); color: #3ecfdf; border-color: rgba(62,207,223,0.2); }
 
         /* ── Location panel ── */
         .location-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
@@ -175,8 +178,6 @@
         /* ── Responsive ── */
         @media (max-width: 768px) {
             header h1 { font-size: 1.55rem; }
-            .globe-section { flex-direction: column; align-items: center; gap: 16px; }
-            .globe-wrap { width: 100%; }
             .location-panel { width: 100%; padding-top: 0; }
             .metrics-grid { grid-template-columns: repeat(2, 1fr); }
             .m-value { font-size: 1.65rem; }
@@ -184,7 +185,7 @@
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 18px 16px; }
-            .globe-section { padding: 16px; }
+            .location-section { padding: 16px; }
         }
     </style>
 </head>
@@ -195,11 +196,7 @@
         <p>Marine weather for watersports enthusiasts</p>
     </header>
 
-    <div class="globe-section">
-        <div class="globe-wrap">
-            <canvas id="globeCanvas"></canvas>
-            <div class="globe-hint">Drag to rotate · Click to select</div>
-        </div>
+    <div class="location-section">
         <div class="location-panel">
             <div>
                 <div class="panel-label">Search coastlines worldwide</div>
@@ -209,6 +206,10 @@
                            autocomplete="off" spellcheck="false">
                     <div class="search-dropdown" id="searchDropdown"></div>
                 </div>
+            </div>
+            <div>
+                <div class="panel-label">Popular spots</div>
+                <div class="popular-spots" id="popularSpots"></div>
             </div>
             <div class="fav-section" id="favSection">
                 <div class="panel-label">Favourites</div>
@@ -233,7 +234,7 @@
 
     <div class="card prompt-card" id="promptCard">
         <div class="prompt-icon">🗺️</div>
-        <p>Click the globe or search above to see current marine conditions — wave height, swell, sea temperature, and currents — at any coastal location worldwide.</p>
+        <p>Search above or pick a popular spot to see current marine conditions — wave height, swell, sea temperature, and currents — at any coastal location worldwide.</p>
     </div>
 
     <div class="card" id="conditionsCard" style="display:none">
@@ -282,13 +283,10 @@
     </footer>
 </div>
 
-<script type="module">
-import createGlobe from 'https://cdn.jsdelivr.net/npm/cobe@2.0.1/dist/index.esm.js';
-
+<script>
 const MARINE_API = 'https://marine-api.open-meteo.com/v1/marine';
+const GEO_API    = 'https://geocoding-api.open-meteo.com/v1/search';
 const LS_KEY     = 'coastalConditionsState';
-const GLOBE_R    = 0.8;
-const DEG        = Math.PI / 180;
 
 const PRESETS = [
     { name: 'Nazaré',          country: 'PT', lat:  39.60, lon:  -9.07, region: 'Europe – Atlantic' },
@@ -363,21 +361,9 @@ function el(tag, cls, text) {
     if (text != null) e.textContent = text;
     return e;
 }
-function haversineKm(la1, lo1, la2, lo2) {
-    const R = 6371, dLa = (la2-la1)*DEG, dLo = (lo2-lo1)*DEG;
-    const a = Math.sin(dLa/2)**2 + Math.cos(la1*DEG)*Math.cos(la2*DEG)*Math.sin(dLo/2)**2;
-    return 2*R*Math.asin(Math.sqrt(Math.min(1,a)));
-}
-function nearestPreset(lat, lon) {
-    let best = null, bd = Infinity;
-    for (const p of PRESETS) { const d = haversineKm(lat,lon,p.lat,p.lon); if (d<bd) { bd=d; best=p; } }
-    return bd < 600 ? best : null;
-}
 
 // ── State ──────────────────────────────────────────────────────────────────
 let state = { lat: null, lon: null, name: null, favourites: [] };
-let phi = 0.5, theta = -0.15, tPhi = 0.5, tTheta = -0.15;
-let autoRotate = true, autoTimer = null, selMarker = null;
 
 function loadState() {
     try {
@@ -394,88 +380,22 @@ function saveState() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
 }
 
-// ── Globe ──────────────────────────────────────────────────────────────────
-function initGlobe() {
-    const wrap = document.querySelector('.globe-wrap');
-    const size = Math.min(window.innerWidth < 600 ? window.innerWidth - 56 : wrap.clientWidth || 360, 360);
-    const canvas = document.getElementById('globeCanvas');
-    canvas.style.width  = size + 'px';
-    canvas.style.height = size + 'px';
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const presetMarkers = PRESETS.map(p => ({ location: [p.lat, p.lon], size: 0.028 }));
-    let pointerDown = false, lx = 0, ly = 0, dsx = 0, dsy = 0, dst = 0;
-
-    createGlobe(canvas, {
-        devicePixelRatio: dpr,
-        width:  size * dpr,
-        height: size * dpr,
-        phi, theta,
-        dark: 1, diffuse: 1.1, mapSamples: 16000,
-        mapBrightness: 5, mapBaseBrightness: 0.04,
-        baseColor:   [0.07, 0.17, 0.28],
-        markerColor: [0.24, 0.80, 0.86],
-        glowColor:   [0.05, 0.20, 0.40],
-        markers: presetMarkers,
-        onRender(st) {
-            if (!pointerDown && autoRotate) tPhi += 0.0014;
-            phi   += (tPhi   - phi)   * 0.11;
-            theta += (tTheta - theta) * 0.11;
-            st.phi = phi; st.theta = theta;
-            st.markers = selMarker
-                ? [...presetMarkers, { location: selMarker, size: 0.09 }]
-                : presetMarkers;
-        }
-    });
-
-    canvas.addEventListener('pointerdown', e => {
-        pointerDown = true;
-        lx = e.clientX; ly = e.clientY;
-        dsx = e.clientX; dsy = e.clientY; dst = Date.now();
-        clearTimeout(autoTimer); autoRotate = false;
-    });
-    window.addEventListener('pointermove', e => {
-        if (!pointerDown) return;
-        tPhi   -= (e.clientX - lx) * 0.0048;
-        tTheta -= (e.clientY - ly) * 0.003;
-        tTheta = Math.max(-1.3, Math.min(1.3, tTheta));
-        lx = e.clientX; ly = e.clientY;
-    });
-    window.addEventListener('pointerup', e => {
-        if (!pointerDown) return;
-        if (Date.now() - dst < 300 && Math.hypot(e.clientX-dsx, e.clientY-dsy) < 8) {
-            handleClick(e, canvas, size);
-        }
-        pointerDown = false;
-        autoTimer = setTimeout(() => { autoRotate = true; }, 4500);
-    });
-    window.addEventListener('pointercancel', () => { pointerDown = false; });
-}
-
-function handleClick(e, canvas, size) {
-    const rect = canvas.getBoundingClientRect();
-    const cx = (e.clientX - rect.left - size/2) / (size/2 * GLOBE_R);
-    const cy = (e.clientY - rect.top  - size/2) / (size/2 * GLOBE_R);
-    if (cx*cx + cy*cy > 1) return;
-    const cz = Math.sqrt(1 - cx*cx - cy*cy);
-    // Inverse-rotate: un-theta then un-phi
-    const cosT = Math.cos(-theta), sinT = Math.sin(-theta);
-    const y1 = cosT*cy - sinT*cz, z1 = sinT*cy + cosT*cz;
-    const cosP = Math.cos(-phi),  sinP = Math.sin(-phi);
-    const x2 = cosP*cx + sinP*z1, y2 = y1, z2 = -sinP*cx + cosP*z1;
-    const lat = Math.asin(Math.max(-1, Math.min(1, y2))) / DEG;
-    const lon = Math.atan2(x2, z2) / DEG;
-    const nearest = nearestPreset(lat, lon);
-    if (nearest) selectPreset(nearest);
-    else selectCoords(lat, lon, fmt(Math.abs(lat),2)+'°'+(lat>=0?'N':'S')+', '+fmt(Math.abs(lon),2)+'°'+(lon>=0?'E':'W'));
-}
-
-function focusGlobe(lat, lon) {
-    tPhi   = -(lon * DEG);
-    tTheta = Math.max(-1.1, Math.min(1.1, lat * DEG * 0.55));
-}
 
 // ── Search ─────────────────────────────────────────────────────────────────
-let dropResults = [], dropHi = -1;
+let dropResults = [], dropHi = -1, geoCtrl = null;
+
+async function searchGeo(query) {
+    if (geoCtrl) geoCtrl.abort();
+    geoCtrl = new AbortController();
+    const url = GEO_API + '?name=' + encodeURIComponent(query) + '&count=10&language=en';
+    const resp = await fetch(url, { signal: geoCtrl.signal });
+    const data = await resp.json();
+    return (data.results || []).map(r => ({
+        name: r.name, country: r.country_code || r.country || '',
+        admin1: r.admin1 || '', lat: r.latitude, lon: r.longitude,
+        region: r.admin1 || r.country || ''
+    }));
+}
 
 function filterPresets(q) {
     if (!q.trim()) return [];
@@ -484,28 +404,45 @@ function filterPresets(q) {
         p.name.toLowerCase().includes(lq) ||
         p.country.toLowerCase().includes(lq) ||
         p.region.toLowerCase().includes(lq)
-    ).slice(0, 28);
+    ).slice(0, 10);
 }
 
-function renderDropdown(results) {
+function renderDropdown(results, isLocal) {
     const dd = document.getElementById('searchDropdown');
     while (dd.firstChild) dd.removeChild(dd.firstChild);
     dropHi = -1; dd._items = [];
     if (!results.length) { dd.classList.remove('open'); return; }
-    const grouped = {};
-    results.forEach(p => { (grouped[p.region] ??= []).push(p); });
-    Object.entries(grouped).forEach(([region, presets]) => {
-        const gl = el('div', 'dd-group', region);
-        dd.appendChild(gl);
-        presets.forEach(p => {
-            const item = el('div', 'dd-item');
-            item.appendChild(el('span', null, p.name));
-            item.appendChild(el('span', 'dd-cc', p.country));
-            item.addEventListener('mousedown', ev => { ev.preventDefault(); selectPreset(p); });
-            dd.appendChild(item);
-            dd._items.push({ el: item, preset: p });
+
+    if (isLocal) {
+        // Group presets by region
+        const grouped = {};
+        results.forEach(p => { (grouped[p.region] ??= []).push(p); });
+        Object.entries(grouped).forEach(([region, presets]) => {
+            dd.appendChild(el('div', 'dd-group', region));
+            presets.forEach(p => {
+                const item = el('div', 'dd-item');
+                item.appendChild(el('span', null, p.name));
+                item.appendChild(el('span', 'dd-cc', p.country));
+                item.addEventListener('mousedown', ev => { ev.preventDefault(); selectPreset(p); });
+                dd.appendChild(item);
+                dd._items.push({ el: item, preset: p });
+            });
         });
-    });
+    } else {
+        // Flat list for geocoding results
+        results.forEach(r => {
+            const item = el('div', 'dd-item');
+            item.appendChild(el('span', null, r.name));
+            const sub = r.admin1 ? r.admin1 + ', ' + r.country : r.country;
+            item.appendChild(el('span', 'dd-cc', sub));
+            item.addEventListener('mousedown', ev => {
+                ev.preventDefault();
+                selectCoords(r.lat, r.lon, r.name + ', ' + r.country);
+            });
+            dd.appendChild(item);
+            dd._items.push({ el: item, preset: r });
+        });
+    }
     dd.classList.add('open');
 }
 
@@ -521,11 +458,20 @@ function moveDropHi(delta) {
 
 function selectPreset(p) { selectCoords(p.lat, p.lon, p.name + ', ' + p.country); }
 
+function renderPopularSpots() {
+    const container = document.getElementById('popularSpots');
+    while (container.firstChild) container.removeChild(container.firstChild);
+    PRESETS.forEach(p => {
+        const btn = el('button', 'popular-pill', p.name);
+        btn.type = 'button';
+        btn.addEventListener('click', () => selectPreset(p));
+        container.appendChild(btn);
+    });
+}
+
 function selectCoords(lat, lon, name) {
     state.lat = lat; state.lon = lon; state.name = name;
     saveState();
-    selMarker = [lat, lon];
-    focusGlobe(lat, lon);
     document.getElementById('selName').textContent   = name;
     document.getElementById('selCoords').textContent =
         fmt(Math.abs(lat),4)+'°'+(lat>=0?'N':'S')+' · '+fmt(Math.abs(lon),4)+'°'+(lon>=0?'E':'W');
@@ -741,15 +687,31 @@ function hideError()   { document.getElementById('errorCard').classList.remove('
 
 // ── Init ────────────────────────────────────────────────────────────────────
 loadState();
-initGlobe();
+renderPopularSpots();
 renderFavs();
 
 const searchInput    = document.getElementById('searchInput');
 const searchDropdown = document.getElementById('searchDropdown');
 
+let debounceTimer = null;
 searchInput.addEventListener('input', () => {
-    dropResults = filterPresets(searchInput.value);
-    renderDropdown(dropResults);
+    const q = searchInput.value.trim();
+    clearTimeout(debounceTimer);
+    if (q.length < 2) {
+        const local = filterPresets(q);
+        dropResults = local;
+        renderDropdown(local, true);
+        return;
+    }
+    debounceTimer = setTimeout(async () => {
+        try {
+            const results = await searchGeo(q);
+            dropResults = results;
+            renderDropdown(results, false);
+        } catch(e) {
+            if (e.name !== 'AbortError') console.error(e);
+        }
+    }, 300);
 });
 searchInput.addEventListener('keydown', e => {
     if      (e.key === 'ArrowDown')  { e.preventDefault(); moveDropHi(1); }
@@ -758,7 +720,10 @@ searchInput.addEventListener('keydown', e => {
         e.preventDefault();
         const items = searchDropdown._items || [];
         const pick  = dropHi >= 0 ? items[dropHi]?.preset : dropResults[0];
-        if (pick) selectPreset(pick);
+        if (pick) {
+            if (pick.lat != null) selectCoords(pick.lat, pick.lon, pick.name + ', ' + pick.country);
+            else selectPreset(pick);
+        }
     } else if (e.key === 'Escape') { searchDropdown.classList.remove('open'); }
 });
 searchInput.addEventListener('blur', () => setTimeout(() => searchDropdown.classList.remove('open'), 160));
@@ -780,8 +745,6 @@ document.getElementById('hourlyToggle').addEventListener('click', () => {
 });
 
 if (state.lat != null && state.lon != null) {
-    selMarker = [state.lat, state.lon];
-    focusGlobe(state.lat, state.lon);
     document.getElementById('selName').textContent   = state.name || '';
     document.getElementById('selCoords').textContent =
         fmt(Math.abs(state.lat),4)+'°'+(state.lat>=0?'N':'S')+' · '+fmt(Math.abs(state.lon),4)+'°'+(state.lon>=0?'E':'W');
