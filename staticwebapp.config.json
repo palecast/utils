@@ -29,6 +29,10 @@
       "rewrite": "/org-chart.html"
     },
     {
+      "route": "/coastal-conditions",
+      "rewrite": "/coastal-conditions.html"
+    },
+    {
       "route": "/disclaimer",
       "rewrite": "/disclaimer.html"
     },
@@ -70,6 +74,11 @@
     {
       "route": "/disclaimer.html",
       "redirect": "/disclaimer",
+      "statusCode": 301
+    },
+    {
+      "route": "/coastal-conditions.html",
+      "redirect": "/coastal-conditions",
       "statusCode": 301
     }
   ]
