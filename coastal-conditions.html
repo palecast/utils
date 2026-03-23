@@ -139,11 +139,18 @@
         .tc-warm .m-value { color: #fff176; }
         .tc-hot  .m-value { color: #ef9a9a; }
 
+        /* ── Weather section (inside conditions card) ── */
+        .weather-divider { border-top: 1px solid rgba(255,255,255,0.06); margin: 18px 0 14px; }
+        .weather-section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(120,190,240,0.55); margin-bottom: 12px; }
+        .weather-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        .w-icon { font-size: 1.75rem; line-height: 1.2; }
+        .w-cond-label { font-size: 0.72rem; color: rgba(140,190,230,0.6); }
+
         /* ── Forecast ── */
         .forecast-scroll { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 4px; }
         .forecast-scroll::-webkit-scrollbar { height: 3px; }
         .forecast-scroll::-webkit-scrollbar-thumb { background: rgba(62,207,223,0.25); border-radius: 2px; }
-        .f-day { flex-shrink: 0; width: 86px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 13px 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .f-day { flex-shrink: 0; width: 94px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 13px 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .f-day.f-today { border-color: rgba(62,207,223,0.3); background: rgba(62,207,223,0.06); }
         .f-dayname { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(140,200,240,0.65); }
         .f-date    { font-size: 0.68rem; color: rgba(120,170,210,0.38); }
@@ -152,6 +159,12 @@
         .f-wave    { font-size: 0.88rem; font-weight: 700; color: #fff; }
         .f-swell   { font-size: 0.68rem; color: rgba(120,170,210,0.45); }
         .f-arrow   { font-size: 1rem; color: rgba(62,207,223,0.65); display: inline-block; }
+        .f-wx-divider { width: 100%; border-top: 1px solid rgba(255,255,255,0.06); margin: 2px 0; }
+        .f-wicon    { font-size: 1.1rem; line-height: 1.2; }
+        .f-temp-range { font-size: 0.7rem; color: rgba(140,200,240,0.55); }
+        .f-wx-precip  { font-size: 0.65rem; color: rgba(62,207,223,0.55); }
+        .f-wind-row { display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 0.68rem; color: rgba(140,200,240,0.45); }
+        .f-warr     { font-size: 0.8rem; color: rgba(62,207,223,0.5); display: inline-block; }
 
         /* ── Hourly ── */
         .hourly-toggle { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
@@ -160,7 +173,7 @@
         .hourly-body { display: none; margin-top: 14px; }
         .hourly-body.open { display: block; }
         .hourly-scroll { overflow-x: auto; }
-        .h-row { display: grid; grid-template-columns: 50px 62px 38px 52px 60px 52px; gap: 0; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.83rem; align-items: center; min-width: 314px; }
+        .h-row { display: grid; grid-template-columns: 50px 56px 34px 46px 54px 50px 50px 34px 50px 66px; gap: 0; padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.83rem; align-items: center; min-width: 490px; }
         .h-row:last-child { border-bottom: none; }
         .h-row.h-head { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; color: rgba(120,180,220,0.45); padding-bottom: 9px; }
         .h-row.h-now  { background: rgba(62,207,223,0.06); border-radius: 7px; padding-left: 6px; padding-right: 6px; }
@@ -180,6 +193,7 @@
             header h1 { font-size: 1.55rem; }
             .location-panel { width: 100%; padding-top: 0; }
             .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .weather-grid { grid-template-columns: repeat(2, 1fr) !important; }
             .m-value { font-size: 1.65rem; }
         }
         @media (max-width: 480px) {
@@ -260,6 +274,14 @@
             <div class="m-tile"><div class="m-label">Current Speed</div><div class="m-value" id="vCS">--</div><div class="m-unit" id="uCS">km/h</div></div>
             <div class="m-tile"><div class="m-label">Current Direction</div><div class="dir-arrow" id="aCD">↑</div><div class="dir-compass" id="cCD">--</div><div class="m-sub" id="vCD">--</div></div>
         </div>
+        <div class="weather-divider"></div>
+        <div class="weather-section-label">Weather</div>
+        <div class="metrics-grid weather-grid">
+            <div class="m-tile" id="mAirTemp"><div class="m-label">Air Temp</div><div class="m-value" id="vAirTemp">--</div><div class="m-unit">°C</div></div>
+            <div class="m-tile"><div class="m-label">Conditions</div><div class="w-icon" id="vWIcon">--</div><div class="w-cond-label" id="vWCond"></div></div>
+            <div class="m-tile"><div class="m-label">Precipitation</div><div class="m-value" id="vPrecip">--</div><div class="m-unit">mm</div></div>
+            <div class="m-tile"><div class="m-label">Wind</div><div class="dir-arrow" id="aWind">↑</div><div class="m-value" id="vWind">--</div><div class="m-unit">km/h</div><div class="m-sub" id="vWindGust"></div></div>
+        </div>
     </div>
 
     <div class="card" id="forecastCard" style="display:none">
@@ -284,9 +306,10 @@
 </div>
 
 <script>
-const MARINE_API = 'https://marine-api.open-meteo.com/v1/marine';
-const GEO_API    = 'https://geocoding-api.open-meteo.com/v1/search';
-const LS_KEY     = 'coastalConditionsState';
+const MARINE_API  = 'https://marine-api.open-meteo.com/v1/marine';
+const WEATHER_API = 'https://api.open-meteo.com/v1/forecast';
+const GEO_API     = 'https://geocoding-api.open-meteo.com/v1/search';
+const LS_KEY      = 'coastalConditionsState';
 
 const PRESETS = [
     { name: 'Nazaré',          country: 'PT', lat:  39.60, lon:  -9.07, region: 'Europe – Atlantic' },
@@ -355,6 +378,19 @@ function tempClass(c) {
     return c < 10 ? 'tc-cold' : c < 18 ? 'tc-cool' : c < 24 ? 'tc-warm' : 'tc-hot';
 }
 function fmt(v, dec = 1) { return v != null ? (+v).toFixed(dec) : '--'; }
+function wmoCondition(code) {
+    if (code == null) return { label: '', icon: '—' };
+    if (code === 0)   return { label: 'Clear', icon: '☀' };
+    if (code <= 2)    return { label: 'Partly Cloudy', icon: '⛅' };
+    if (code === 3)   return { label: 'Overcast', icon: '☁' };
+    if (code <= 48)   return { label: 'Fog', icon: '🌫' };
+    if (code <= 57)   return { label: 'Drizzle', icon: '🌦' };
+    if (code <= 67)   return { label: 'Rain', icon: '🌧' };
+    if (code <= 77)   return { label: 'Snow', icon: '🌨' };
+    if (code <= 82)   return { label: 'Showers', icon: '🌧' };
+    if (code <= 86)   return { label: 'Snow Showers', icon: '🌨' };
+    return                   { label: 'Thunderstorm', icon: '⛈' };
+}
 function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls)  e.className   = cls;
@@ -526,23 +562,29 @@ async function fetchMarine(lat, lon) {
     });
     const cv = 'wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature,ocean_current_velocity,ocean_current_direction';
     const dv = 'wave_height_max,wave_direction_dominant,wave_period_max,swell_wave_height_max';
-    const url = MARINE_API + '?latitude=' + lat + '&longitude=' + lon +
+    const marineUrl = MARINE_API + '?latitude=' + lat + '&longitude=' + lon +
         '&current=' + cv + '&hourly=' + cv + '&daily=' + dv + '&timezone=auto&forecast_days=8';
+    const wc = 'temperature_2m,weather_code,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m';
+    const wh = 'temperature_2m,weather_code,precipitation,wind_speed_10m,wind_direction_10m';
+    const wd = 'temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant';
+    const weatherUrl = WEATHER_API + '?latitude=' + lat + '&longitude=' + lon +
+        '&current=' + wc + '&hourly=' + wh + '&daily=' + wd + '&timezone=auto&forecast_days=8';
     try {
-        const resp = await fetch(url, { signal: fetchCtrl.signal });
-        if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            throw new Error(err.reason || 'HTTP ' + resp.status);
-        }
-        const data = await resp.json();
+        const [data, weather] = await Promise.all([
+            fetch(marineUrl, { signal: fetchCtrl.signal }).then(async r => {
+                if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.reason || 'HTTP ' + r.status); }
+                return r.json();
+            }),
+            fetch(weatherUrl, { signal: fetchCtrl.signal }).then(r => r.ok ? r.json() : null).catch(() => null)
+        ]);
         const c = data.current || {};
         if (c.wave_height == null && c.swell_wave_height == null && c.sea_surface_temperature == null) {
             throw new Error('No marine data available here. Try a location closer to the open coast or open water.');
         }
         setLoading(false);
-        renderConditions(data);
-        renderForecast(data);
-        renderHourly(data);
+        renderConditions(data, weather);
+        renderForecast(data, weather);
+        renderHourly(data, weather);
     } catch(e) {
         if (e.name === 'AbortError') return;
         setLoading(false);
@@ -551,7 +593,7 @@ async function fetchMarine(lat, lon) {
 }
 
 // ── Render: Current Conditions ─────────────────────────────────────────────
-function renderConditions(data) {
+function renderConditions(data, weather) {
     const c = data.current || {};
     const u = data.current_units || {};
     document.getElementById('condName').textContent = state.name || '';
@@ -575,6 +617,22 @@ function renderConditions(data) {
     document.getElementById('vCS').textContent  = fmt(c.ocean_current_velocity);
     if (u.ocean_current_velocity) document.getElementById('uCS').textContent = u.ocean_current_velocity;
     setDir('aCD','cCD','vCD', c.ocean_current_direction);
+
+    // Weather data
+    const wc = weather?.current || {};
+    const airTemp = wc.temperature_2m;
+    document.getElementById('vAirTemp').textContent = fmt(airTemp, 1);
+    document.getElementById('mAirTemp').className = 'm-tile ' + tempClass(airTemp);
+    const cond = wmoCondition(wc.weather_code);
+    document.getElementById('vWIcon').textContent = cond.icon;
+    document.getElementById('vWCond').textContent = cond.label;
+    document.getElementById('vPrecip').textContent = fmt(wc.precipitation, 1);
+    document.getElementById('vWind').textContent = fmt(wc.wind_speed_10m, 0);
+    if (wc.wind_direction_10m != null) {
+        document.getElementById('aWind').style.transform = 'rotate(' + wc.wind_direction_10m + 'deg)';
+    }
+    document.getElementById('vWindGust').textContent = wc.wind_gusts_10m != null ? 'Gusts ' + fmt(wc.wind_gusts_10m, 0) + ' km/h' : '';
+
     document.getElementById('conditionsCard').style.display = '';
 }
 function setDir(aId, cId, vId, deg) {
@@ -590,12 +648,13 @@ function setDir(aId, cId, vId, deg) {
 }
 
 // ── Render: Forecast (DOM methods) ─────────────────────────────────────────
-function renderForecast(data) {
+function renderForecast(data, weather) {
     const d = data.daily;
     if (!d?.time?.length) return;
     const validWH = d.wave_height_max.filter(v => v != null);
     const maxWH   = validWH.length ? Math.max(...validWH) : 1;
     const today   = d.time[0];
+    const wd      = weather?.daily || {};
     const container = document.getElementById('forecastDays');
     while (container.firstChild) container.removeChild(container.firstChild);
 
@@ -625,13 +684,41 @@ function renderForecast(data) {
             day.appendChild(arr);
         }
         if (sw != null) day.appendChild(el('div', 'f-swell', sw.toFixed(1) + 'm sw'));
+
+        // Weather additions
+        if (weather) {
+            day.appendChild(el('div', 'f-wx-divider'));
+            const wxCode = wd.weather_code?.[i];
+            day.appendChild(el('div', 'f-wicon', wmoCondition(wxCode).icon));
+            const tmax = wd.temperature_2m_max?.[i];
+            const tmin = wd.temperature_2m_min?.[i];
+            if (tmax != null || tmin != null) {
+                day.appendChild(el('div', 'f-temp-range',
+                    (tmin != null ? Math.round(tmin) + '°' : '--') + '–' + (tmax != null ? Math.round(tmax) + '°' : '--')));
+            }
+            const precip = wd.precipitation_sum?.[i];
+            if (precip != null && precip > 0) day.appendChild(el('div', 'f-wx-precip', precip.toFixed(1) + 'mm'));
+            const wspd = wd.wind_speed_10m_max?.[i];
+            const wdir = wd.wind_direction_10m_dominant?.[i];
+            if (wspd != null) {
+                const windRow = el('div', 'f-wind-row');
+                if (wdir != null) {
+                    const warr = el('span', 'f-warr', '↑');
+                    warr.style.transform = 'rotate(' + wdir + 'deg)';
+                    windRow.appendChild(warr);
+                }
+                windRow.appendChild(document.createTextNode(Math.round(wspd) + ' km/h'));
+                day.appendChild(windRow);
+            }
+        }
+
         container.appendChild(day);
     });
     document.getElementById('forecastCard').style.display = '';
 }
 
 // ── Render: Hourly (DOM methods) ───────────────────────────────────────────
-function renderHourly(data) {
+function renderHourly(data, weather) {
     const h = data.hourly;
     if (!h?.time?.length) return;
     const todayDate = h.time[0].split('T')[0];
@@ -639,12 +726,13 @@ function renderHourly(data) {
     if (!idxs.length) return;
     const nowHour = new Date().getHours();
     const hasSST  = h.sea_surface_temperature?.some(v => v != null);
+    const wh_data = weather?.hourly;
     const scroll  = document.getElementById('hourlyScroll');
     while (scroll.firstChild) scroll.removeChild(scroll.firstChild);
 
     // Header
     const hdr = el('div', 'h-row h-head');
-    ['Time','Wave','Dir','Period','Swell', hasSST ? 'SST' : ''].forEach(label => hdr.appendChild(el('span', null, label)));
+    ['Time','Wave','Dir','Per','Swell', hasSST ? 'SST' : '', 'Temp', 'Sky', 'Rain', 'Wind'].forEach(label => hdr.appendChild(el('span', null, label)));
     scroll.appendChild(hdr);
 
     // Data rows
@@ -652,15 +740,24 @@ function renderHourly(data) {
         const t   = h.time[i].split('T')[1]?.slice(0, 5) || '';
         const hr  = parseInt(t) || 0;
         const isNow = Math.abs(hr - nowHour) <= 1;
-        const wh  = h.wave_height[i];
+        const wv  = h.wave_height[i];
         const wd  = h.wave_direction[i];
         const wp  = h.wave_period[i];
         const sh  = h.swell_wave_height[i];
         const sst = hasSST ? h.sea_surface_temperature[i] : null;
 
+        // Weather hourly — find matching index by time string
+        let wxIdx = -1;
+        if (wh_data?.time) { wxIdx = wh_data.time.findIndex(t2 => t2 === h.time[i]); }
+        const airTemp  = wxIdx >= 0 ? wh_data.temperature_2m?.[wxIdx]   : null;
+        const wxCode   = wxIdx >= 0 ? wh_data.weather_code?.[wxIdx]      : null;
+        const precip   = wxIdx >= 0 ? wh_data.precipitation?.[wxIdx]     : null;
+        const wSpd     = wxIdx >= 0 ? wh_data.wind_speed_10m?.[wxIdx]    : null;
+        const wDir     = wxIdx >= 0 ? wh_data.wind_direction_10m?.[wxIdx]: null;
+
         const row = el('div', 'h-row' + (isNow ? ' h-now' : ''));
         row.appendChild(el('span', 'h-t', t));
-        row.appendChild(el('span', wh != null ? 'h-v' : 'h-nil', wh != null ? wh.toFixed(1) + 'm' : '--'));
+        row.appendChild(el('span', wv != null ? 'h-v' : 'h-nil', wv != null ? wv.toFixed(1) + 'm' : '--'));
 
         const dirCell = el('span');
         if (wd != null) {
@@ -674,7 +771,27 @@ function renderHourly(data) {
 
         row.appendChild(el('span', wp != null ? 'h-v' : 'h-nil', wp != null ? Math.round(wp) + 's' : '--'));
         row.appendChild(el('span', sh != null ? 'h-v' : 'h-nil', sh != null ? sh.toFixed(1) + 'm' : '--'));
-        row.appendChild(el('span', 'h-v', sst != null ? sst.toFixed(1) + '°' : ''));
+        row.appendChild(el('span', hasSST ? (sst != null ? 'h-v' : 'h-nil') : 'h-nil', sst != null ? sst.toFixed(1) + '°' : (hasSST ? '--' : '')));
+
+        // Weather columns
+        row.appendChild(el('span', airTemp != null ? 'h-v' : 'h-nil', airTemp != null ? Math.round(airTemp) + '°' : '--'));
+        row.appendChild(el('span', 'h-v', wxCode != null ? wmoCondition(wxCode).icon : '--'));
+        row.appendChild(el('span', precip != null ? 'h-v' : 'h-nil', precip != null ? (precip > 0 ? precip.toFixed(1) : '0') + 'mm' : '--'));
+
+        const windCell = el('span');
+        if (wSpd != null) {
+            if (wDir != null) {
+                const warr = el('span', 'h-darr', '↑');
+                warr.style.transform = 'rotate(' + wDir + 'deg)';
+                warr.style.fontSize = '0.78rem';
+                windCell.appendChild(warr);
+            }
+            windCell.appendChild(document.createTextNode(Math.round(wSpd)));
+        } else {
+            windCell.className = 'h-nil'; windCell.textContent = '--';
+        }
+        row.appendChild(windCell);
+
         scroll.appendChild(row);
     });
     document.getElementById('hourlyCard').style.display = '';
