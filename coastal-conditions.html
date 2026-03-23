@@ -38,6 +38,10 @@
             border-radius: 16px; padding: 24px; margin-bottom: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.25);
         }
+        .popular-section summary.panel-label { cursor: pointer; list-style: none; user-select: none; }
+        .popular-section summary.panel-label::-webkit-details-marker { display: none; }
+        .popular-section summary.panel-label::after { content: ' ▸'; font-size: 0.65rem; }
+        .popular-section[open] summary.panel-label::after { content: ' ▾'; }
         .popular-spots { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
         .popular-pill {
             padding: 5px 11px; background: #f3f4f6;
@@ -224,10 +228,10 @@
                     <div class="search-dropdown" id="searchDropdown"></div>
                 </div>
             </div>
-            <div>
-                <div class="panel-label">Popular spots</div>
+            <details class="popular-section">
+                <summary class="panel-label">Popular spots</summary>
                 <div class="popular-spots" id="popularSpots"></div>
-            </div>
+            </details>
             <div class="fav-section" id="favSection">
                 <div class="panel-label">Favourites</div>
                 <div class="fav-pills" id="favPills"></div>
