@@ -156,6 +156,11 @@
         .f-bar     { width: 100%; background: linear-gradient(to top, #667eea 0%, #764ba2 100%); border-radius: 6px; min-height: 3px; }
         .f-wave    { font-size: 0.88rem; font-weight: 700; color: #1f2937; }
         .f-swell   { font-size: 0.68rem; color: #6b7280; }
+        .f-sst     { font-size: 0.68rem; color: #6b7280; }
+        .f-sst.tc-cold { color: #2563eb; }
+        .f-sst.tc-cool { color: #0d9488; }
+        .f-sst.tc-warm { color: #ca8a04; }
+        .f-sst.tc-hot  { color: #dc2626; }
         .f-arrow   { font-size: 1rem; color: rgba(102,126,234,0.65); display: inline-block; }
         .f-wx-divider { width: 100%; border-top: 1px solid #e5e7eb; margin: 2px 0; }
         .f-wicon    { font-size: 1.1rem; line-height: 1.2; }
@@ -656,6 +661,18 @@ function renderForecast(data, weather) {
     const container = document.getElementById('forecastDays');
     while (container.firstChild) container.removeChild(container.firstChild);
 
+    // Derive daily SST averages from hourly data (not available as daily variable)
+    const hSST = data.hourly?.sea_surface_temperature;
+    const hTime = data.hourly?.time;
+    const dailySST = d.time.map(dateStr => {
+        if (!hSST || !hTime) return null;
+        const vals = hTime.reduce((acc, t, j) => {
+            if (t.startsWith(dateStr) && hSST[j] != null) acc.push(hSST[j]);
+            return acc;
+        }, []);
+        return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+    });
+
     d.time.forEach((dateStr, i) => {
         const isToday = dateStr === today;
         const dt      = new Date(dateStr + 'T12:00:00');
@@ -682,6 +699,11 @@ function renderForecast(data, weather) {
             day.appendChild(arr);
         }
         if (sw != null) day.appendChild(el('div', 'f-swell', sw.toFixed(1) + 'm sw'));
+
+        const sst = dailySST[i];
+        const sstEl = el('div', 'f-sst' + (sst != null ? ' ' + tempClass(sst) : ''),
+            sst != null ? '≈' + sst.toFixed(1) + '°C' : '-- °C');
+        day.appendChild(sstEl);
 
         // Weather additions
         if (weather) {
