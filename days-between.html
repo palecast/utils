@@ -421,6 +421,80 @@
                 display: none;
             }
         }
+        .selector-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .selector-row select {
+            flex: 1;
+        }
+
+        .favourite-star {
+            background: none;
+            border: none;
+            font-size: 1.3em;
+            cursor: pointer;
+            padding: 4px 2px;
+            line-height: 1;
+            color: #667eea;
+            flex-shrink: 0;
+            transition: transform 0.15s ease;
+        }
+
+        .favourite-star:hover {
+            transform: scale(1.2);
+        }
+
+        .favourite-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .favourite-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f0f0;
+            border: 2px solid transparent;
+            border-radius: 20px;
+            padding: 5px 10px 5px 12px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+            color: #444;
+            font-family: inherit;
+        }
+
+        .favourite-pill:hover {
+            background: #e4e4f0;
+        }
+
+        .favourite-pill.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .favourite-pill .pill-remove {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            line-height: 1;
+            color: #999;
+            padding: 0;
+            font-family: inherit;
+            transition: color 0.15s ease;
+        }
+
+        .favourite-pill .pill-remove:hover {
+            color: #e53e3e;
+        }
     </style>
 </head>
 <body>
@@ -433,16 +507,23 @@
                 
                 <div class="selector-group">
                     <label for="countrySelect">Country:</label>
-                    <select id="countrySelect">
-                        <option value="">Loading countries...</option>
-                    </select>
+                    <div class="selector-row">
+                        <select id="countrySelect">
+                            <option value="">Loading countries...</option>
+                        </select>
+                        <button class="favourite-star" id="favouriteStar" title="Save as favourite" onclick="toggleFavourite()">☆</button>
+                    </div>
                 </div>
 
                 <div class="selector-group" id="subdivisionSelector" style="display: none;">
-                    <label for="subdivisionSelect">Subdivision:</label>
+                    <label for="subdivisionSelect">Region:</label>
                     <select id="subdivisionSelect">
                         <option value="">All regions</option>
                     </select>
+                </div>
+
+                <div id="favouritePillsContainer" style="display: none; margin-bottom: 15px;">
+                    <div class="favourite-pills" id="favouritePills"></div>
                 </div>
 
                 <div class="date-inputs">
@@ -491,6 +572,112 @@
         let isEditingDays = false;
         let selectedSubdivision = null;
         let currentCountryCode = null;
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Favourites helpers
+        function loadFavourites() {
+            try {
+                return JSON.parse(localStorage.getItem('daysBetweenFavourites') || '[]');
+            } catch { return []; }
+        }
+
+        function saveFavourites(favs) {
+            localStorage.setItem('daysBetweenFavourites', JSON.stringify(favs));
+        }
+
+        function isFavourite(countryCode, subdivisionCode) {
+            return loadFavourites().some(f => f.countryCode === countryCode && f.subdivisionCode === (subdivisionCode || null));
+        }
+
+        function updateStarState() {
+            const star = document.getElementById('favouriteStar');
+            if (!star) return;
+            const fav = isFavourite(currentCountryCode, selectedSubdivision);
+            star.textContent = fav ? '\u2605' : '\u2606';
+            star.title = fav ? 'Remove from favourites' : 'Save as favourite';
+        }
+
+        function renderFavouritePills() {
+            const favs = loadFavourites();
+            const container = document.getElementById('favouritePillsContainer');
+            const pillsEl = document.getElementById('favouritePills');
+            if (favs.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            pillsEl.replaceChildren();
+            favs.forEach((fav, i) => {
+                const isActive = fav.countryCode === currentCountryCode && (fav.subdivisionCode || null) === (selectedSubdivision || null);
+                const pill = document.createElement('span');
+                pill.className = 'favourite-pill' + (isActive ? ' active' : '');
+                pill.addEventListener('click', () => selectFavourite(i));
+
+                const labelText = fav.subdivisionName
+                    ? fav.countryName + ' \u00b7 ' + fav.subdivisionName
+                    : fav.countryName;
+                pill.appendChild(document.createTextNode(labelText));
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'pill-remove';
+                removeBtn.title = 'Remove';
+                removeBtn.textContent = '\u00d7';
+                removeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeFavourite(i); });
+                pill.appendChild(removeBtn);
+
+                pillsEl.appendChild(pill);
+            });
+        }
+
+        function toggleFavourite() {
+            if (!currentCountryCode) return;
+            const favs = loadFavourites();
+            const idx = favs.findIndex(f => f.countryCode === currentCountryCode && f.subdivisionCode === (selectedSubdivision || null));
+            if (idx >= 0) {
+                favs.splice(idx, 1);
+            } else {
+                const countrySelect = document.getElementById('countrySelect');
+                const countryName = countrySelect.options[countrySelect.selectedIndex]
+                    ? countrySelect.options[countrySelect.selectedIndex].text
+                    : currentCountryCode;
+                const subdivisionName = selectedSubdivision ? getSubdivisionName(selectedSubdivision) : null;
+                favs.push({ countryCode: currentCountryCode, countryName, subdivisionCode: selectedSubdivision || null, subdivisionName });
+            }
+            saveFavourites(favs);
+            updateStarState();
+            renderFavouritePills();
+        }
+
+        function removeFavourite(index) {
+            const favs = loadFavourites();
+            favs.splice(index, 1);
+            saveFavourites(favs);
+            updateStarState();
+            renderFavouritePills();
+        }
+
+        async function selectFavourite(index) {
+            const fav = loadFavourites()[index];
+            if (!fav) return;
+            const countrySelect = document.getElementById('countrySelect');
+            countrySelect.value = fav.countryCode;
+            await fetchPublicHolidays(fav.countryCode);
+            if (fav.subdivisionCode) {
+                const subdivisionSelect = document.getElementById('subdivisionSelect');
+                subdivisionSelect.value = fav.subdivisionCode;
+                selectedSubdivision = fav.subdivisionCode;
+                await updateDisplay();
+            }
+            updateStarState();
+            renderFavouritePills();
+        }
 
         // Get today's date in YYYY-MM-DD format
         function getTodayString() {
@@ -1244,12 +1431,16 @@
             // Add event listeners
             document.getElementById('startDate').addEventListener('change', updateDisplay);
             document.getElementById('endDate').addEventListener('change', updateDisplay);
-            document.getElementById('countrySelect').addEventListener('change', (e) => {
-                fetchPublicHolidays(e.target.value);
+            document.getElementById('countrySelect').addEventListener('change', async (e) => {
+                await fetchPublicHolidays(e.target.value);
+                updateStarState();
+                renderFavouritePills();
             });
             document.getElementById('subdivisionSelect').addEventListener('change', async (e) => {
                 selectedSubdivision = e.target.value || null;
                 await updateDisplay();
+                updateStarState();
+                renderFavouritePills();
             });
 
             // Initial calculation — only needed if fetchPublicHolidays didn't run
@@ -1257,6 +1448,9 @@
             if (!currentCountryCode) {
                 await updateDisplay();
             }
+
+            updateStarState();
+            renderFavouritePills();
         });
     </script>
 </body>
