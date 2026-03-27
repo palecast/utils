@@ -83,7 +83,10 @@
     },
     {
       "route": "/dc-inventory",
-      "rewrite": "/dc-inventory.html"
+      "rewrite": "/dc-inventory.html",
+      "allowedRoles": [
+        "contributor"
+      ]
     },
     {
       "route": "/dc-inventory.html",
