@@ -91,7 +91,10 @@
     {
       "route": "/dc-inventory.html",
       "redirect": "/dc-inventory",
-      "statusCode": 301
+      "statusCode": 301,
+      "allowedRoles": [
+        "contributor"
+      ]
     }
   ]
 }
