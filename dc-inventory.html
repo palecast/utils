@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC Inventory</title>
+    <script src="https://cdn.jsdelivr.net/npm/sql.js@1.11.0/dist/sql-wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f0f2f5; height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column; color: #333;
+        }
+        #loading-overlay {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 9999; color: white; gap: 16px;
+        }
+        #loading-overlay h2 { font-size: 1.5rem; font-weight: 600; }
+        #loading-overlay p  { opacity: 0.8; font-size: 0.95rem; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 0 16px;
+            display: flex; align-items: center; gap: 12px;
+            height: 52px; flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 10;
+        }
+        #app-header h1 { font-size: 1.1rem; font-weight: 700; flex: 1; }
+        .header-btn {
+            background: rgba(255,255,255,0.2); color: white;
+            border: 1px solid rgba(255,255,255,0.3); border-radius: 6px;
+            padding: 5px 12px; font-size: 0.8rem; cursor: pointer;
+            white-space: nowrap; transition: background 0.15s; font-family: inherit;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.35); }
+        #sidebar-toggle {
+            display: none; background: none; border: none;
+            color: white; font-size: 1.3rem; cursor: pointer; padding: 4px 8px;
+        }
+        #opfs-warning {
+            display: none; background: #fff3cd; border-bottom: 1px solid #ffc107;
+            color: #856404; padding: 6px 16px; font-size: 0.82rem; flex-shrink: 0;
+        }
+        #app-body { display: flex; flex: 1; overflow: hidden; }
+        #sidebar {
+            width: 240px; flex-shrink: 0; background: white;
+            border-right: 1px solid #e2e6ea;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        #sidebar-header {
+            padding: 10px 12px 6px; font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            color: #888; border-bottom: 1px solid #e2e6ea;
+        }
+        #tree-container { flex: 1; overflow-y: auto; padding: 6px 0; }
+        #sidebar-footer { padding: 8px 10px; border-top: 1px solid #e2e6ea; }
+        .btn-add-site {
+            width: 100%; padding: 7px 12px; background: #667eea; color: white;
+            border: none; border-radius: 6px; font-size: 0.82rem; cursor: pointer;
+            transition: background 0.15s; font-family: inherit;
+        }
+        .btn-add-site:hover { background: #5568d8; }
+        .tree-node { position: relative; }
+        .tree-node-row {
+            display: flex; align-items: center; padding: 5px 8px; cursor: pointer;
+            border-radius: 5px; margin: 1px 4px; transition: background 0.1s; gap: 3px;
+        }
+        .tree-node-row:hover { background: #f0f2ff; }
+        .tree-node-row.selected { background: #eef0ff; }
+        .tree-toggle {
+            width: 16px; height: 16px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.6rem; color: #888; cursor: pointer;
+            border-radius: 3px; transition: background 0.1s;
+        }
+        .tree-toggle:hover { background: #dde0ff; }
+        .tree-toggle.leaf { cursor: default; color: transparent; }
+        .tree-icon { font-size: 0.85rem; flex-shrink: 0; }
+        .tree-label {
+            flex: 1; font-size: 0.85rem; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .tree-node-row.selected .tree-label { color: #667eea; font-weight: 600; }
+        .tree-menu-btn {
+            opacity: 0; background: none; border: none; color: #888;
+            cursor: pointer; font-size: 0.9rem; padding: 0 2px; border-radius: 3px;
+            transition: opacity 0.1s, background 0.1s;
+        }
+        .tree-node-row:hover .tree-menu-btn,
+        .tree-node-row.selected .tree-menu-btn { opacity: 1; }
+        .tree-menu-btn:hover { background: #dde0ff; color: #667eea; }
+        .tree-children { padding-left: 18px; }
+        .tree-children.collapsed { display: none; }
+        .context-menu {
+            position: fixed; background: white; border: 1px solid #e2e6ea;
+            border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000; min-width: 160px; padding: 4px 0;
+        }
+        .context-menu-item {
+            padding: 7px 14px; font-size: 0.85rem; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            color: #333; transition: background 0.1s;
+        }
+        .context-menu-item:hover { background: #f0f2ff; color: #667eea; }
+        .context-menu-item.danger:hover { background: #fff0f0; color: #e74c3c; }
+        .context-menu-separator { height: 1px; background: #e2e6ea; margin: 4px 0; }
+        #main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #tab-bar {
+            background: white; border-bottom: 1px solid #e2e6ea;
+            display: flex; padding: 0 16px; gap: 2px; flex-shrink: 0; overflow-x: auto;
+        }
+        .tab-btn {
+            padding: 12px 16px; font-size: 0.87rem; border: none; background: none;
+            cursor: pointer; color: #666; border-bottom: 3px solid transparent;
+            white-space: nowrap; transition: color 0.15s, border-color 0.15s; margin-bottom: -1px;
+        }
+        .tab-btn:hover { color: #667eea; }
+        .tab-btn.active { color: #667eea; border-bottom-color: #667eea; font-weight: 600; }
+        .tab-btn.hidden { display: none; }
+        #tab-panels { flex: 1; overflow-y: auto; }
+        .tab-panel { display: none; padding: 20px; }
+        .tab-panel.active { display: block; }
+        .card {
+            background: white; border-radius: 10px; border: 1px solid #e2e6ea;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 18px 20px; margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 1rem; font-weight: 700; color: #667eea; margin-bottom: 14px;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        }
+        .summary-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px; margin-bottom: 20px;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px; padding: 16px; color: white;
+        }
+        .summary-card .metric-label {
+            font-size: 0.75rem; opacity: 0.85; text-transform: uppercase;
+            letter-spacing: 0.05em; margin-bottom: 6px;
+        }
+        .summary-card .metric-value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+        .summary-card .metric-sub { font-size: 0.75rem; opacity: 0.75; margin-top: 4px; }
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .chart-container { position: relative; height: 280px; }
+        .details-placeholder {
+            color: #aaa; text-align: center; padding: 60px 20px; font-size: 0.95rem;
+        }
+        .details-placeholder span { font-size: 2.5rem; display: block; margin-bottom: 10px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+        .form-grid.single { grid-template-columns: 1fr; }
+        .form-grid.triple { grid-template-columns: 1fr 1fr 1fr; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 0.78rem; font-weight: 600; color: #555; }
+        .form-group input, .form-group textarea, .form-group select {
+            border: 2px solid #e0e0e0; border-radius: 7px; padding: 7px 10px;
+            font-size: 0.87rem; font-family: inherit; transition: border-color 0.15s; background: white;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none; border-color: #667eea;
+        }
+        .form-group textarea { resize: vertical; min-height: 72px; }
+        .child-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .child-table th {
+            text-align: left; padding: 7px 10px; font-size: 0.78rem; font-weight: 700;
+            color: #666; border-bottom: 2px solid #e2e6ea; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .child-table td { padding: 7px 10px; border-bottom: 1px solid #f0f2f5; }
+        .child-table tr:last-child td { border-bottom: none; }
+        .child-table tr:hover td { background: #fafbff; }
+        .timeline-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .timeline-metric-btn {
+            padding: 5px 14px; font-size: 0.82rem; border-radius: 20px;
+            border: 1px solid #667eea; cursor: pointer;
+            background: white; color: #667eea; transition: all 0.15s; font-family: inherit;
+        }
+        .timeline-metric-btn.active { background: #667eea; color: white; }
+        #timeline-scroll { overflow-x: auto; }
+        .timeline-table { border-collapse: collapse; font-size: 0.82rem; min-width: 900px; width: 100%; }
+        .timeline-table th {
+            background: #f8f9fc; padding: 8px 10px; font-size: 0.75rem; font-weight: 700;
+            color: #555; text-transform: uppercase; letter-spacing: 0.04em;
+            border-bottom: 2px solid #e2e6ea; white-space: nowrap; text-align: right;
+        }
+        .timeline-table th.label-col {
+            text-align: left; min-width: 180px; position: sticky; left: 0; background: #f8f9fc;
+        }
+        .timeline-table td {
+            padding: 6px 10px; border-bottom: 1px solid #f0f2f5; text-align: right; white-space: nowrap;
+        }
+        .timeline-table td.label-cell {
+            text-align: left; position: sticky; left: 0; background: white; z-index: 1; font-weight: 500;
+        }
+        .timeline-table tr:hover td { background: #fafbff; }
+        .timeline-table tr:hover td.label-cell { background: #fafbff; }
+        .timeline-row-site > td { background: #f0f2ff !important; font-weight: 700; }
+        .timeline-row-site > td.label-cell { color: #667eea; }
+        .timeline-row-hall > td { background: #f8f9ff !important; font-weight: 600; }
+        .timeline-row-hall > td.label-cell { padding-left: 22px; color: #555; }
+        .timeline-row-zone > td.label-cell { padding-left: 40px; color: #666; }
+        .timeline-expand-btn {
+            background: none; border: none; cursor: pointer;
+            color: #888; font-size: 0.7rem; margin-right: 4px; padding: 1px 3px;
+        }
+        .cap-cell { border-radius: 4px; padding: 3px 6px; display: inline-block; min-width: 64px; text-align: right; }
+        .cap-green { background: #d4f0d8; color: #1a6b2e; }
+        .cap-amber { background: #fff0cc; color: #7a5a00; }
+        .cap-red   { background: #ffe0e0; color: #b00020; }
+        .cap-zero  { background: #f0f0f0; color: #aaa; }
+        .deltas-placeholder { color: #aaa; text-align: center; padding: 60px 20px; font-size: 0.95rem; }
+        .delta-card {
+            background: white; border: 1px solid #e2e6ea;
+            border-radius: 10px; padding: 14px 16px; margin-bottom: 12px;
+        }
+        .delta-card-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 8px; margin-bottom: 10px;
+        }
+        .delta-card-title { font-weight: 700; font-size: 0.92rem; color: #333; }
+        .delta-card-meta { font-size: 0.78rem; color: #888; margin-top: 2px; }
+        .delta-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .delta-metrics { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+        .delta-metric { font-size: 0.82rem; }
+        .delta-metric-label { color: #888; }
+        .delta-metric-value { font-weight: 700; color: #444; }
+        .delta-metric-value.positive { color: #1a7a2e; }
+        .delta-metric-value.negative { color: #b00020; }
+        .milestone-list { border-top: 1px solid #f0f2f5; padding-top: 8px; }
+        .milestone-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.82rem; }
+        .milestone-status {
+            width: 20px; height: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
+        }
+        .ms-complete    { background: #d4f0d8; color: #1a6b2e; }
+        .ms-in-progress { background: #fff0cc; color: #7a5a00; }
+        .ms-not-started { background: #f0f0f0; color: #888; }
+        .milestone-type { flex: 1; color: #555; text-transform: capitalize; }
+        .milestone-date { color: #aaa; font-size: 0.75rem; white-space: nowrap; }
+        .milestone-edit-btn {
+            background: none; border: none; cursor: pointer; color: #aaa;
+            font-size: 0.8rem; padding: 1px 4px; border-radius: 3px; transition: color 0.1s;
+        }
+        .milestone-edit-btn:hover { color: #667eea; }
+        .effective-date-badge {
+            display: inline-block; padding: 2px 8px;
+            background: #eef0ff; color: #667eea; border-radius: 12px;
+            font-size: 0.75rem; font-weight: 600; margin-top: 6px;
+        }
+        .type-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 12px;
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .badge-rofr        { background: #ffe0b2; color: #8a4000; }
+        .badge-option      { background: #e1f5fe; color: #01579b; }
+        .badge-reservation { background: #fce4ec; color: #880e4f; }
+        .badge-other       { background: #f3e5f5; color: #4a148c; }
+        .btn {
+            padding: 7px 14px; border-radius: 7px; border: none; cursor: pointer;
+            font-size: 0.85rem; font-family: inherit; font-weight: 500; transition: all 0.15s;
+        }
+        .btn-primary   { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d8; }
+        .btn-secondary { background: #e8eaf6; color: #667eea; }
+        .btn-secondary:hover { background: #d5d8f5; }
+        .btn-danger    { background: #ffeaea; color: #c0392b; }
+        .btn-danger:hover { background: #ffd5d5; }
+        .btn-ghost     { background: none; color: #888; border: 1px solid #ddd; }
+        .btn-ghost:hover { background: #f5f5f5; }
+        .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
+        .btn-xs { padding: 3px 8px; font-size: 0.75rem; border-radius: 5px; }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px); z-index: 2000;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal {
+            background: white; border-radius: 12px; width: 100%; max-width: 520px;
+            max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            padding: 18px 20px 14px; border-bottom: 1px solid #e2e6ea;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 1rem; font-weight: 700; color: #333; }
+        .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #aaa; line-height: 1; }
+        .modal-close:hover { color: #555; }
+        .modal-body { padding: 18px 20px; }
+        .modal-footer { padding: 12px 20px; border-top: 1px solid #e2e6ea; display: flex; justify-content: flex-end; gap: 8px; }
+        .empty-state { color: #bbb; text-align: center; padding: 30px; font-size: 0.9rem; }
+        .section-heading {
+            font-size: 0.88rem; font-weight: 700; color: #667eea;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            margin-bottom: 10px; margin-top: 6px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        @media (max-width: 768px) {
+            #sidebar-toggle { display: block; }
+            #sidebar {
+                position: fixed; left: 0; top: 52px; bottom: 0; z-index: 100;
+                transform: translateX(-100%); transition: transform 0.25s;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+            }
+            #sidebar.open { transform: translateX(0); }
+            .form-grid, .form-grid.triple { grid-template-columns: 1fr; }
+            .chart-row { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <h2>DC Inventory</h2>
+    <p>Initialising database…</p>
+</div>
+<header id="app-header">
+    <button id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    <h1>🏢 DC Inventory</h1>
+    <button class="header-btn" onclick="loadSampleData()">Load Sample Data</button>
+    <button class="header-btn" onclick="exportJSON()">Export JSON</button>
+    <label class="header-btn" style="cursor:pointer">Import JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
+</header>
+<div id="opfs-warning">⚠️ OPFS unavailable — data saved to localStorage (5 MB limit).</div>
+<div id="app-body">
+    <nav id="sidebar">
+        <div id="sidebar-header">Hierarchy</div>
+        <div id="tree-container"><div class="empty-state">No sites yet.</div></div>
+        <div id="sidebar-footer"><button class="btn-add-site" onclick="showAddSiteModal()">+ Add Site</button></div>
+    </nav>
+    <div id="main-content">
+        <div id="tab-bar">
+            <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab-btn hidden" data-tab="details" id="tab-details-btn" onclick="switchTab('details')">Details</button>
+            <button class="tab-btn" data-tab="timeline" onclick="switchTab('timeline')">Timeline</button>
+            <button class="tab-btn hidden" data-tab="deltas" id="tab-deltas-btn" onclick="switchTab('deltas')">Deltas</button>
+        </div>
+        <div id="tab-panels">
+            <div class="tab-panel active" id="panel-dashboard">
+                <div id="dashboard-content"><div class="empty-state" style="padding:60px"><div style="font-size:3rem">🏢</div><br>No data yet. Add a site or load sample data.</div></div>
+            </div>
+            <div class="tab-panel" id="panel-details">
+                <div id="details-content"><div class="details-placeholder"><span>👆</span>Select a Site, Hall, or Zone in the tree.</div></div>
+            </div>
+            <div class="tab-panel" id="panel-timeline">
+                <div class="timeline-controls">
+                    <span style="font-size:0.82rem;color:#666;font-weight:600">Show:</span>
+                    <button class="timeline-metric-btn active" id="tlbtn-power" onclick="setTimelineMetric('power')">Power (kW)</button>
+                    <button class="timeline-metric-btn" id="tlbtn-space" onclick="setTimelineMetric('space')">Space (m²)</button>
+                </div>
+                <div id="timeline-scroll"><div id="timeline-content"><div class="empty-state">No data yet.</div></div></div>
+            </div>
+            <div class="tab-panel" id="panel-deltas">
+                <div id="deltas-content"><div class="deltas-placeholder">Select a Zone to manage expansions and encumbrances.</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-overlay hidden" id="modal-overlay" onclick="handleModalOverlayClick(event)">
+    <div class="modal" id="modal">
+        <div class="modal-header">
+            <h3 id="modal-title">Modal</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-footer" id="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="modalSave()">Save</button>
+        </div>
+    </div>
+</div>
+<script>
+'use strict';
+// ── Globals ──────────────────────────────────────────────
+let db = null, useOPFS = false, selectedNode = null;
+let treeExpanded = {}, activeTab = 'dashboard', timelineMetric = 'power';
+let timelineCollapsed = {}, modalSaveCallback = null, chartInstances = {};
+
+// ── Utilities ────────────────────────────────────────────
+function escapeHtml(s) {
+    return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatKW(v)  { return v==null?'—':Number(v).toLocaleString(undefined,{maximumFractionDigits:0})+' kW'; }
+function formatSqm(v) { return v==null?'—':Number(v).toLocaleString(undefined,{maximumFractionDigits:0})+' m²'; }
+function formatNum(v) { return v==null?'—':Number(v).toLocaleString(undefined,{maximumFractionDigits:0}); }
+
+function getQuarterRange() {
+    const now=new Date(), qm=Math.floor(now.getMonth()/3)*3;
+    let qs=new Date(now.getFullYear(),qm,1); const qtrs=[];
+    for(let i=0;i<13;i++){
+        const s=new Date(qs), e=new Date(qs.getFullYear(),qs.getMonth()+3,0);
+        qtrs.push({label:`${s.getFullYear()} Q${Math.floor(s.getMonth()/3)+1}`,startDate:s,endDate:e,index:i});
+        qs=new Date(qs.getFullYear(),qs.getMonth()+3,1);
+    }
+    return qtrs;
+}
+function capacityColor(cur,base){if(base<=0)return'zero';const p=cur/base;return p>0.6?'green':p>0.3?'amber':'red';}
+function dateStr(d){if(!d)return'—';return new Date(d).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});}
+function addDays(iso,days){const d=new Date(iso);d.setDate(d.getDate()+(days||0));return d;}
+
+// ── OPFS / Storage ───────────────────────────────────────
+async function saveToOPFS(){
+    const data=db.export();
+    if(useOPFS){
+        try{
+            const root=await navigator.storage.getDirectory();
+            const fh=await root.getFileHandle('dc-inventory.sqlite',{create:true});
+            const w=await fh.createWritable();
+            await w.write(data); await w.close();
+        }catch(e){console.error('OPFS save failed:',e);}
+    }else{
+        try{
+            let bin=''; for(let i=0;i<data.length;i++) bin+=String.fromCharCode(data[i]);
+            localStorage.setItem('dc-inventory-db',btoa(bin));
+        }catch(e){console.error('localStorage save failed:',e);}
+    }
+}
+async function loadFromStorage(){
+    if(useOPFS){
+        try{
+            const root=await navigator.storage.getDirectory();
+            const fh=await root.getFileHandle('dc-inventory.sqlite');
+            const file=await fh.getFile();
+            return new Uint8Array(await file.arrayBuffer());
+        }catch{return null;}
+    }else{
+        try{
+            const b64=localStorage.getItem('dc-inventory-db');
+            if(!b64)return null;
+            const bin=atob(b64); const arr=new Uint8Array(bin.length);
+            for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+            return arr;
+        }catch{return null;}
+    }
+}
+async function initDatabase(){
+    useOPFS=!!(navigator.storage&&navigator.storage.getDirectory);
+    if(!useOPFS) document.getElementById('opfs-warning').style.display='block';
+    const SQL=await initSqlJs({locateFile:f=>`https://cdn.jsdelivr.net/npm/sql.js@1.11.0/dist/${f}`});
+    const existing=await loadFromStorage();
+    db=existing?new SQL.Database(existing):new SQL.Database();
+    db.run('PRAGMA foreign_keys = ON;');
+    runMigrations();
+}
+function runMigrations(){
+    db.run(`CREATE TABLE IF NOT EXISTS sites(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,address TEXT,notes TEXT);`);
+    db.run(`CREATE TABLE IF NOT EXISTS halls(id INTEGER PRIMARY KEY AUTOINCREMENT,site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,name TEXT NOT NULL,notes TEXT);`);
+    db.run(`CREATE TABLE IF NOT EXISTS zones(id INTEGER PRIMARY KEY AUTOINCREMENT,hall_id INTEGER NOT NULL REFERENCES halls(id) ON DELETE CASCADE,name TEXT NOT NULL,base_power_kw REAL NOT NULL DEFAULT 0,base_space_sqm REAL NOT NULL DEFAULT 0,base_contiguous_sqm REAL NOT NULL DEFAULT 0,notes TEXT);`);
+    db.run(`CREATE TABLE IF NOT EXISTS expansions(id INTEGER PRIMARY KEY AUTOINCREMENT,zone_id INTEGER NOT NULL REFERENCES zones(id) ON DELETE CASCADE,name TEXT NOT NULL,power_kw REAL NOT NULL DEFAULT 0,space_sqm REAL NOT NULL DEFAULT 0,contiguous_sqm REAL NOT NULL DEFAULT 0,committed_date TEXT,est_duration_days INTEGER,notes TEXT);`);
+    db.run(`CREATE TABLE IF NOT EXISTS milestones(id INTEGER PRIMARY KEY AUTOINCREMENT,expansion_id INTEGER NOT NULL REFERENCES expansions(id) ON DELETE CASCADE,type TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'not_started',target_date TEXT,completed_date TEXT,notes TEXT);`);
+    db.run(`CREATE TABLE IF NOT EXISTS encumbrances(id INTEGER PRIMARY KEY AUTOINCREMENT,zone_id INTEGER NOT NULL REFERENCES zones(id) ON DELETE CASCADE,type TEXT NOT NULL DEFAULT 'rofr',customer TEXT,power_kw REAL NOT NULL DEFAULT 0,space_sqm REAL NOT NULL DEFAULT 0,start_date TEXT,expiry_date TEXT,duration_days INTEGER,notes TEXT);`);
+}
+
+// ── Query helpers ────────────────────────────────────────
+function queryRows(sql,params){const rows=[],stmt=db.prepare(sql);if(params)stmt.bind(params);while(stmt.step())rows.push(stmt.getAsObject());stmt.free();return rows;}
+function queryOne(sql,params){return queryRows(sql,params)[0]??null;}
+function run(sql,params){if(params)db.run(sql,params);else db.run(sql);}
+function lastInsertId(){return queryOne('SELECT last_insert_rowid() as id').id;}
+
+// ── CRUD ─────────────────────────────────────────────────
+function getSites()     {return queryRows('SELECT * FROM sites ORDER BY name');}
+function getSite(id)    {return queryOne('SELECT * FROM sites WHERE id=?',[id]);}
+function createSite(d)  {run('INSERT INTO sites(name,address,notes)VALUES(?,?,?)',[d.name,d.address||'',d.notes||'']);return lastInsertId();}
+function updateSite(id,d){run('UPDATE sites SET name=?,address=?,notes=? WHERE id=?',[d.name,d.address||'',d.notes||'',id]);}
+function deleteSite(id)  {run('DELETE FROM sites WHERE id=?',[id]);}
+
+function getHalls(sid)  {return queryRows('SELECT * FROM halls WHERE site_id=? ORDER BY name',[sid]);}
+function getHall(id)    {return queryOne('SELECT * FROM halls WHERE id=?',[id]);}
+function createHall(d)  {run('INSERT INTO halls(site_id,name,notes)VALUES(?,?,?)',[d.site_id,d.name,d.notes||'']);return lastInsertId();}
+function updateHall(id,d){run('UPDATE halls SET name=?,notes=? WHERE id=?',[d.name,d.notes||'',id]);}
+function deleteHall(id)  {run('DELETE FROM halls WHERE id=?',[id]);}
+
+function getZones(hid)  {return queryRows('SELECT * FROM zones WHERE hall_id=? ORDER BY name',[hid]);}
+function getZone(id)    {return queryOne('SELECT * FROM zones WHERE id=?',[id]);}
+function createZone(d)  {run('INSERT INTO zones(hall_id,name,base_power_kw,base_space_sqm,base_contiguous_sqm,notes)VALUES(?,?,?,?,?,?)',[d.hall_id,d.name,d.base_power_kw||0,d.base_space_sqm||0,d.base_contiguous_sqm||0,d.notes||'']);return lastInsertId();}
+function updateZone(id,d){run('UPDATE zones SET name=?,base_power_kw=?,base_space_sqm=?,base_contiguous_sqm=?,notes=? WHERE id=?',[d.name,d.base_power_kw||0,d.base_space_sqm||0,d.base_contiguous_sqm||0,d.notes||'',id]);}
+function deleteZone(id)  {run('DELETE FROM zones WHERE id=?',[id]);}
+
+function getExpansions(zid){return queryRows('SELECT * FROM expansions WHERE zone_id=? ORDER BY id',[zid]);}
+function getExpansion(id)  {return queryOne('SELECT * FROM expansions WHERE id=?',[id]);}
+function createExpansion(d){run('INSERT INTO expansions(zone_id,name,power_kw,space_sqm,contiguous_sqm,committed_date,est_duration_days,notes)VALUES(?,?,?,?,?,?,?,?)',[d.zone_id,d.name,d.power_kw||0,d.space_sqm||0,d.contiguous_sqm||0,d.committed_date||null,d.est_duration_days||null,d.notes||'']);return lastInsertId();}
+function updateExpansion(id,d){run('UPDATE expansions SET name=?,power_kw=?,space_sqm=?,contiguous_sqm=?,committed_date=?,est_duration_days=?,notes=? WHERE id=?',[d.name,d.power_kw||0,d.space_sqm||0,d.contiguous_sqm||0,d.committed_date||null,d.est_duration_days||null,d.notes||'',id]);}
+function deleteExpansion(id){run('DELETE FROM expansions WHERE id=?',[id]);}
+
+function getMilestones(eid){return queryRows('SELECT * FROM milestones WHERE expansion_id=? ORDER BY id',[eid]);}
+function getMilestone(id)  {return queryOne('SELECT * FROM milestones WHERE id=?',[id]);}
+function createMilestone(d){run('INSERT INTO milestones(expansion_id,type,status,target_date,completed_date,notes)VALUES(?,?,?,?,?,?)',[d.expansion_id,d.type,d.status||'not_started',d.target_date||null,d.completed_date||null,d.notes||'']);}
+function updateMilestone(id,d){run('UPDATE milestones SET type=?,status=?,target_date=?,completed_date=?,notes=? WHERE id=?',[d.type,d.status||'not_started',d.target_date||null,d.completed_date||null,d.notes||'',id]);}
+function deleteMilestone(id){run('DELETE FROM milestones WHERE id=?',[id]);}
+
+function getEncumbrances(zid){return queryRows('SELECT * FROM encumbrances WHERE zone_id=? ORDER BY id',[zid]);}
+function getEncumbrance(id)  {return queryOne('SELECT * FROM encumbrances WHERE id=?',[id]);}
+function createEncumbrance(d){run('INSERT INTO encumbrances(zone_id,type,customer,power_kw,space_sqm,start_date,expiry_date,duration_days,notes)VALUES(?,?,?,?,?,?,?,?,?)',[d.zone_id,d.type||'rofr',d.customer||'',d.power_kw||0,d.space_sqm||0,d.start_date||null,d.expiry_date||null,d.duration_days||null,d.notes||'']);return lastInsertId();}
+function updateEncumbrance(id,d){run('UPDATE encumbrances SET type=?,customer=?,power_kw=?,space_sqm=?,start_date=?,expiry_date=?,duration_days=?,notes=? WHERE id=?',[d.type||'rofr',d.customer||'',d.power_kw||0,d.space_sqm||0,d.start_date||null,d.expiry_date||null,d.duration_days||null,d.notes||'',id]);}
+function deleteEncumbrance(id){run('DELETE FROM encumbrances WHERE id=?',[id]);}
+
+// ── Capacity computation ─────────────────────────────────
+function computeExpansionEffectiveDate(exp,ms){
+    if(!ms.length) return exp.committed_date?new Date(exp.committed_date):null;
+    if(!ms.every(m=>m.status==='complete')) return null;
+    const latest=ms.map(m=>m.completed_date?new Date(m.completed_date):null).filter(Boolean).reduce((a,b)=>b>a?b:a,new Date(0));
+    if(exp.committed_date){const cd=new Date(exp.committed_date);return cd>latest?cd:latest;}
+    return latest.getTime()===0?null:latest;
+}
+function computeZoneCapacity(zone,exps,allMs,encs,qtrs){
+    return qtrs.map(q=>{
+        let pow=zone.base_power_kw,spc=zone.base_space_sqm,con=zone.base_contiguous_sqm;
+        for(const exp of exps){
+            const ms=allMs.filter(m=>m.expansion_id===exp.id);
+            const eff=computeExpansionEffectiveDate(exp,ms);
+            if(eff&&eff<=q.endDate){pow+=exp.power_kw;spc+=exp.space_sqm;con=Math.max(con,exp.contiguous_sqm);}
+        }
+        for(const enc of encs){
+            if(!enc.start_date)continue;
+            const st=new Date(enc.start_date),ex=enc.expiry_date?new Date(enc.expiry_date):addDays(enc.start_date,enc.duration_days);
+            if(st<=q.endDate&&ex>=q.startDate){pow=Math.max(0,pow-enc.power_kw);spc=Math.max(0,spc-enc.space_sqm);}
+        }
+        return{quarter:q,power:pow,space:spc,contiguous:con};
+    });
+}
+function computeAllCapacity(qtrs){
+    const sites=queryRows('SELECT * FROM sites ORDER BY name');
+    const halls=queryRows('SELECT * FROM halls ORDER BY name');
+    const zones=queryRows('SELECT * FROM zones ORDER BY name');
+    const exps=queryRows('SELECT * FROM expansions');
+    const mss=queryRows('SELECT * FROM milestones');
+    const encs=queryRows('SELECT * FROM encumbrances');
+    return sites.map(site=>{
+        const sh=halls.filter(h=>h.site_id===site.id);
+        const hd=sh.map(hall=>{
+            const hz=zones.filter(z=>z.hall_id===hall.id);
+            const zd=hz.map(zone=>{
+                const cap=computeZoneCapacity(zone,exps.filter(e=>e.zone_id===zone.id),mss,encs.filter(e=>e.zone_id===zone.id),qtrs);
+                return{zone,capacity:cap};
+            });
+            const hc=qtrs.map((_,qi)=>({quarter:qtrs[qi],power:zd.reduce((s,z)=>s+z.capacity[qi].power,0),space:zd.reduce((s,z)=>s+z.capacity[qi].space,0),contiguous:zd.reduce((a,z)=>Math.max(a,z.capacity[qi].contiguous),0)}));
+            return{hall,zones:zd,capacity:hc};
+        });
+        const sc=qtrs.map((_,qi)=>({quarter:qtrs[qi],power:hd.reduce((s,h)=>s+h.capacity[qi].power,0),space:hd.reduce((s,h)=>s+h.capacity[qi].space,0),contiguous:hd.reduce((a,h)=>Math.max(a,h.capacity[qi].contiguous),0)}));
+        return{site,halls:hd,capacity:sc};
+    });
+}
+
+// ── Tree ─────────────────────────────────────────────────
+function renderTree(){
+    const sites=getSites(),c=document.getElementById('tree-container');
+    if(!sites.length){c.innerHTML='<div class="empty-state">No sites yet.</div>';return;}
+    let h='';
+    for(const site of sites){
+        const sk=`site-${site.id}`,so=treeExpanded[sk]!==false;
+        const ss=selectedNode?.type==='site'&&selectedNode.id===site.id;
+        h+=`<div class="tree-node"><div class="tree-node-row${ss?' selected':''}" onclick="selectNode('site',${site.id},event)">
+            <span class="tree-toggle" onclick="toggleTree('${sk}',event)">${so?'▾':'▸'}</span>
+            <span class="tree-icon">🏢</span><span class="tree-label" title="${escapeHtml(site.name)}">${escapeHtml(site.name)}</span>
+            <button class="tree-menu-btn" onclick="showNodeMenu('site',${site.id},event)">⋯</button>
+        </div><div class="tree-children${so?'':' collapsed'}" id="tree-${sk}">`;
+        for(const hall of getHalls(site.id)){
+            const hk=`hall-${hall.id}`,ho=treeExpanded[hk]!==false;
+            const hs=selectedNode?.type==='hall'&&selectedNode.id===hall.id;
+            h+=`<div class="tree-node"><div class="tree-node-row${hs?' selected':''}" onclick="selectNode('hall',${hall.id},event)">
+                <span class="tree-toggle" onclick="toggleTree('${hk}',event)">${ho?'▾':'▸'}</span>
+                <span class="tree-icon">🏭</span><span class="tree-label" title="${escapeHtml(hall.name)}">${escapeHtml(hall.name)}</span>
+                <button class="tree-menu-btn" onclick="showNodeMenu('hall',${hall.id},event)">⋯</button>
+            </div><div class="tree-children${ho?'':' collapsed'}" id="tree-${hk}">`;
+            for(const zone of getZones(hall.id)){
+                const zs=selectedNode?.type==='zone'&&selectedNode.id===zone.id;
+                h+=`<div class="tree-node"><div class="tree-node-row${zs?' selected':''}" onclick="selectNode('zone',${zone.id},event)">
+                    <span class="tree-toggle leaf">▸</span>
+                    <span class="tree-icon">⬛</span><span class="tree-label" title="${escapeHtml(zone.name)}">${escapeHtml(zone.name)}</span>
+                    <button class="tree-menu-btn" onclick="showNodeMenu('zone',${zone.id},event)">⋯</button>
+                </div></div>`;
+            }
+            h+=`</div></div>`;
+        }
+        h+=`</div></div>`;
+    }
+    c.innerHTML=h;
+}
+function toggleTree(key,e){e.stopPropagation();treeExpanded[key]=treeExpanded[key]===false?true:false;renderTree();}
+function selectNode(type,id,e){
+    if(e)e.stopPropagation();
+    selectedNode={type,id};
+    document.getElementById('tab-details-btn').classList.remove('hidden');
+    const db2=document.getElementById('tab-deltas-btn');
+    if(type==='zone')db2.classList.remove('hidden');
+    else{db2.classList.add('hidden');if(activeTab==='deltas')switchTab('details');}
+    renderTree();
+    if(activeTab==='details')renderDetails();
+    else if(activeTab==='deltas'&&type==='zone')renderDeltas();
+}
+function showNodeMenu(type,id,e){
+    e.stopPropagation();closeContextMenu();
+    let items='';
+    if(type==='site'){items=`<div class="context-menu-item" onclick="showAddHallModal(${id});closeContextMenu()">🏭 Add Hall</div><div class="context-menu-item" onclick="showEditSiteModal(${id});closeContextMenu()">✏️ Edit Site</div><div class="context-menu-separator"></div><div class="context-menu-item danger" onclick="confirmDeleteNode('site',${id});closeContextMenu()">🗑️ Delete Site</div>`;}
+    else if(type==='hall'){items=`<div class="context-menu-item" onclick="showAddZoneModal(${id});closeContextMenu()">⬛ Add Zone</div><div class="context-menu-item" onclick="showEditHallModal(${id});closeContextMenu()">✏️ Edit Hall</div><div class="context-menu-separator"></div><div class="context-menu-item danger" onclick="confirmDeleteNode('hall',${id});closeContextMenu()">🗑️ Delete Hall</div>`;}
+    else{items=`<div class="context-menu-item" onclick="showEditZoneModal(${id});closeContextMenu()">✏️ Edit Zone</div><div class="context-menu-separator"></div><div class="context-menu-item danger" onclick="confirmDeleteNode('zone',${id});closeContextMenu()">🗑️ Delete Zone</div>`;}
+    const m=document.createElement('div');m.className='context-menu';m.id='context-menu';m.innerHTML=items;
+    m.style.top=(e.clientY+4)+'px';m.style.left=(e.clientX-10)+'px';
+    document.body.appendChild(m);
+    setTimeout(()=>document.addEventListener('click',closeContextMenu,{once:true}),10);
+}
+function closeContextMenu(){document.getElementById('context-menu')?.remove();}
+function confirmDeleteNode(type,id){
+    const labels={site:'site and all halls/zones',hall:'hall and all zones',zone:'zone'};
+    const row=type==='site'?getSite(id):type==='hall'?getHall(id):getZone(id);
+    document.getElementById('modal-title').textContent='Confirm Delete';
+    document.getElementById('modal-body').innerHTML=`<p style="color:#555">Delete <strong>${escapeHtml(row?.name||'?')}</strong>? Removes the ${labels[type]}.</p>`;
+    document.getElementById('modal-footer').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="doDeleteNode('${type}',${id})">Delete</button>`;
+    document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function doDeleteNode(type,id){
+    if(type==='site')deleteSite(id);else if(type==='hall')deleteHall(id);else deleteZone(id);
+    if(selectedNode?.type===type&&selectedNode.id===id){
+        selectedNode=null;
+        document.getElementById('tab-details-btn').classList.add('hidden');
+        document.getElementById('tab-deltas-btn').classList.add('hidden');
+        if(activeTab==='details'||activeTab==='deltas')switchTab('dashboard');
+    }
+    saveToOPFS();closeModal();renderTree();renderCurrentTab();
+}
+
+// ── Tabs ─────────────────────────────────────────────────
+function switchTab(name){
+    activeTab=name;
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
+    renderCurrentTab();
+}
+function renderCurrentTab(){
+    if(activeTab==='dashboard')renderDashboard();
+    else if(activeTab==='details')renderDetails();
+    else if(activeTab==='timeline')renderTimeline();
+    else if(activeTab==='deltas')renderDeltas();
+}
+function setTimelineMetric(m){
+    timelineMetric=m;
+    document.getElementById('tlbtn-power').classList.toggle('active',m==='power');
+    document.getElementById('tlbtn-space').classList.toggle('active',m==='space');
+    renderTimeline();
+}
+
+// ── Dashboard ────────────────────────────────────────────
+function renderDashboard(){
+    const qtrs=getQuarterRange(),data=computeAllCapacity(qtrs),el=document.getElementById('dashboard-content');
+    if(!data.length){el.innerHTML=`<div class="empty-state" style="padding:60px"><div style="font-size:3rem">🏢</div><br>No data yet.</div>`;return;}
+    const tp=data.reduce((s,d)=>s+d.capacity[0].power,0),ts=data.reduce((s,d)=>s+d.capacity[0].space,0);
+    const tz=data.reduce((s,d)=>s+d.halls.reduce((hs,h)=>hs+h.zones.length,0),0);
+    el.innerHTML=`<div class="summary-grid">
+        <div class="summary-card"><div class="metric-label">Sites</div><div class="metric-value">${data.length}</div><div class="metric-sub">data centers</div></div>
+        <div class="summary-card"><div class="metric-label">Salable Power</div><div class="metric-value">${formatNum(tp)}</div><div class="metric-sub">kW — ${qtrs[0].label}</div></div>
+        <div class="summary-card"><div class="metric-label">Salable Space</div><div class="metric-value">${formatNum(ts)}</div><div class="metric-sub">m² — ${qtrs[0].label}</div></div>
+        <div class="summary-card"><div class="metric-label">Zones</div><div class="metric-value">${tz}</div><div class="metric-sub">across all halls</div></div>
+    </div>
+    <div class="chart-row">
+        <div class="card"><div class="card-title">Power Capacity (kW) by Quarter</div><div class="chart-container"><canvas id="chart-power"></canvas></div></div>
+        <div class="card"><div class="card-title">Space (m²) by Quarter</div><div class="chart-container"><canvas id="chart-space"></canvas></div></div>
+    </div>`;
+    const labels=qtrs.map(q=>q.label);
+    const pal=['#667eea','#764ba2','#f5576c','#4facfe','#43e97b','#fa709a','#fee140','#a18cd1'];
+    ['chart-power','chart-space'].forEach(id=>{if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}});
+    const cOpts=unit=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{x:{stacked:true,ticks:{font:{size:10},maxRotation:45}},y:{stacked:true,ticks:{font:{size:11}},title:{display:true,text:unit,font:{size:11}}}}});
+    chartInstances['chart-power']=new Chart(document.getElementById('chart-power'),{type:'bar',data:{labels,datasets:data.map((sd,i)=>({label:sd.site.name,data:sd.capacity.map(c=>Math.round(c.power)),backgroundColor:pal[i%pal.length]+'cc',borderColor:pal[i%pal.length],borderWidth:1}))},options:cOpts('kW')});
+    chartInstances['chart-space']=new Chart(document.getElementById('chart-space'),{type:'bar',data:{labels,datasets:data.map((sd,i)=>({label:sd.site.name,data:sd.capacity.map(c=>Math.round(c.space)),backgroundColor:pal[i%pal.length]+'cc',borderColor:pal[i%pal.length],borderWidth:1}))},options:cOpts('m²')});
+}
+
+// ── Details ──────────────────────────────────────────────
+function renderDetails(){
+    const el=document.getElementById('details-content');
+    if(!selectedNode){el.innerHTML=`<div class="details-placeholder"><span>👆</span>Select a node in the tree.</div>`;return;}
+    if(selectedNode.type==='site')renderSiteDetails(selectedNode.id,el);
+    if(selectedNode.type==='hall')renderHallDetails(selectedNode.id,el);
+    if(selectedNode.type==='zone')renderZoneDetails(selectedNode.id,el);
+}
+function renderSiteDetails(id,el){
+    const site=getSite(id);if(!site)return;
+    const halls=getHalls(id);
+    el.innerHTML=`<div class="card">
+        <div class="card-title">🏢 ${escapeHtml(site.name)} <button class="btn btn-secondary btn-sm" onclick="showEditSiteModal(${id})">Edit</button></div>
+        ${site.address?`<p style="font-size:0.85rem;color:#888;margin-bottom:10px">📍 ${escapeHtml(site.address)}</p>`:''}
+        ${site.notes?`<p style="font-size:0.85rem;color:#666;margin-bottom:10px">${escapeHtml(site.notes)}</p>`:''}
+        <div class="section-heading">Halls <button class="btn btn-primary btn-sm" onclick="showAddHallModal(${id})">+ Add Hall</button></div>
+        ${halls.length?`<table class="child-table"><thead><tr><th>Name</th><th>Zones</th><th></th></tr></thead><tbody>${halls.map(h=>`<tr><td><a href="javascript:void(0)" onclick="selectNode('hall',${h.id},event)" style="color:#667eea;text-decoration:none">${escapeHtml(h.name)}</a></td><td>${getZones(h.id).length}</td><td style="text-align:right"><button class="btn btn-ghost btn-xs" onclick="showEditHallModal(${h.id})">Edit</button> <button class="btn btn-danger btn-xs" onclick="confirmDeleteNode('hall',${h.id})">Del</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty-state">No halls yet.</div>'}
+    </div>`;
+}
+function renderHallDetails(id,el){
+    const hall=getHall(id);if(!hall)return;
+    const zones=getZones(id);
+    el.innerHTML=`<div class="card">
+        <div class="card-title">🏭 ${escapeHtml(hall.name)} <button class="btn btn-secondary btn-sm" onclick="showEditHallModal(${id})">Edit</button></div>
+        ${hall.notes?`<p style="font-size:0.85rem;color:#666;margin-bottom:10px">${escapeHtml(hall.notes)}</p>`:''}
+        <div class="section-heading">Zones <button class="btn btn-primary btn-sm" onclick="showAddZoneModal(${id})">+ Add Zone</button></div>
+        ${zones.length?`<table class="child-table"><thead><tr><th>Name</th><th>Base Power</th><th>Base Space</th><th>Max Contig.</th><th></th></tr></thead><tbody>${zones.map(z=>`<tr><td><a href="javascript:void(0)" onclick="selectNode('zone',${z.id},event)" style="color:#667eea;text-decoration:none">${escapeHtml(z.name)}</a></td><td>${formatKW(z.base_power_kw)}</td><td>${formatSqm(z.base_space_sqm)}</td><td>${formatSqm(z.base_contiguous_sqm)}</td><td style="text-align:right"><button class="btn btn-ghost btn-xs" onclick="showEditZoneModal(${z.id})">Edit</button> <button class="btn btn-danger btn-xs" onclick="confirmDeleteNode('zone',${z.id})">Del</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty-state">No zones yet.</div>'}
+    </div>`;
+}
+function renderZoneDetails(id,el){
+    const z=getZone(id);if(!z)return;
+    el.innerHTML=`<div class="card">
+        <div class="card-title">⬛ ${escapeHtml(z.name)} <button class="btn btn-secondary btn-sm" onclick="showEditZoneModal(${id})">Edit</button></div>
+        ${z.notes?`<p style="font-size:0.85rem;color:#666;margin-bottom:14px">${escapeHtml(z.notes)}</p>`:''}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px">
+            <div style="background:#f8f9ff;border-radius:8px;padding:12px"><div style="font-size:0.75rem;color:#888;margin-bottom:4px">Base Power</div><div style="font-size:1.3rem;font-weight:700;color:#667eea">${formatKW(z.base_power_kw)}</div></div>
+            <div style="background:#f8f9ff;border-radius:8px;padding:12px"><div style="font-size:0.75rem;color:#888;margin-bottom:4px">Base Space</div><div style="font-size:1.3rem;font-weight:700;color:#667eea">${formatSqm(z.base_space_sqm)}</div></div>
+            <div style="background:#f8f9ff;border-radius:8px;padding:12px"><div style="font-size:0.75rem;color:#888;margin-bottom:4px">Max Contiguous</div><div style="font-size:1.3rem;font-weight:700;color:#667eea">${formatSqm(z.base_contiguous_sqm)}</div></div>
+        </div>
+        <p style="font-size:0.8rem;color:#aaa;margin-top:8px">Use the Deltas tab to manage expansions and encumbrances.</p>
+    </div>`;
+}
+
+// ── Timeline ─────────────────────────────────────────────
+function renderTimeline(){
+    const qtrs=getQuarterRange(),data=computeAllCapacity(qtrs),el=document.getElementById('timeline-content');
+    if(!data.length){el.innerHTML='<div class="empty-state">No data yet.</div>';return;}
+    const m=timelineMetric,fmt=m==='power'?formatKW:formatSqm,bf=m==='power'?'base_power_kw':'base_space_sqm';
+    let h=`<table class="timeline-table"><thead><tr><th class="label-col">Location</th>${qtrs.map(q=>`<th>${escapeHtml(q.label)}</th>`).join('')}</tr></thead><tbody>`;
+    for(const sd of data){
+        const sk=`site-${sd.site.id}`,sc=timelineCollapsed[sk];
+        const sb=sd.halls.reduce((s,h)=>s+h.zones.reduce((zs,z)=>zs+(z.zone[bf]||0),0),0);
+        h+=`<tr class="timeline-row-site"><td class="label-cell"><button class="timeline-expand-btn" onclick="toggleTimelineRow('${sk}')">${sc?'▸':'▾'}</button>🏢 ${escapeHtml(sd.site.name)}</td>${qtrs.map((_,qi)=>`<td><span class="cap-cell cap-${capacityColor(sd.capacity[qi][m],sb)}">${fmt(sd.capacity[qi][m])}</span></td>`).join('')}</tr>`;
+        if(!sc){
+            for(const hd of sd.halls){
+                const hk=`hall-${hd.hall.id}`,hc=timelineCollapsed[hk];
+                const hb=hd.zones.reduce((s,z)=>s+(z.zone[bf]||0),0);
+                h+=`<tr class="timeline-row-hall"><td class="label-cell"><button class="timeline-expand-btn" onclick="toggleTimelineRow('${hk}')">${hc?'▸':'▾'}</button>🏭 ${escapeHtml(hd.hall.name)}</td>${qtrs.map((_,qi)=>`<td><span class="cap-cell cap-${capacityColor(hd.capacity[qi][m],hb)}">${fmt(hd.capacity[qi][m])}</span></td>`).join('')}</tr>`;
+                if(!hc){
+                    for(const zd of hd.zones){
+                        const zb=zd.zone[bf]||0;
+                        h+=`<tr class="timeline-row-zone"><td class="label-cell" style="padding-left:40px">⬛ ${escapeHtml(zd.zone.name)}</td>${qtrs.map((_,qi)=>`<td><span class="cap-cell cap-${capacityColor(zd.capacity[qi][m],zb)}">${fmt(zd.capacity[qi][m])}</span></td>`).join('')}</tr>`;
+                    }
+                }
+            }
+        }
+    }
+    el.innerHTML=h+'</tbody></table>';
+}
+function toggleTimelineRow(key){timelineCollapsed[key]=!timelineCollapsed[key];renderTimeline();}
+
+// ── Deltas ───────────────────────────────────────────────
+function renderDeltas(){
+    const el=document.getElementById('deltas-content');
+    if(!selectedNode||selectedNode.type!=='zone'){el.innerHTML='<div class="deltas-placeholder">Select a Zone in the tree.</div>';return;}
+    const zid=selectedNode.id,zone=getZone(zid);if(!zone)return;
+    const exps=getExpansions(zid),encs=getEncumbrances(zid);
+    let h=`<div class="section-heading">Expansions <button class="btn btn-primary btn-sm" onclick="showAddExpansionModal(${zid})">+ Add Expansion</button></div>`;
+    if(!exps.length){h+='<div class="empty-state" style="margin-bottom:20px">No expansions yet.</div>';}
+    else for(const exp of exps){
+        const ms=getMilestones(exp.id),eff=computeExpansionEffectiveDate(exp,ms),msd=ms.filter(m=>m.status==='complete').length;
+        h+=`<div class="delta-card"><div class="delta-card-header"><div>
+            <div class="delta-card-title">${escapeHtml(exp.name)}</div>
+            <div class="delta-card-meta">${exp.committed_date?'Committed: '+dateStr(exp.committed_date):exp.est_duration_days?`Est. ${exp.est_duration_days} days (TBD start)`:'No committed date'}</div>
+        </div><div class="delta-card-actions">
+            <button class="btn btn-secondary btn-xs" onclick="showEditExpansionModal(${exp.id})">Edit</button>
+            <button class="btn btn-danger btn-xs" onclick="confirmDeleteExpansion(${exp.id})">Delete</button>
+        </div></div>
+        <div class="delta-metrics">
+            <div class="delta-metric"><span class="delta-metric-label">Power: </span><span class="delta-metric-value positive">+${formatKW(exp.power_kw)}</span></div>
+            <div class="delta-metric"><span class="delta-metric-label">Space: </span><span class="delta-metric-value positive">+${formatSqm(exp.space_sqm)}</span></div>
+            ${exp.contiguous_sqm?`<div class="delta-metric"><span class="delta-metric-label">Contig.: </span><span class="delta-metric-value positive">${formatSqm(exp.contiguous_sqm)}</span></div>`:''}
+        </div>`;
+        if(eff)h+=`<div class="effective-date-badge">✓ Effective ${dateStr(eff.toISOString().split('T')[0])}</div>`;
+        else if(ms.length)h+=`<div class="effective-date-badge" style="background:#fff3cd;color:#856404">⏳ ${msd}/${ms.length} milestones complete</div>`;
+        if(ms.length){
+            h+='<div class="milestone-list">';
+            for(const m of ms){
+                const sc=m.status==='complete'?'ms-complete':m.status==='in_progress'?'ms-in-progress':'ms-not-started';
+                const si=m.status==='complete'?'✓':m.status==='in_progress'?'●':'○';
+                const di=m.status==='complete'&&m.completed_date?`Done ${dateStr(m.completed_date)}`:m.target_date?`Target ${dateStr(m.target_date)}`:'';
+                h+=`<div class="milestone-row"><div class="milestone-status ${sc}">${si}</div><div class="milestone-type">${escapeHtml(m.type.replace(/_/g,' '))}</div><div class="milestone-date">${escapeHtml(di)}</div><button class="milestone-edit-btn" onclick="showEditMilestoneModal(${m.id})">✏</button><button class="milestone-edit-btn" style="color:#e74c3c" onclick="confirmDeleteMilestone(${m.id})">✕</button></div>`;
+            }
+            h+='</div>';
+        }
+        h+=`<div style="margin-top:8px"><button class="btn btn-ghost btn-xs" onclick="showAddMilestoneModal(${exp.id})">+ Milestone</button></div></div>`;
+    }
+    h+=`<div class="section-heading" style="margin-top:20px">Encumbrances <button class="btn btn-primary btn-sm" onclick="showAddEncumbranceModal(${zid})">+ Add Encumbrance</button></div>`;
+    if(!encs.length){h+='<div class="empty-state">No encumbrances yet.</div>';}
+    else for(const enc of encs){
+        const ex=enc.expiry_date?new Date(enc.expiry_date):(enc.start_date&&enc.duration_days?addDays(enc.start_date,enc.duration_days):null);
+        h+=`<div class="delta-card"><div class="delta-card-header"><div>
+            <span class="type-badge badge-${escapeHtml(enc.type)}">${escapeHtml(enc.type.toUpperCase())}</span>
+            <div class="delta-card-title" style="margin-top:6px">${escapeHtml(enc.customer||'Unknown customer')}</div>
+            <div class="delta-card-meta">${enc.start_date?`From ${dateStr(enc.start_date)}`:'No start date'}${ex?` → ${dateStr(ex.toISOString().split('T')[0])}`:''}
+            </div></div>
+            <div class="delta-card-actions"><button class="btn btn-secondary btn-xs" onclick="showEditEncumbranceModal(${enc.id})">Edit</button><button class="btn btn-danger btn-xs" onclick="confirmDeleteEncumbrance(${enc.id})">Delete</button></div>
+        </div>
+        <div class="delta-metrics">
+            <div class="delta-metric"><span class="delta-metric-label">Power reserved: </span><span class="delta-metric-value negative">${formatKW(enc.power_kw)}</span></div>
+            <div class="delta-metric"><span class="delta-metric-label">Space reserved: </span><span class="delta-metric-value negative">${formatSqm(enc.space_sqm)}</span></div>
+        </div>
+        ${enc.notes?`<p style="font-size:0.8rem;color:#888;margin-top:6px">${escapeHtml(enc.notes)}</p>`:''}
+        </div>`;
+    }
+    el.innerHTML=h;
+}
+
+// ── Modal helpers ────────────────────────────────────────
+function showModal(title,bodyHtml,cb,saveLabel){
+    modalSaveCallback=cb;
+    document.getElementById('modal-title').textContent=title;
+    document.getElementById('modal-body').innerHTML=bodyHtml;
+    document.getElementById('modal-footer').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="modalSave()">${escapeHtml(saveLabel||'Save')}</button>`;
+    document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.add('hidden');modalSaveCallback=null;}
+function modalSave(){if(modalSaveCallback)modalSaveCallback();}
+function handleModalOverlayClick(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+function getFormVal(id){return(document.getElementById(id)?.value??'').trim();}
+
+// ── Site modals ──────────────────────────────────────────
+function showAddSiteModal(){showModal('Add Site',`<div class="form-grid single"><div class="form-group"><label>Name *</label><input id="f-name" type="text" placeholder="e.g. London DC1"></div><div class="form-group"><label>Address</label><input id="f-address" type="text"></div><div class="form-group"><label>Notes</label><textarea id="f-notes"></textarea></div></div>`,()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}createSite({name:n,address:getFormVal('f-address'),notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderTree();renderDashboard();});}
+function showEditSiteModal(id){const s=getSite(id);showModal('Edit Site',`<div class="form-grid single"><div class="form-group"><label>Name *</label><input id="f-name" type="text" value="${escapeHtml(s.name)}"></div><div class="form-group"><label>Address</label><input id="f-address" type="text" value="${escapeHtml(s.address||'')}"></div><div class="form-group"><label>Notes</label><textarea id="f-notes">${escapeHtml(s.notes||'')}</textarea></div></div>`,()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}updateSite(id,{name:n,address:getFormVal('f-address'),notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderTree();renderCurrentTab();});}
+
+// ── Hall modals ──────────────────────────────────────────
+function showAddHallModal(sid){showModal('Add Hall',`<div class="form-grid single"><div class="form-group"><label>Name *</label><input id="f-name" type="text" placeholder="e.g. Hall A"></div><div class="form-group"><label>Notes</label><textarea id="f-notes"></textarea></div></div>`,()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}createHall({site_id:sid,name:n,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderTree();renderCurrentTab();});}
+function showEditHallModal(id){const h=getHall(id);showModal('Edit Hall',`<div class="form-grid single"><div class="form-group"><label>Name *</label><input id="f-name" type="text" value="${escapeHtml(h.name)}"></div><div class="form-group"><label>Notes</label><textarea id="f-notes">${escapeHtml(h.notes||'')}</textarea></div></div>`,()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}updateHall(id,{name:n,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderTree();renderCurrentTab();});}
+
+// ── Zone modals ──────────────────────────────────────────
+function showAddZoneModal(hid){showModal('Add Zone / Block',`<div class="form-grid single"><div class="form-group"><label>Name *</label><input id="f-name" type="text" placeholder="e.g. Zone A1"></div></div><div class="form-grid triple"><div class="form-group"><label>Base Power (kW)</label><input id="f-power" type="number" min="0" step="0.1" value="0"></div><div class="form-group"><label>Base Space (m²)</label><input id="f-space" type="number" min="0" step="0.1" value="0"></div><div class="form-group"><label>Max Contiguous (m²)</label><input id="f-contig" type="number" min="0" step="0.1" value="0"></div></div><div class="form-grid single"><div class="form-group"><label>Notes</label><textarea id="f-notes"></textarea></div></div>`,()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}createZone({hall_id:hid,name:n,base_power_kw:parseFloat(getFormVal('f-power'))||0,base_space_sqm:parseFloat(getFormVal('f-space'))||0,base_contiguous_sqm:parseFloat(getFormVal('f-contig'))||0,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderTree();renderCurrentTab();});}
+function showEditZoneModal(id){const z=getZone(id);showModal('Edit Zone / Block',`<div class="form-grid single"><div class="form-group"><label>Name *</label><input id="f-name" type="text" value="${escapeHtml(z.name)}"></div></div><div class="form-grid triple"><div class="form-group"><label>Base Power (kW)</label><input id="f-power" type="number" min="0" step="0.1" value="${z.base_power_kw}"></div><div class="form-group"><label>Base Space (m²)</label><input id="f-space" type="number" min="0" step="0.1" value="${z.base_space_sqm}"></div><div class="form-group"><label>Max Contiguous (m²)</label><input id="f-contig" type="number" min="0" step="0.1" value="${z.base_contiguous_sqm}"></div></div><div class="form-grid single"><div class="form-group"><label>Notes</label><textarea id="f-notes">${escapeHtml(z.notes||'')}</textarea></div></div>`,()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}updateZone(id,{name:n,base_power_kw:parseFloat(getFormVal('f-power'))||0,base_space_sqm:parseFloat(getFormVal('f-space'))||0,base_contiguous_sqm:parseFloat(getFormVal('f-contig'))||0,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderTree();renderCurrentTab();});}
+
+// ── Expansion modals ─────────────────────────────────────
+function expFormHtml(e){e=e||{};return`<div class="form-grid single"><div class="form-group"><label>Name *</label><input id="f-name" type="text" value="${escapeHtml(e.name||'')}" placeholder="e.g. Phase 2"></div></div><div class="form-grid triple"><div class="form-group"><label>Power delta (kW)</label><input id="f-power" type="number" min="0" step="0.1" value="${e.power_kw||0}"></div><div class="form-group"><label>Space delta (m²)</label><input id="f-space" type="number" min="0" step="0.1" value="${e.space_sqm||0}"></div><div class="form-group"><label>Contiguous (m²)</label><input id="f-contig" type="number" min="0" step="0.1" value="${e.contiguous_sqm||0}"></div></div><div class="form-grid"><div class="form-group"><label>Committed Date</label><input id="f-committed" type="date" value="${e.committed_date||''}"><small style="color:#aaa;font-size:0.75rem">Blank if TBD</small></div><div class="form-group"><label>Est. Duration (days)</label><input id="f-duration" type="number" min="0" value="${e.est_duration_days||''}"><small style="color:#aaa;font-size:0.75rem">When no committed date</small></div></div><div class="form-grid single"><div class="form-group"><label>Notes</label><textarea id="f-notes">${escapeHtml(e.notes||'')}</textarea></div></div>`;}
+function showAddExpansionModal(zid){showModal('Add Expansion',expFormHtml(null),()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}createExpansion({zone_id:zid,name:n,power_kw:parseFloat(getFormVal('f-power'))||0,space_sqm:parseFloat(getFormVal('f-space'))||0,contiguous_sqm:parseFloat(getFormVal('f-contig'))||0,committed_date:getFormVal('f-committed')||null,est_duration_days:parseInt(getFormVal('f-duration'))||null,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderDeltas();renderTimeline();});}
+function showEditExpansionModal(id){showModal('Edit Expansion',expFormHtml(getExpansion(id)),()=>{const n=getFormVal('f-name');if(!n){alert('Name required');return;}updateExpansion(id,{name:n,power_kw:parseFloat(getFormVal('f-power'))||0,space_sqm:parseFloat(getFormVal('f-space'))||0,contiguous_sqm:parseFloat(getFormVal('f-contig'))||0,committed_date:getFormVal('f-committed')||null,est_duration_days:parseInt(getFormVal('f-duration'))||null,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderDeltas();renderTimeline();});}
+function confirmDeleteExpansion(id){const e=getExpansion(id);document.getElementById('modal-title').textContent='Confirm Delete';document.getElementById('modal-body').innerHTML=`<p style="color:#555">Delete <strong>${escapeHtml(e?.name||'?')}</strong> and all milestones?</p>`;document.getElementById('modal-footer').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="deleteExpansion(${id});saveToOPFS();closeModal();renderDeltas();renderTimeline()">Delete</button>`;document.getElementById('modal-overlay').classList.remove('hidden');}
+
+// ── Milestone modals ─────────────────────────────────────
+function msFormHtml(m){m=m||{};const types=['regulatory','power','design','permitting','construction','other'],stats=['not_started','in_progress','complete'];return`<div class="form-grid"><div class="form-group"><label>Type *</label><select id="f-type">${types.map(t=>`<option value="${t}" ${m.type===t?'selected':''}>${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('')}</select></div><div class="form-group"><label>Status</label><select id="f-status">${stats.map(s=>`<option value="${s}" ${m.status===s?'selected':''}>${s.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>`).join('')}</select></div></div><div class="form-grid"><div class="form-group"><label>Target Date</label><input id="f-target" type="date" value="${m.target_date||''}"></div><div class="form-group"><label>Completed Date</label><input id="f-completed" type="date" value="${m.completed_date||''}"></div></div><div class="form-grid single"><div class="form-group"><label>Notes</label><textarea id="f-notes">${escapeHtml(m.notes||'')}</textarea></div></div>`;}
+function showAddMilestoneModal(eid){showModal('Add Milestone',msFormHtml(null),()=>{createMilestone({expansion_id:eid,type:getFormVal('f-type'),status:getFormVal('f-status'),target_date:getFormVal('f-target')||null,completed_date:getFormVal('f-completed')||null,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderDeltas();renderTimeline();});}
+function showEditMilestoneModal(id){showModal('Edit Milestone',msFormHtml(getMilestone(id)),()=>{updateMilestone(id,{type:getFormVal('f-type'),status:getFormVal('f-status'),target_date:getFormVal('f-target')||null,completed_date:getFormVal('f-completed')||null,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderDeltas();renderTimeline();});}
+function confirmDeleteMilestone(id){document.getElementById('modal-title').textContent='Confirm Delete';document.getElementById('modal-body').innerHTML='<p style="color:#555">Delete this milestone?</p>';document.getElementById('modal-footer').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="deleteMilestone(${id});saveToOPFS();closeModal();renderDeltas();renderTimeline()">Delete</button>`;document.getElementById('modal-overlay').classList.remove('hidden');}
+
+// ── Encumbrance modals ───────────────────────────────────
+function encFormHtml(e){e=e||{};const types=['rofr','option','reservation','other'];return`<div class="form-grid"><div class="form-group"><label>Type *</label><select id="f-type">${types.map(t=>`<option value="${t}" ${e.type===t?'selected':''}>${t.toUpperCase()}</option>`).join('')}</select></div><div class="form-group"><label>Customer / Prospect</label><input id="f-customer" type="text" value="${escapeHtml(e.customer||'')}"></div></div><div class="form-grid"><div class="form-group"><label>Power reserved (kW)</label><input id="f-power" type="number" min="0" step="0.1" value="${e.power_kw||0}"></div><div class="form-group"><label>Space reserved (m²)</label><input id="f-space" type="number" min="0" step="0.1" value="${e.space_sqm||0}"></div></div><div class="form-grid"><div class="form-group"><label>Start Date</label><input id="f-start" type="date" value="${e.start_date||''}"></div><div class="form-group"><label>Expiry Date</label><input id="f-expiry" type="date" value="${e.expiry_date||''}"></div></div><div class="form-grid single"><div class="form-group"><label>Duration (days, if no expiry)</label><input id="f-duration" type="number" min="0" value="${e.duration_days||''}"></div></div><div class="form-grid single"><div class="form-group"><label>Notes</label><textarea id="f-notes">${escapeHtml(e.notes||'')}</textarea></div></div>`;}
+function showAddEncumbranceModal(zid){showModal('Add Encumbrance',encFormHtml(null),()=>{createEncumbrance({zone_id:zid,type:getFormVal('f-type'),customer:getFormVal('f-customer'),power_kw:parseFloat(getFormVal('f-power'))||0,space_sqm:parseFloat(getFormVal('f-space'))||0,start_date:getFormVal('f-start')||null,expiry_date:getFormVal('f-expiry')||null,duration_days:parseInt(getFormVal('f-duration'))||null,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderDeltas();renderTimeline();});}
+function showEditEncumbranceModal(id){showModal('Edit Encumbrance',encFormHtml(getEncumbrance(id)),()=>{updateEncumbrance(id,{type:getFormVal('f-type'),customer:getFormVal('f-customer'),power_kw:parseFloat(getFormVal('f-power'))||0,space_sqm:parseFloat(getFormVal('f-space'))||0,start_date:getFormVal('f-start')||null,expiry_date:getFormVal('f-expiry')||null,duration_days:parseInt(getFormVal('f-duration'))||null,notes:getFormVal('f-notes')});saveToOPFS();closeModal();renderDeltas();renderTimeline();});}
+function confirmDeleteEncumbrance(id){document.getElementById('modal-title').textContent='Confirm Delete';document.getElementById('modal-body').innerHTML='<p style="color:#555">Delete this encumbrance?</p>';document.getElementById('modal-footer').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="deleteEncumbrance(${id});saveToOPFS();closeModal();renderDeltas();renderTimeline()">Delete</button>`;document.getElementById('modal-overlay').classList.remove('hidden');}
+
+// ── Mobile sidebar ───────────────────────────────────────
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
+
+// ── Export / Import ──────────────────────────────────────
+function exportJSON(){
+    const payload={version:1,exported:new Date().toISOString(),sites:queryRows('SELECT * FROM sites'),halls:queryRows('SELECT * FROM halls'),zones:queryRows('SELECT * FROM zones'),expansions:queryRows('SELECT * FROM expansions'),milestones:queryRows('SELECT * FROM milestones'),encumbrances:queryRows('SELECT * FROM encumbrances')};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=`dc-inventory-${new Date().toISOString().split('T')[0]}.json`;a.click();URL.revokeObjectURL(url);
+}
+function importJSON(input){
+    const file=input.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+        try{
+            const data=JSON.parse(ev.target.result);
+            if(!data.sites||!data.halls||!data.zones){alert('Invalid DC Inventory JSON.');return;}
+            if(!confirm(`Import will replace ALL current data (${data.sites.length} sites, ${data.zones.length} zones). Continue?`))return;
+            db.run('DELETE FROM encumbrances;DELETE FROM milestones;DELETE FROM expansions;DELETE FROM zones;DELETE FROM halls;DELETE FROM sites;');
+            for(const r of data.sites)db.run('INSERT INTO sites(id,name,address,notes)VALUES(?,?,?,?)',[r.id,r.name,r.address||'',r.notes||'']);
+            for(const r of data.halls)db.run('INSERT INTO halls(id,site_id,name,notes)VALUES(?,?,?,?)',[r.id,r.site_id,r.name,r.notes||'']);
+            for(const r of data.zones)db.run('INSERT INTO zones(id,hall_id,name,base_power_kw,base_space_sqm,base_contiguous_sqm,notes)VALUES(?,?,?,?,?,?,?)',[r.id,r.hall_id,r.name,r.base_power_kw||0,r.base_space_sqm||0,r.base_contiguous_sqm||0,r.notes||'']);
+            for(const r of(data.expansions||[]))db.run('INSERT INTO expansions(id,zone_id,name,power_kw,space_sqm,contiguous_sqm,committed_date,est_duration_days,notes)VALUES(?,?,?,?,?,?,?,?,?)',[r.id,r.zone_id,r.name,r.power_kw||0,r.space_sqm||0,r.contiguous_sqm||0,r.committed_date||null,r.est_duration_days||null,r.notes||'']);
+            for(const r of(data.milestones||[]))db.run('INSERT INTO milestones(id,expansion_id,type,status,target_date,completed_date,notes)VALUES(?,?,?,?,?,?,?)',[r.id,r.expansion_id,r.type,r.status||'not_started',r.target_date||null,r.completed_date||null,r.notes||'']);
+            for(const r of(data.encumbrances||[]))db.run('INSERT INTO encumbrances(id,zone_id,type,customer,power_kw,space_sqm,start_date,expiry_date,duration_days,notes)VALUES(?,?,?,?,?,?,?,?,?,?)',[r.id,r.zone_id,r.type||'rofr',r.customer||'',r.power_kw||0,r.space_sqm||0,r.start_date||null,r.expiry_date||null,r.duration_days||null,r.notes||'']);
+            await saveToOPFS();selectedNode=null;renderTree();renderDashboard();renderTimeline();alert('Import complete.');
+        }catch(err){alert('Import failed: '+err.message);}
+    };
+    reader.readAsText(file);input.value='';
+}
+
+// ── Sample data ──────────────────────────────────────────
+async function loadSampleData(){
+    if(!confirm('Load sample data? New entries will be added to any existing data.'))return;
+    const s1=createSite({name:'London DC1',address:'1 Canary Wharf, London E14',notes:'Primary UK campus. Carrier-neutral.'});
+    const h1=createHall({site_id:s1,name:'Hall A'});
+    const z1=createZone({hall_id:h1,name:'Zone A1',base_power_kw:2000,base_space_sqm:800,base_contiguous_sqm:400});
+    const z2=createZone({hall_id:h1,name:'Zone A2',base_power_kw:1500,base_space_sqm:600,base_contiguous_sqm:600});
+    const h2=createHall({site_id:s1,name:'Hall B'});
+    const z3=createZone({hall_id:h2,name:'Zone B1',base_power_kw:3000,base_space_sqm:1200,base_contiguous_sqm:1200});
+    const z4=createZone({hall_id:h2,name:'Zone B2',base_power_kw:500,base_space_sqm:200,base_contiguous_sqm:200});
+    const s2=createSite({name:'Frankfurt DC2',address:'Gutleutstraße, Frankfurt am Main',notes:'German hub.'});
+    const h3=createHall({site_id:s2,name:'Hall 1'});
+    const z5=createZone({hall_id:h3,name:'Zone 1A',base_power_kw:4000,base_space_sqm:1600,base_contiguous_sqm:1600});
+    const z6=createZone({hall_id:h3,name:'Zone 1B',base_power_kw:2000,base_space_sqm:800,base_contiguous_sqm:400});
+    const now=new Date(),qm=Math.floor(now.getMonth()/3)*3;
+    const q2=new Date(now.getFullYear(),qm+3,1).toISOString().split('T')[0];
+    const q4=new Date(now.getFullYear(),qm+9,1).toISOString().split('T')[0];
+    const prev=new Date(now.getFullYear(),qm-1,1).toISOString().split('T')[0];
+    const e1=createExpansion({zone_id:z1,name:'Phase 2 Power Upgrade',power_kw:1000,space_sqm:400,contiguous_sqm:400,committed_date:q2});
+    createMilestone({expansion_id:e1,type:'regulatory',status:'complete',target_date:prev,completed_date:prev});
+    createMilestone({expansion_id:e1,type:'power',status:'complete',target_date:prev,completed_date:prev});
+    createMilestone({expansion_id:e1,type:'design',status:'complete',target_date:prev,completed_date:prev});
+    createMilestone({expansion_id:e1,type:'permitting',status:'complete',target_date:prev,completed_date:prev});
+    createMilestone({expansion_id:e1,type:'construction',status:'complete',target_date:prev,completed_date:prev});
+    const e2=createExpansion({zone_id:z3,name:'Hall B Extension',power_kw:2000,space_sqm:800,contiguous_sqm:800,committed_date:q4,notes:'Planning permission pending.'});
+    createMilestone({expansion_id:e2,type:'regulatory',status:'complete',target_date:prev,completed_date:prev});
+    createMilestone({expansion_id:e2,type:'power',status:'complete',target_date:prev,completed_date:prev});
+    createMilestone({expansion_id:e2,type:'design',status:'in_progress',target_date:q2});
+    createMilestone({expansion_id:e2,type:'permitting',status:'not_started',target_date:q2});
+    createMilestone({expansion_id:e2,type:'construction',status:'not_started',target_date:q4});
+    const e3=createExpansion({zone_id:z5,name:'Frankfurt Phase 2',power_kw:3000,space_sqm:1200,contiguous_sqm:1200,est_duration_days:270,notes:'Power negotiations ongoing.'});
+    createMilestone({expansion_id:e3,type:'regulatory',status:'in_progress',target_date:q2});
+    createMilestone({expansion_id:e3,type:'power',status:'not_started'});
+    createMilestone({expansion_id:e3,type:'design',status:'not_started'});
+    createMilestone({expansion_id:e3,type:'permitting',status:'not_started'});
+    createMilestone({expansion_id:e3,type:'construction',status:'not_started'});
+    const today=now.toISOString().split('T')[0];
+    const expiry=new Date(now.getFullYear(),now.getMonth()+9,0).toISOString().split('T')[0];
+    createEncumbrance({zone_id:z2,type:'rofr',customer:'Acme Financial Ltd',power_kw:500,space_sqm:200,start_date:today,expiry_date:expiry,notes:'ROFR granted for 9 months.'});
+    createEncumbrance({zone_id:z3,type:'option',customer:'Global Cloud Corp',power_kw:1000,space_sqm:400,start_date:q2,duration_days:180,notes:'Conditional on regulatory approval.'});
+    await saveToOPFS();renderTree();renderDashboard();renderTimeline();alert('Sample data loaded!');
+}
+
+// ── Init ─────────────────────────────────────────────────
+(async function init(){
+    try{
+        await initDatabase();renderTree();renderDashboard();renderTimeline();
+    }catch(err){
+        console.error('Init failed:',err);
+        document.getElementById('loading-overlay').innerHTML=`<div style="text-align:center;color:white;padding:20px"><div style="font-size:3rem">⚠️</div><h2 style="margin:12px 0">Failed to initialise</h2><p>${escapeHtml(err.message)}</p><p style="margin-top:12px;opacity:0.7;font-size:0.85rem">Requires a modern browser with WebAssembly support.</p></div>`;
+        return;
+    }
+    document.getElementById('loading-overlay').style.display='none';
+})();
+</script>
+</body>
+</html>

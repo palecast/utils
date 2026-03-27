@@ -80,6 +80,15 @@
       "route": "/coastal-conditions.html",
       "redirect": "/coastal-conditions",
       "statusCode": 301
+    },
+    {
+      "route": "/dc-inventory",
+      "rewrite": "/dc-inventory.html"
+    },
+    {
+      "route": "/dc-inventory.html",
+      "redirect": "/dc-inventory",
+      "statusCode": 301
     }
   ]
 }
