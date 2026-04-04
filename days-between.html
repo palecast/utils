@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Days Between</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
         * {
             margin: 0;
             padding: 0;
@@ -12,8 +14,8 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #FAF8F5;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -28,10 +30,9 @@
 
         h1 {
             text-align: center;
-            color: white;
+            color: #3A2F28;
             margin-bottom: 40px;
             font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         }
 
         .cards-container {
@@ -46,7 +47,8 @@
             background: white;
             border-radius: 16px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(58, 47, 40, 0.08);
+            border: 1px solid rgba(74, 93, 71, 0.12);
             transition: transform 0.3s ease;
         }
 
@@ -60,7 +62,7 @@
         }
 
         .date-card h2 {
-            color: #667eea;
+            color: #4A5D47;
             font-size: 1.2em;
             margin-bottom: 15px;
         }
@@ -79,7 +81,7 @@
         }
 
         .date-input-group label {
-            color: #667eea;
+            color: #4A5D47;
             font-weight: 600;
             font-size: 0.95em;
         }
@@ -88,7 +90,7 @@
             width: 100%;
             padding: 12px;
             font-size: 1em;
-            border: 2px solid #e0e0e0;
+            border: 2px solid rgba(74, 93, 71, 0.12);
             border-radius: 8px;
             transition: border-color 0.3s ease;
             font-family: inherit;
@@ -96,14 +98,14 @@
 
         .date-card input[type="date"]:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4A5D47;
         }
 
         .date-card select {
             width: 100%;
             padding: 10px;
             font-size: 0.95em;
-            border: 2px solid #e0e0e0;
+            border: 2px solid rgba(74, 93, 71, 0.12);
             border-radius: 8px;
             background: white;
             font-family: inherit;
@@ -113,7 +115,7 @@
 
         .date-card select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4A5D47;
         }
 
         .selector-group {
@@ -124,20 +126,20 @@
         }
 
         .selector-group label {
-            color: #667eea;
+            color: #4A5D47;
             font-weight: 600;
             font-size: 0.95em;
         }
 
         .day-of-week {
             margin-top: 8px;
-            color: #666;
+            color: #6B5F54;
             font-size: 0.9em;
             font-weight: 500;
         }
 
         .result-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4A5D47;
             color: white;
             text-align: center;
             min-width: 280px;
@@ -147,7 +149,7 @@
 
         .result-card .label {
             font-size: 1em;
-            opacity: 0.9;
+            color: rgba(255,255,255,0.9);
             margin-bottom: 10px;
         }
 
@@ -220,13 +222,13 @@
 
         .working-days .sublabel {
             font-size: 0.9em;
-            opacity: 0.9;
+            color: rgba(255,255,255,0.9);
         }
 
         .holidays-list {
             margin-top: 20px;
             padding-top: 20px;
-            border-top: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid rgba(255,255,255,0.2);
             text-align: left;
             max-height: 300px;
             overflow-y: auto;
@@ -235,7 +237,7 @@
         .holidays-list h3 {
             font-size: 1em;
             margin-bottom: 12px;
-            opacity: 0.9;
+            color: rgba(255,255,255,0.9);
         }
 
         .holiday-item {
@@ -281,13 +283,13 @@
 
         .attribution {
             text-align: center;
-            color: rgba(255,255,255,0.8);
+            color: #6B5F54;
             margin-top: 30px;
             font-size: 0.9em;
         }
 
         .attribution a {
-            color: white;
+            color: #4A5D47;
             text-decoration: none;
             font-weight: 500;
         }
@@ -302,7 +304,7 @@
         }
 
         .calendar-card h2 {
-            color: #667eea;
+            color: #4A5D47;
             font-size: 1.2em;
             margin-bottom: 15px;
         }
@@ -326,7 +328,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #667eea;
+            background: #4A5D47;
             color: white;
             font-weight: 600;
             font-size: 0.7em;
@@ -344,7 +346,7 @@
         .calendar-day-header {
             text-align: center;
             font-weight: 600;
-            color: #667eea;
+            color: #4A5D47;
             padding: 8px 4px;
             font-size: 0.85em;
         }
@@ -370,8 +372,8 @@
         }
 
         .calendar-day.holiday {
-            background: rgba(102, 126, 234, 0.15);
-            color: #667eea;
+            background: rgba(74, 93, 71, 0.15);
+            color: #4A5D47;
         }
 
         .calendar-day.outside {
@@ -379,7 +381,7 @@
         }
 
         .calendar-day.today {
-            box-shadow: inset 0 0 0 2px #667eea;
+            box-shadow: inset 0 0 0 2px #4A5D47;
         }
 
         .day-number {
@@ -388,7 +390,7 @@
 
         .day-month-name {
             font-size: 0.65em;
-            color: #667eea;
+            color: #4A5D47;
             margin-top: 1px;
             font-weight: 600;
             text-transform: uppercase;
@@ -438,7 +440,7 @@
             cursor: pointer;
             padding: 4px 2px;
             line-height: 1;
-            color: #667eea;
+            color: #4A5D47;
             flex-shrink: 0;
             transition: transform 0.15s ease;
         }
@@ -470,13 +472,13 @@
         }
 
         .favourite-pill:hover {
-            background: #e4e4f0;
+            background: #E8E5DF;
         }
 
         .favourite-pill.active {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
+            border-color: #4A5D47;
+            background: rgba(74, 93, 71, 0.1);
+            color: #4A5D47;
             font-weight: 600;
         }
 

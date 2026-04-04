@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Utilities Hub</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
         * {
             margin: 0;
             padding: 0;
@@ -12,89 +14,297 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #FAF8F5;
             min-height: 100vh;
-            padding: 20px;
+            color: #3A2F28;
         }
 
-        .container {
+        /* Sticky Header */
+        .site-header {
+            border-bottom: 1px solid rgba(74, 93, 71, 0.12);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-inner {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        header {
-            text-align: center;
-            color: white;
-            margin-bottom: 50px;
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: #4A5D47;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FAF8F5;
             font-weight: 600;
+            font-size: 14px;
         }
 
-        .subtitle {
-            font-size: 1.1rem;
-            opacity: 0.9;
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #3A2F28;
+            letter-spacing: -0.01em;
         }
 
+        .header-subtitle {
+            font-size: 12px;
+            color: #6B5F54;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .header-nav a {
+            font-size: 14px;
+            color: #6B5F54;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .header-nav a:hover {
+            color: #3A2F28;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 64px 24px;
+        }
+
+        .hero-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero-text {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .hero-text h2 {
+            font-size: 3rem;
+            font-weight: 600;
+            color: #3A2F28;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+
+        .hero-text p {
+            font-size: 1.125rem;
+            color: #6B5F54;
+            max-width: 640px;
+            margin: 0 auto;
+            font-weight: 300;
+            line-height: 1.6;
+        }
+
+        /* Utilities Grid */
         .utilities-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 25px;
-            margin-top: 40px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
         }
 
         .utility-card {
             background: white;
+            border: 1px solid rgba(74, 93, 71, 0.08);
             border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 24px;
             text-decoration: none;
             color: inherit;
-            display: block;
+            display: flex;
+            flex-direction: column;
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
         }
 
         .utility-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 24px rgba(58, 47, 40, 0.08);
+            border-color: rgba(74, 93, 71, 0.2);
         }
 
-        .utility-card h2 {
-            color: #667eea;
+        .utility-icon-wrap {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            background: rgba(168, 184, 156, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 1.5rem;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            transition: background 0.2s;
+        }
+
+        .utility-card:hover .utility-icon-wrap {
+            background: rgba(74, 93, 71, 0.1);
+        }
+
+        .utility-card h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #3A2F28;
+            margin-bottom: 6px;
         }
 
         .utility-card p {
-            color: #666;
-            line-height: 1.6;
-            font-size: 0.95rem;
+            font-size: 0.875rem;
+            color: #6B5F54;
+            line-height: 1.5;
+            font-weight: 300;
+            flex: 1;
         }
 
-        .utility-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            display: block;
-        }
-
-        footer {
+        .card-action {
+            margin-top: 16px;
+            padding: 8px 0;
+            font-size: 0.875rem;
+            font-weight: 400;
+            color: #4A5D47;
             text-align: center;
-            color: white;
-            margin-top: 60px;
-            opacity: 0.8;
-            font-size: 0.9rem;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .utility-card:hover .card-action {
+            background: rgba(74, 93, 71, 0.05);
+        }
+
+        /* Info Section */
+        .info-section {
+            margin-top: 80px;
+            background: rgba(232, 229, 223, 0.4);
+            border-radius: 16px;
+            padding: 48px;
+            border: 1px solid rgba(74, 93, 71, 0.06);
+        }
+
+        .info-inner {
+            max-width: 720px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .info-inner h3 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #3A2F28;
+            margin-bottom: 16px;
+        }
+
+        .info-inner p {
+            color: #6B5F54;
+            font-weight: 300;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .info-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .info-badge {
+            padding: 8px 16px;
+            border-radius: 10px;
+            background: white;
+            border: 1px solid rgba(74, 93, 71, 0.08);
+            font-size: 0.875rem;
+            color: #3A2F28;
+            font-weight: 300;
+        }
+
+        /* Footer */
+        .site-footer {
+            border-top: 1px solid rgba(74, 93, 71, 0.12);
+            background: rgba(255, 255, 255, 0.3);
+            padding: 32px 24px;
+            margin-top: 64px;
+        }
+
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .footer-inner p {
+            font-size: 0.875rem;
+            color: #6B5F54;
+            font-weight: 300;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-links a {
+            font-size: 0.875rem;
+            color: #6B5F54;
+            text-decoration: none;
+            font-weight: 300;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #3A2F28;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .utilities-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
 
         @media (max-width: 768px) {
-            h1 {
+            .hero-text h2 {
                 font-size: 2rem;
             }
-            
+
+            .utilities-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .header-nav {
+                display: none;
+            }
+
+            .info-section {
+                padding: 32px 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
             .utilities-grid {
                 grid-template-columns: 1fr;
             }
@@ -102,130 +312,173 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1 id="page-title">🛠️ Utilities Hub</h1>
-            <p class="subtitle">A collection of useful - and AD-free! - web tools and utilities</p>
-        </header>
-
-        <div class="utilities-grid" id="utilities-container">
-            <!-- Utilities will be loaded here -->
+    <!-- Header -->
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="header-brand">
+                <div class="header-logo">UH</div>
+                <div>
+                    <div class="header-title" id="page-title">Utilities Hub</div>
+                    <div class="header-subtitle">Your everyday tools</div>
+                </div>
+            </div>
+            <nav class="header-nav">
+                <a href="#tools">Tools</a>
+                <a href="/disclaimer.html">Terms</a>
+            </nav>
         </div>
+    </header>
 
-        <footer>
-            <p>I built these utilities for my own learning and experimentation. And because I was tired of ads and trackers for simple apps.</p>
-             <p>All run entirely in your browser, though a few use APIs to fetch data. I hope you find them useful.</p>
-              <p>Use of these tools is at your own risk. Accuracy is not guaranteed. Free for personal use only. No resale or redistribution.
-    <a href="/disclaimer.html">Disclaimer &amp; Terms</a> </p>
-        </footer>
-    </div>
+    <!-- Hero -->
+    <section class="hero" id="tools">
+        <div class="hero-inner">
+            <div class="hero-text">
+                <h2>Essential Utilities</h2>
+                <p>A collection of thoughtfully designed tools to simplify your daily tasks</p>
+            </div>
+
+            <div class="utilities-grid" id="utilities-container">
+            </div>
+
+            <!-- Info Section -->
+            <div class="info-section">
+                <div class="info-inner">
+                    <h3>Built for Simplicity</h3>
+                    <p>
+                        All tools run entirely in your browser. No ads, no trackers, no complexity
+                        &mdash; just the features you need, presented in a clean and intuitive interface.
+                    </p>
+                    <div class="info-badges">
+                        <span class="info-badge">Fast</span>
+                        <span class="info-badge">Secure</span>
+                        <span class="info-badge">Private</span>
+                        <span class="info-badge">Free</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <p>
+                I built these utilities for my own learning and experimentation. And because I was tired of ads and trackers for simple apps.
+                All run entirely in your browser, though a few use APIs to fetch data.
+            </p>
+            <div class="footer-links">
+                <a href="/disclaimer.html">Disclaimer &amp; Terms</a>
+            </div>
+        </div>
+    </footer>
 
     <script>
-        // Utilities configuration - Add new utilities here
         const utilities = [
             {
                 title: "Timezone Compare",
                 description: "Compare times across different timezones easily. Perfect for scheduling international meetings and calls.",
-                icon: "🌍",
+                icon: "\u{1F30D}",
                 url: "/timezone-compare"
             },
             {
                 title: "Days Between",
                 description: "Find the numbers of days between two dates. Shows total days, working days, and shows public holidays.",
-                icon: "📅",
+                icon: "\u{1F4C5}",
                 url: "/days-between"
             },
             {
                 title: "QR Code Generator",
                 description: "Generate QR codes for emails, wifi networks, vCards and web links.",
-                icon: "🔲",
+                icon: "\u{1F532}",
                 url: "/qr-generator"
             },
             {
                 title: "Currency Converter",
                 description: "Convert from one currency to another. Also shows a chart of historical values. Uses the ECB rates.",
-                icon: "💱",
+                icon: "\u{1F4B1}",
                 url: "/currency-converter"
             },
             {
                 title: "Currency Value",
                 description: "Compare the relative values of currencies over time as compared to a base currency. Uses the ECB rates.",
-                icon: "💸",
+                icon: "\u{1F4B8}",
                 url: "/ccy-tracker"
             },
             {
                 title: "Cost Splitter",
                 description: "Easily split costs between different sets of people. Handles non-shared costs and tips.",
-                icon: "💰",
+                icon: "\u{1F4B0}",
                 url: "/cost-splitter"
             },
             {
                 title: "Org Chart",
                 description: "Design and model org structures. Import/export Excel/CSV, filter, color-code, and visualize hierarchies.",
-                icon: "&#127970;",
+                icon: "\u{1F3E2}",
                 url: "/org-chart"
             },
             {
                 title: "Daylight Hours",
                 description: "Visualize sunrise and sunset for every day of the year for any city. Ribbon chart with hover details.",
-                icon: "&#9728;&#65039;",
+                icon: "\u2600\uFE0F",
                 url: "/daylight-hours"
             },
             {
                 title: "Coastal Conditions",
                 description: "Marine conditions for watersports. Wave height, swell, sea temperature, and currents at coastal locations worldwide.",
-                icon: "🌊",
+                icon: "\u{1F30A}",
                 url: "/coastal-conditions"
             },
             {
                 title: "DC Inventory",
                 description: "Data center salable capacity planner. Visualize power, space, and availability across sites, halls, and zones over 12 quarters.",
-                icon: "🏢",
+                icon: "\u{1F3E2}",
                 url: "/dc-inventory"
             }
-            // Add more utilities here in the future:
-            // {
-            //     title: "Example Tool",
-            //     description: "Description of what this tool does",
-            //     icon: "🔧",
-            //     url: "example-tool.html"
-            // }
         ];
 
-        // Set page title based on hostname
         function setPageTitle() {
             const hostname = window.location.hostname.toLowerCase();
             const titleElement = document.getElementById('page-title');
-            
+
             if (hostname.includes('duplessis')) {
-                titleElement.textContent = "🛠️ Raoul's Utilities Hub";
+                titleElement.textContent = "Raoul's Utilities Hub";
             } else if (hostname.includes('sandestin')) {
-                titleElement.textContent = "🛠️ Sandestin Utilities Hub";
+                titleElement.textContent = "Sandestin Utilities Hub";
             } else {
-                titleElement.textContent = "🛠️ Utilities Hub";
+                titleElement.textContent = "Utilities Hub";
             }
         }
 
-        // Render utilities
         function renderUtilities() {
             const container = document.getElementById('utilities-container');
-            
+
             utilities.forEach(utility => {
                 const card = document.createElement('a');
                 card.className = 'utility-card';
                 card.href = utility.url;
-                
-                card.innerHTML = `
-                    <span class="utility-icon">${utility.icon}</span>
-                    <h2>${utility.title}</h2>
-                    <p>${utility.description}</p>
-                `;
-                
+
+                const iconWrap = document.createElement('div');
+                iconWrap.className = 'utility-icon-wrap';
+                iconWrap.textContent = utility.icon;
+
+                const title = document.createElement('h3');
+                title.textContent = utility.title;
+
+                const desc = document.createElement('p');
+                desc.textContent = utility.description;
+
+                const action = document.createElement('div');
+                action.className = 'card-action';
+                action.textContent = 'Open Tool \u2192';
+
+                card.appendChild(iconWrap);
+                card.appendChild(title);
+                card.appendChild(desc);
+                card.appendChild(action);
                 container.appendChild(card);
             });
         }
 
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             setPageTitle();
             renderUtilities();

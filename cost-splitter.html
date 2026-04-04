@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cost Splitter</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #FAF8F5;
             min-height: 100vh;
             padding: 20px;
         }
@@ -26,9 +28,8 @@
         }
 
         h1 {
-            color: white;
+            color: #3A2F28;
             font-size: 2.2em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         }
 
         .header-controls {
@@ -52,13 +53,13 @@
         .header-controls button {
             padding: 8px 14px;
             font-size: 13px;
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.4);
+            background: #4A5D47;
+            border: 1px solid rgba(74, 93, 71, 0.12);
             color: white;
         }
 
         .header-controls button:hover {
-            background: rgba(255,255,255,0.35);
+            background: #3D4E3B;
             transform: translateY(-1px);
         }
 
@@ -80,8 +81,8 @@
         .scenario-tab {
             padding: 8px 16px;
             border-radius: 20px;
-            background: rgba(255,255,255,0.25);
-            color: white;
+            background: #E8E5DF;
+            color: #3A2F28;
             border: 2px solid transparent;
             cursor: pointer;
             font-size: 13px;
@@ -92,12 +93,12 @@
             gap: 6px;
         }
 
-        .scenario-tab:hover { background: rgba(255,255,255,0.35); transform: none; }
+        .scenario-tab:hover { background: #F2F0EB; transform: none; }
 
         .scenario-tab.active {
             background: white;
-            color: #667eea;
-            border-color: white;
+            color: #4A5D47;
+            border-color: #4A5D47;
         }
 
         .scenario-tab .tab-delete {
@@ -118,15 +119,15 @@
         .scenario-tab-add {
             padding: 8px 14px;
             border-radius: 20px;
-            background: rgba(255,255,255,0.15);
-            color: white;
-            border: 2px dashed rgba(255,255,255,0.5);
+            background: #F2F0EB;
+            color: #6B5F54;
+            border: 2px dashed rgba(74, 93, 71, 0.12);
             cursor: pointer;
             font-size: 13px;
             font-weight: 600;
         }
 
-        .scenario-tab-add:hover { background: rgba(255,255,255,0.25); transform: none; }
+        .scenario-tab-add:hover { background: #E8E5DF; transform: none; }
 
         /* Warning banner */
         .warning-banner {
@@ -150,14 +151,15 @@
             background: white;
             border-radius: 12px;
             padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(58, 47, 40, 0.08);
+            border: 1px solid rgba(74, 93, 71, 0.12);
         }
 
         .panel h2 {
-            color: #667eea;
+            color: #4A5D47;
             margin-bottom: 20px;
             font-size: 1.5em;
-            border-bottom: 3px solid #667eea;
+            border-bottom: 3px solid #4A5D47;
             padding-bottom: 10px;
         }
 
@@ -172,7 +174,7 @@
             flex: 1;
             min-width: 80px;
             padding: 10px 12px;
-            border: 2px solid #e0e0e0;
+            border: 2px solid rgba(74, 93, 71, 0.12);
             border-radius: 8px;
             font-size: 14px;
             transition: border-color 0.3s;
@@ -181,14 +183,14 @@
 
         input[type="text"]:focus, input[type="number"]:focus, select.inline-select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4A5D47;
         }
 
         select.inline-select { cursor: pointer; }
 
         button {
             padding: 10px 20px;
-            background: #667eea;
+            background: #4A5D47;
             color: white;
             border: none;
             border-radius: 8px;
@@ -199,7 +201,7 @@
             white-space: nowrap;
         }
 
-        button:hover { background: #5568d3; transform: translateY(-1px); }
+        button:hover { background: #3D4E3B; transform: translateY(-1px); }
         button:active { transform: translateY(0); }
 
         .btn-small { padding: 5px 10px; font-size: 12px; }
@@ -230,7 +232,7 @@
         }
 
         .cost-item:active { cursor: grabbing; }
-        .cost-item:hover { background: #e9ecef; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .cost-item:hover { background: #e9ecef; box-shadow: 0 2px 8px rgba(58, 47, 40, 0.08); }
         .cost-item.dragging { opacity: 0.4; transform: scale(1.03); }
         .cost-item.assigned { background: #fff3cd; border-color: #ffc107; }
 
@@ -239,7 +241,7 @@
             flex-direction: column;
         }
 
-        .group-item.drag-over { border-color: #667eea; background: #e7f3ff; }
+        .group-item.drag-over { border-color: #4A5D47; background: #E8E5DF; }
 
         .item-details { flex: 1; }
 
@@ -249,7 +251,7 @@
         .item-amount {
             font-size: 17px;
             font-weight: 700;
-            color: #667eea;
+            color: #4A5D47;
             margin-right: 8px;
             white-space: nowrap;
         }
@@ -264,7 +266,7 @@
         }
 
         .total-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4A5D47;
             color: white;
             padding: 16px 20px;
             border-radius: 8px;
@@ -284,7 +286,7 @@
 
         .amount-type-toggle {
             display: flex;
-            border: 2px solid #e0e0e0;
+            border: 2px solid rgba(74, 93, 71, 0.12);
             border-radius: 8px;
             overflow: hidden;
             flex-shrink: 0;
@@ -293,7 +295,7 @@
         .toggle-btn {
             padding: 10px 13px;
             background: white;
-            color: #666;
+            color: #6B5F54;
             border: none;
             border-radius: 0;
             cursor: pointer;
@@ -304,8 +306,8 @@
         }
 
         .toggle-btn:hover { background: #f0f0f0; transform: none; }
-        .toggle-btn.active { background: #667eea; color: white; }
-        .toggle-btn.active:hover { background: #5568d3; }
+        .toggle-btn.active { background: #4A5D47; color: white; }
+        .toggle-btn.active:hover { background: #3D4E3B; }
 
         .person-list { margin-top: 8px; }
 
@@ -323,18 +325,18 @@
 
         .person-name { color: #2c3e50; flex: 1; }
 
-        .person-amount { font-weight: 600; color: #667eea; white-space: nowrap; }
+        .person-amount { font-weight: 600; color: #4A5D47; white-space: nowrap; }
 
         .person-weight-input {
             width: 55px;
             padding: 4px 6px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid rgba(74, 93, 71, 0.12);
             border-radius: 5px;
             font-size: 12px;
             text-align: center;
         }
 
-        .group-total { font-weight: 700; color: #667eea; font-size: 17px; }
+        .group-total { font-weight: 700; color: #4A5D47; font-size: 17px; }
 
         .group-header {
             display: flex;
@@ -357,13 +359,13 @@
         }
 
         .drag-instructions {
-            background: #e7f3ff;
+            background: #E8E5DF;
             padding: 10px 12px;
             border-radius: 6px;
             margin-bottom: 12px;
             font-size: 12px;
-            color: #0c5460;
-            border-left: 4px solid #667eea;
+            color: #3A2F28;
+            border-left: 4px solid #4A5D47;
         }
 
         .group-selector {
@@ -371,9 +373,9 @@
             top: 100%;
             right: 0;
             background: white;
-            border: 2px solid #667eea;
+            border: 2px solid #4A5D47;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(58, 47, 40, 0.12);
             z-index: 1000;
             min-width: 200px;
             margin-top: 5px;
@@ -384,8 +386,8 @@
         .group-selector-title {
             padding: 10px 12px;
             font-weight: 600;
-            color: #667eea;
-            border-bottom: 1px solid #e0e0e0;
+            color: #4A5D47;
+            border-bottom: 1px solid rgba(74, 93, 71, 0.12);
             font-size: 13px;
         }
 
@@ -397,11 +399,11 @@
         }
 
         .group-selector-item:hover { background: #f0f0f0; }
-        .group-selector-item.group-selector-cancel { color: #e74c3c; font-weight: 600; border-top: 1px solid #e0e0e0; }
+        .group-selector-item.group-selector-cancel { color: #e74c3c; font-weight: 600; border-top: 1px solid rgba(74, 93, 71, 0.12); }
 
         .group-detail {
             margin-top: 10px;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid rgba(74, 93, 71, 0.12);
             padding-top: 10px;
         }
 
@@ -410,14 +412,14 @@
             justify-content: space-between;
             font-size: 13px;
             padding: 3px 0;
-            color: #555;
+            color: #6B5F54;
         }
 
         .detail-label {
             display: inline-block;
             font-size: 10px;
-            background: #e0e0e0;
-            color: #555;
+            background: #E8E5DF;
+            color: #6B5F54;
             border-radius: 3px;
             padding: 1px 5px;
             margin-left: 5px;
@@ -445,7 +447,7 @@
             flex: 1;
             min-width: 80px;
             padding: 7px 10px;
-            border: 2px solid #667eea;
+            border: 2px solid #4A5D47;
             border-radius: 6px;
             font-size: 13px;
         }
@@ -497,7 +499,7 @@
             border-radius: 8px;
             background: #fff3cd;
             padding: 10px 14px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 24px rgba(58, 47, 40, 0.12);
             font-size: 13px;
             font-weight: 600;
             color: #2c3e50;
@@ -509,7 +511,7 @@
             font-size: 11px;
             padding: 3px 8px;
             background: #ecf0f1;
-            color: #555;
+            color: #6B5F54;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -518,7 +520,7 @@
         }
 
         .weights-toggle:hover { background: #dfe6e9; transform: none; }
-        .weights-toggle.active { background: #667eea; color: white; }
+        .weights-toggle.active { background: #4A5D47; color: white; }
 
         @media (max-width: 768px) {
             .main-grid { grid-template-columns: 1fr; }
@@ -607,7 +609,7 @@
 
     <div id="settlementsPanel" class="panel settlements-panel" style="display:none;">
         <h2>Settlements</h2>
-        <p style="color:#666;font-size:13px;margin-bottom:12px;">Minimum transactions to settle all debts, based on who paid each cost.</p>
+        <p style="color:#6B5F54;font-size:13px;margin-bottom:12px;">Minimum transactions to settle all debts, based on who paid each cost.</p>
         <div id="balancesList" class="balances-grid"></div>
         <div id="settlementsList"></div>
     </div>
@@ -1463,7 +1465,7 @@
                 const peopleRows = group.people.map((p, i) =>
                     '<div class="edit-row">' +
                     '<input class="edit-input" id="editPersonName_' + group.id + '_' + i + '" type="text" value="' + escapeHtml(p.name) + '" placeholder="Name">' +
-                    '<label style="font-size:12px;color:#666;white-space:nowrap;">Weight: ' +
+                    '<label style="font-size:12px;color:#6B5F54;white-space:nowrap;">Weight: ' +
                     '<input class="person-weight-input" id="editPersonWeight_' + group.id + '_' + i + '" type="number" value="' + (p.weight || 1) + '" step="0.1" min="0.01">' +
                     '</label></div>'
                 ).join('');

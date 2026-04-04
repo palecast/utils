@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>World Timeboard</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
   :root{
-    --bg:#f6f7fb;
+    --bg:#FAF8F5;
     --panel:#ffffff;
-    --line:#e3e7ef;
-    --text:#1f2633;
-    --muted:#6b7280;
-    --accent:#2563eb;
+    --line:rgba(74, 93, 71, 0.12);
+    --text:#3A2F28;
+    --muted:#6B5F54;
+    --accent:#4A5D47;
     --night:#e6e7ea;          /* 10pm–5am */
     --day:#edf5ff;            /* 6am–10pm */
     --work:#fff8d8;           /* 8am–5pm */
@@ -21,11 +22,11 @@
   html,body{height:100%;}
   body{
     margin:0;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background:var(--bg);
     color:var(--text);
   }
-  .app{max-width:1200px;margin:16px auto;padding:12px;background:var(--panel);border-radius:12px;box-shadow:0 8px 24px rgba(15,23,42,.08)}
+  .app{max-width:1200px;margin:16px auto;padding:12px;background:var(--panel);border-radius:12px;box-shadow:0 8px 24px rgba(58,47,40,.08)}
   .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap}
   .left, .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .searchbox{position:relative}
@@ -37,10 +38,10 @@
   .btn{appearance:none;border:1px solid var(--line);padding:6px 10px;border-radius:8px;background:#fff;cursor:pointer;font-size:12px}
   .btn.primary{border-color:transparent;background:var(--accent);color:#fff}
   .btn:active{transform:translateY(1px)}
-  .dropdown{position:absolute;z-index:100;top:36px;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.08);max-height:240px;overflow:auto;display:none}
+  .dropdown{position:absolute;z-index:100;top:36px;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(58,47,40,.08);max-height:240px;overflow:auto;display:none}
   .dropdown.show{display:block}
   .dropdown div{padding:8px 10px;cursor:pointer;font-size:12px}
-  .dropdown div:hover{background:#f3f6ff}
+  .dropdown div:hover{background:#FAF8F5}
 
   .grid{width:100%;border-collapse:separate;border-spacing:0 6px}
   .board-scroll-wrapper{overflow-x:auto;overflow-y:visible}
@@ -49,7 +50,7 @@
   .board-scroll-wrapper::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
   .board-scroll-wrapper::-webkit-scrollbar-thumb:hover{background:var(--muted)}
   .board-content{display:inline-block;min-width:100%}
-  .row-head{display:flex;align-items:center;gap:6px;width:200px;min-width:200px;position:sticky;left:0;background:var(--panel);z-index:10;box-shadow:2px 0 4px rgba(0,0,0,0.05)}
+  .row-head{display:flex;align-items:center;gap:6px;width:200px;min-width:200px;position:sticky;left:0;background:var(--panel);z-index:10;box-shadow:2px 0 4px rgba(58,47,40,0.05)}
   .row{display:flex;align-items:stretch;position:relative}
   .row + .row{margin-top:4px}
   .col-city{display:flex;align-items:center;gap:6px;padding:6px 4px}
@@ -66,7 +67,7 @@
   .cell{position:relative;border-right:1px solid var(--line);text-align:center;padding:4px 0 3px 0;font-size:11px;z-index:2}
   .ampm{display:block;font-size:9px;color:var(--muted)}
   .datebox{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;font-weight:700}
-  .datebox .mon{font-size:9px;color:#667085;line-height:10px}
+  .datebox .mon{font-size:9px;color:#6B5F54;line-height:10px}
   .datebox .day{font-size:12px}
   .night{background:var(--night)}
   .day{background:var(--day)}
@@ -93,7 +94,7 @@
     opacity:0;
     transition:opacity 0.3s;
     pointer-events:none;
-    box-shadow:0 4px 12px rgba(37,99,235,.3);
+    box-shadow:0 4px 12px rgba(74,93,71,.3);
   }
   .saved-indicator.show{opacity:1}
 
@@ -650,8 +651,8 @@ search.addEventListener('input', ()=>{
 search.addEventListener('keydown', (e)=>{
   if (!dropdown.classList.contains('show')) return;
   const items = Array.from(dropdown.children);
-  if (e.key==='ArrowDown'){ ddIdx = Math.min(items.length-1, ddIdx+1); items.forEach((el,i)=> el.style.background = i===ddIdx?'#eef3ff':'' ); e.preventDefault(); }
-  if (e.key==='ArrowUp'){ ddIdx = Math.max(0, ddIdx-1); items.forEach((el,i)=> el.style.background = i===ddIdx?'#eef3ff':'' ); e.preventDefault(); }
+  if (e.key==='ArrowDown'){ ddIdx = Math.min(items.length-1, ddIdx+1); items.forEach((el,i)=> el.style.background = i===ddIdx?'#FAF8F5':'' ); e.preventDefault(); }
+  if (e.key==='ArrowUp'){ ddIdx = Math.max(0, ddIdx-1); items.forEach((el,i)=> el.style.background = i===ddIdx?'#FAF8F5':'' ); e.preventDefault(); }
   if (e.key==='Enter' && ddIdx>=0){ items[ddIdx].click(); }
   if (e.key==='Escape'){ closeDropdown(); }
 });
