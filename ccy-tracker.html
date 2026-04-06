@@ -148,6 +148,16 @@
             border-color: #4A5D47;
         }
 
+        .selector-pair {
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-end;
+        }
+
+        .selector-pair > div {
+            flex: 1;
+        }
+
         .currency-pills {
             display: flex;
             flex-wrap: wrap;
@@ -282,6 +292,10 @@
                 padding: 1.5rem;
             }
 
+            .selector-pair {
+                flex-direction: column;
+            }
+
             .chart-wrapper {
                 height: 350px;
             }
@@ -315,19 +329,22 @@
 
         <div class="controls">
             <div class="control-group">
-                <label>Base Currency</label>
-                <select id="baseCurrencySelect" onchange="changeBaseCurrency()">
-                    <option value="">Loading...</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label>Add Currency to Compare</label>
-                <div class="input-row">
-                    <select id="currencySelect">
-                        <option value="">Select a currency...</option>
-                    </select>
-                    <button class="btn-add" onclick="addCurrency()">Add</button>
+                <div class="selector-pair">
+                    <div>
+                        <label>Base Currency</label>
+                        <select id="baseCurrencySelect" onchange="changeBaseCurrency()">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Add Currency to Compare</label>
+                        <div class="input-row">
+                            <select id="currencySelect">
+                                <option value="">Select a currency...</option>
+                            </select>
+                            <button class="btn-add" onclick="addCurrency()">Add</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -467,10 +484,17 @@
             const select = document.getElementById('baseCurrencySelect');
             const newBase = select.value;
 
-            if (!newBase) return;
+            if (!newBase || newBase === baseCurrency) return;
+
+            const oldBase = baseCurrency;
 
             // Remove new base currency from comparison list if it's there
             selectedCurrencies = selectedCurrencies.filter(c => c !== newBase);
+
+            // Add previous base currency to comparison list
+            if (!selectedCurrencies.includes(oldBase)) {
+                selectedCurrencies.push(oldBase);
+            }
 
             baseCurrency = newBase;
             saveToLocalStorage();
