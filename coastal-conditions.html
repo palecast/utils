@@ -130,6 +130,16 @@
         .card-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
         .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 
+        /* ── Tide card ── */
+        .moon-icon { font-size: 2.8rem; line-height: 1; margin-bottom: 4px; }
+        .tide-type { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 6px 0 8px; }
+        .tide-spring { background: #dbeafe; color: #2563eb; border: 1px solid #93c5fd; }
+        .tide-neap   { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
+        .tide-strength-wrap { width: 80%; height: 6px; background: #E8E5DF; border-radius: 3px; overflow: hidden; margin: 0 auto; }
+        .tide-strength-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+        .tide-bar-spring { background: linear-gradient(90deg, #93c5fd, #2563eb); }
+        .tide-bar-neap   { background: linear-gradient(90deg, #fcd34d, #d97706); }
+
         /* ── Metric cards ── */
         .metric-card {
             background: white; border: 1px solid rgba(74, 93, 71, 0.12);
@@ -236,6 +246,7 @@
             .location-panel { width: 100%; padding-top: 0; }
             .card-grid-3 { grid-template-columns: 1fr; }
             .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .card-grid-4.marine-grid { grid-template-columns: repeat(2, 1fr); }
             .m-value { font-size: 1.65rem; }
         }
         @media (max-width: 480px) {
@@ -243,6 +254,7 @@
             .card { padding: 18px 16px; }
             .location-section { padding: 16px; }
             .card-grid-4 { grid-template-columns: 1fr; }
+            .card-grid-4.marine-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -306,7 +318,7 @@
             <span class="section-heading-icon">🌊</span>
             <h3>Marine Conditions</h3>
         </div>
-        <div class="card-grid-3">
+        <div class="card-grid-4 marine-grid">
             <div class="metric-card tinted">
                 <div class="metric-card-title"><span class="mc-icon">🌊</span> Waves &amp; Swell</div>
                 <div class="metric-row-3">
@@ -347,6 +359,19 @@
                             <div class="m-sub" id="vCD">--</div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="metric-card tinted">
+                <div class="metric-card-title"><span class="mc-icon">🌙</span> Tides</div>
+                <div class="card-center">
+                    <div class="moon-icon" id="moonIcon">🌕</div>
+                    <div class="m-hint" id="moonPhase">--</div>
+                    <div class="tide-type" id="tideType">--</div>
+                    <div class="tide-strength-wrap">
+                        <div class="tide-strength-bar" id="tideBar"></div>
+                    </div>
+                    <div class="m-hint" id="tideHint"></div>
                 </div>
             </div>
         </div>
@@ -486,6 +511,14 @@ function tempClass(c) {
     return c < 10 ? 'tc-cold' : c < 18 ? 'tc-cool' : c < 24 ? 'tc-warm' : 'tc-hot';
 }
 function fmt(v, dec = 1) { return v != null ? (+v).toFixed(dec) : '--'; }
+function moonPhase(date) {
+    // Known new moon: 2024-01-11 11:57 UTC
+    const ref = new Date('2024-01-11T11:57:00Z');
+    const synodic = 29.53058770576;
+    const days = (date - ref) / 86400000;
+    const phase = ((days % synodic) + synodic) % synodic;
+    return phase / synodic; // normalized 0.0–1.0
+}
 function wmoCondition(code) {
     if (code == null) return { label: '', icon: '—' };
     if (code === 0)   return { label: 'Clear', icon: '☀' };
@@ -744,8 +777,58 @@ function renderConditions(data, weather) {
     }
     document.getElementById('vWindGust').textContent = wc.wind_gusts_10m != null ? 'Gusts ' + fmt(wc.wind_gusts_10m, 0) + ' km/h' : '';
 
+    renderTide();
     document.getElementById('conditionsCard').style.display = '';
 }
+
+function renderTide() {
+    const norm = moonPhase(new Date());
+
+    // Moon phase icon & name
+    const phases = [
+        { max: 0.03, icon: '🌑', name: 'New Moon' },
+        { max: 0.22, icon: '🌒', name: 'Waxing Crescent' },
+        { max: 0.28, icon: '🌓', name: 'First Quarter' },
+        { max: 0.47, icon: '🌔', name: 'Waxing Gibbous' },
+        { max: 0.53, icon: '🌕', name: 'Full Moon' },
+        { max: 0.72, icon: '🌖', name: 'Waning Gibbous' },
+        { max: 0.78, icon: '🌗', name: 'Last Quarter' },
+        { max: 0.97, icon: '🌘', name: 'Waning Crescent' },
+        { max: 1.01, icon: '🌑', name: 'New Moon' }
+    ];
+    const p = phases.find(p => norm <= p.max) || phases[0];
+    document.getElementById('moonIcon').textContent = p.icon;
+    document.getElementById('moonPhase').textContent = p.name;
+
+    // Spring/neap: distance to nearest spring point (0, 0.5, 1.0)
+    const distToSpring = Math.min(norm, Math.abs(norm - 0.5), 1.0 - norm);
+    const isSpring = distToSpring <= 0.1;
+    const isNeap = distToSpring >= 0.15;
+
+    const typeEl = document.getElementById('tideType');
+    const barEl = document.getElementById('tideBar');
+    const hintEl = document.getElementById('tideHint');
+
+    if (isSpring) {
+        typeEl.textContent = 'Spring Tide';
+        typeEl.className = 'tide-type tide-spring';
+        hintEl.textContent = 'Larger tidal range expected';
+    } else if (isNeap) {
+        typeEl.textContent = 'Neap Tide';
+        typeEl.className = 'tide-type tide-neap';
+        hintEl.textContent = 'Smaller tidal range expected';
+    } else {
+        typeEl.textContent = distToSpring < 0.125 ? 'Nearing Spring' : 'Nearing Neap';
+        typeEl.className = 'tide-type ' + (distToSpring < 0.125 ? 'tide-spring' : 'tide-neap');
+        hintEl.textContent = 'Transitional tidal range';
+    }
+
+    // Strength bar: 100% at spring (distToSpring=0), ~15% at neap (distToSpring=0.25)
+    const strength = Math.round((1 - distToSpring / 0.25) * 100);
+    barEl.style.width = Math.max(strength, 15) + '%';
+    barEl.className = 'tide-strength-bar ' + (distToSpring <= 0.125 ? 'tide-bar-spring' : 'tide-bar-neap');
+}
+
 function setDir(aId, cId, vId, deg) {
     if (deg != null) {
         document.getElementById(aId).style.transform = 'rotate(' + deg + 'deg)';
