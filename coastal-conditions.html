@@ -139,6 +139,13 @@
         .tide-strength-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
         .tide-bar-spring { background: linear-gradient(90deg, #93c5fd, #2563eb); }
         .tide-bar-neap   { background: linear-gradient(90deg, #fcd34d, #d97706); }
+        .tide-times { display: flex; flex-direction: column; gap: 4px; width: 100%; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(74, 93, 71, 0.1); }
+        .tide-entry { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #6B5F54; padding: 3px 8px; border-radius: 6px; }
+        .tide-entry.next { background: rgba(74, 93, 71, 0.08); color: #3A2F28; font-weight: 600; }
+        .te-icon { font-size: 0.85rem; width: 16px; text-align: center; }
+        .te-label { flex: 1; }
+        .te-time { font-variant-numeric: tabular-nums; font-weight: 500; }
+        .tide-disclaimer { font-size: 0.62rem; color: #9a8e82; font-style: italic; margin-top: 6px; text-align: center; }
 
         /* ── Metric cards ── */
         .metric-card {
@@ -372,6 +379,8 @@
                         <div class="tide-strength-bar" id="tideBar"></div>
                     </div>
                     <div class="m-hint" id="tideHint"></div>
+                    <div class="tide-times" id="tideTimes"></div>
+                    <div class="tide-disclaimer">Approximate times based on lunar transit</div>
                 </div>
             </div>
         </div>
@@ -827,6 +836,50 @@ function renderTide() {
     const strength = Math.round((1 - distToSpring / 0.25) * 100);
     barEl.style.width = Math.max(strength, 15) + '%';
     barEl.className = 'tide-strength-bar ' + (distToSpring <= 0.125 ? 'tide-bar-spring' : 'tide-bar-neap');
+
+    // Approximate tide times based on lunar transit
+    const synodic = 29.53058770576;
+    const lunarAgeDays = norm * synodic;
+
+    // Moon transit in local solar time: at new moon it transits ~12:00 solar,
+    // shifting ~50.47 min later each day
+    const solarTransitMin = 12 * 60 + lunarAgeDays * 50.47;
+
+    // Adjust solar time → clock time using longitude within timezone
+    // Central meridian ≈ round(UTC offset in hours) * 15
+    const utcOffsetMin = -new Date().getTimezoneOffset();
+    const centralMeridian = Math.round(utcOffsetMin / 60) * 15;
+    const lon = state.lon || 0;
+    const solarCorrection = (centralMeridian - lon) * 4; // minutes
+    const transitMin = solarTransitMin + solarCorrection;
+
+    // 4 tides: High at transit & transit+12h25m, Low at transit+6h12m & transit+18h38m
+    const tides = [
+        { type: 'High', min: transitMin },
+        { type: 'Low',  min: transitMin + 372 },
+        { type: 'High', min: transitMin + 745 },
+        { type: 'Low',  min: transitMin + 1118 }
+    ].map(t => {
+        let m = ((t.min % 1440) + 1440) % 1440;
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(Math.round(m % 60)).padStart(2, '0');
+        return { type: t.type, time: hh + ':' + mm, minutes: m };
+    }).sort((a, b) => a.minutes - b.minutes);
+
+    // Find next upcoming tide
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    let nextIdx = tides.findIndex(t => t.minutes > nowMin);
+    if (nextIdx < 0) nextIdx = 0;
+
+    const container = document.getElementById('tideTimes');
+    while (container.firstChild) container.removeChild(container.firstChild);
+    tides.forEach((t, i) => {
+        const entry = el('div', 'tide-entry' + (i === nextIdx ? ' next' : ''));
+        entry.appendChild(el('span', 'te-icon', t.type === 'High' ? '▲' : '▼'));
+        entry.appendChild(el('span', 'te-label', t.type));
+        entry.appendChild(el('span', 'te-time', t.time));
+        container.appendChild(entry);
+    });
 }
 
 function setDir(aId, cId, vId, deg) {
