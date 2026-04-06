@@ -120,39 +120,68 @@
         .sb-calm     { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
         .sb-moderate { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
         .sb-rough    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-        .sea-state-row { display: flex; align-items: baseline; gap: 10px; padding: 10px 0 16px; border-bottom: 1px solid rgba(74, 93, 71, 0.12); margin-bottom: 18px; }
-        .ss-label { font-size: 1.05rem; font-weight: 600; color: #4A5D47; }
-        .ss-deg   { font-size: 0.78rem; color: #6B5F54; }
+        /* ── Section headings ── */
+        .section-heading { display: flex; align-items: center; gap: 8px; margin: 20px 0 12px; }
+        .section-heading:first-child { margin-top: 0; }
+        .section-heading-icon { font-size: 1.15rem; color: #4A5D47; }
+        .section-heading h3 { font-size: 1.05rem; font-weight: 600; color: #3A2F28; }
 
-        /* ── Metrics grid ── */
-        .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .m-tile { background: #FAF8F5; border: 1px solid rgba(74, 93, 71, 0.12); border-radius: 12px; padding: 15px 12px 13px; display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
-        .m-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.9px; color: #4A5D47; font-weight: 700; }
+        /* ── Card grids ── */
+        .card-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+        /* ── Metric cards ── */
+        .metric-card {
+            background: white; border: 1px solid rgba(74, 93, 71, 0.12);
+            border-radius: 14px; padding: 18px 16px;
+            box-shadow: 0 2px 8px rgba(58, 47, 40, 0.04);
+        }
+        .metric-card.tinted { background: linear-gradient(135deg, rgba(74, 93, 71, 0.06), rgba(139, 111, 71, 0.04)); border-color: rgba(74, 93, 71, 0.2); }
+        .metric-card-title { font-size: 0.75rem; font-weight: 500; color: #6B5F54; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .metric-card-title .mc-icon { font-size: 0.95rem; color: #4A5D47; }
+        .card-divider { border-top: 1px solid rgba(74, 93, 71, 0.12); margin: 12px 0; }
+        .metric-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+        /* ── Inner metric items (reused in cards) ── */
+        .m-item { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+        .m-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.9px; color: #4A5D47; font-weight: 700; margin-bottom: 2px; }
         .m-value { font-size: 1.95rem; font-weight: 700; color: #3A2F28; line-height: 1.1; }
+        .m-value.big { font-size: 3.2rem; }
+        .m-value.mid { font-size: 1.6rem; }
         .m-unit  { font-size: 0.75rem; color: #6B5F54; }
         .m-sub   { font-size: 0.75rem; color: #4A5D47; }
+        .m-hint  { font-size: 0.72rem; color: #6B5F54; margin-top: 4px; }
         .dir-arrow   { font-size: 1.45rem; color: #4A5D47; display: inline-block; line-height: 1; transition: transform 0.5s ease; }
         .dir-compass { font-size: 0.72rem; color: #6B5F54; }
-        .m-tile.tc-cold  { border-color: #93c5fd; }
-        .m-tile.tc-cool  { border-color: #5eead4; }
-        .m-tile.tc-warm  { border-color: #fde047; }
-        .m-tile.tc-hot   { border-color: #fca5a5; }
+
+        /* ── Centered card content ── */
+        .card-center { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 0; text-align: center; }
+
+        /* ── Douglas scale footer ── */
+        .douglas-footer { font-size: 0.75rem; color: #6B5F54; padding-top: 10px; border-top: 1px solid rgba(74, 93, 71, 0.08); margin-top: 10px; }
+        .douglas-footer .ss-label { font-weight: 600; color: #4A5D47; font-size: 0.75rem; }
+        .douglas-footer .ss-deg { font-size: 0.72rem; color: #6B5F54; margin-left: 6px; }
+
+        /* ── Temperature color coding ── */
+        .metric-card.tc-cold  { border-color: #93c5fd; }
+        .metric-card.tc-cool  { border-color: #5eead4; }
+        .metric-card.tc-warm  { border-color: #fde047; }
+        .metric-card.tc-hot   { border-color: #fca5a5; }
         .tc-cold .m-value { color: #2563eb; }
         .tc-cool .m-value { color: #0d9488; }
         .tc-warm .m-value { color: #ca8a04; }
         .tc-hot  .m-value { color: #dc2626; }
 
-        /* ── Two-column conditions layout ── */
-        .conditions-columns { display: flex; gap: 16px; }
-        .conditions-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
-        .col-heading { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4A5D47; padding-bottom: 4px; border-bottom: 1px solid rgba(74, 93, 71, 0.12); }
-        .metric-group { display: flex; flex-direction: column; gap: 6px; }
-        .group-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #6B5F54; }
-        .group-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .group-tiles.cols-2 { grid-template-columns: repeat(2, 1fr); }
-        .group-tiles.cols-1 { grid-template-columns: 1fr; }
-        .w-icon { font-size: 1.75rem; line-height: 1.2; }
-        .w-cond-label { font-size: 0.72rem; color: #6B5F54; }
+        /* ── Weather ── */
+        .w-icon { font-size: 2.2rem; line-height: 1.2; }
+        .w-cond-label { font-size: 0.8rem; color: #6B5F54; margin-top: 4px; }
+
+        /* ── Current direction block ── */
+        .current-dir { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .current-dir .dir-arrow { font-size: 1.8rem; }
+        .current-dir-text { text-align: left; }
+        .current-dir-text .dir-compass { font-size: 0.85rem; font-weight: 500; color: #3A2F28; }
+        .current-dir-text .m-sub { font-size: 0.72rem; }
 
         /* ── Forecast ── */
         .forecast-scroll { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 4px; }
@@ -205,15 +234,15 @@
         @media (max-width: 768px) {
             header h1 { font-size: 1.55rem; }
             .location-panel { width: 100%; padding-top: 0; }
-            .conditions-columns { flex-direction: column; }
-            .group-tiles { grid-template-columns: repeat(2, 1fr); }
-            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .card-grid-3 { grid-template-columns: 1fr; }
+            .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
             .m-value { font-size: 1.65rem; }
         }
         @media (max-width: 480px) {
             body { padding: 12px; }
             .card { padding: 18px 16px; }
             .location-section { padding: 16px; }
+            .card-grid-4 { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -273,58 +302,91 @@
             </div>
             <div class="safety-badge" id="safetyBadge"></div>
         </div>
-        <div class="sea-state-row">
-            <span class="ss-label" id="ssLabel"></span>
-            <span class="ss-deg"   id="ssDeg"></span>
+        <div class="section-heading">
+            <span class="section-heading-icon">🌊</span>
+            <h3>Marine Conditions</h3>
         </div>
-        <div class="conditions-columns">
-            <div class="conditions-col">
-                <div class="col-heading">Marine</div>
-                <div class="metric-group">
-                    <div class="group-label">Waves</div>
-                    <div class="group-tiles">
-                        <div class="m-tile"><div class="m-label">Height</div><div class="m-value" id="vWH">--</div><div class="m-unit">m</div></div>
-                        <div class="m-tile"><div class="m-label">Direction</div><div class="dir-arrow" id="aWD">↑</div><div class="dir-compass" id="cWD">--</div><div class="m-sub" id="vWD">--</div></div>
-                        <div class="m-tile"><div class="m-label">Period</div><div class="m-value" id="vWP">--</div><div class="m-unit">s</div></div>
-                    </div>
+        <div class="card-grid-3">
+            <div class="metric-card tinted">
+                <div class="metric-card-title"><span class="mc-icon">🌊</span> Waves &amp; Swell</div>
+                <div class="metric-row-3">
+                    <div class="m-item"><div class="m-label">Wave Height</div><div class="m-value" id="vWH">--</div><div class="m-unit">m</div></div>
+                    <div class="m-item"><div class="m-label">Direction</div><div class="dir-arrow" id="aWD">↑</div><div class="dir-compass" id="cWD">--</div><div class="m-sub" id="vWD">--</div></div>
+                    <div class="m-item"><div class="m-label">Period</div><div class="m-value" id="vWP">--</div><div class="m-unit">s</div></div>
                 </div>
-                <div class="metric-group">
-                    <div class="group-label">Swell</div>
-                    <div class="group-tiles">
-                        <div class="m-tile"><div class="m-label">Height</div><div class="m-value" id="vSH">--</div><div class="m-unit">m</div></div>
-                        <div class="m-tile"><div class="m-label">Direction</div><div class="dir-arrow" id="aSD">↑</div><div class="dir-compass" id="cSD">--</div><div class="m-sub" id="vSD">--</div></div>
-                        <div class="m-tile"><div class="m-label">Period</div><div class="m-value" id="vSP">--</div><div class="m-unit">s</div></div>
-                    </div>
+                <div class="card-divider"></div>
+                <div class="metric-row-3">
+                    <div class="m-item"><div class="m-label">Swell Height</div><div class="m-value mid" id="vSH">--</div><div class="m-unit">m</div></div>
+                    <div class="m-item"><div class="m-label">Direction</div><div class="dir-arrow" id="aSD">↑</div><div class="dir-compass" id="cSD">--</div><div class="m-sub" id="vSD">--</div></div>
+                    <div class="m-item"><div class="m-label">Period</div><div class="m-value mid" id="vSP">--</div><div class="m-unit">s</div></div>
                 </div>
-                <div class="metric-group">
-                    <div class="group-label">Sea &amp; Currents</div>
-                    <div class="group-tiles">
-                        <div class="m-tile" id="mSST"><div class="m-label">Sea Temp</div><div class="m-value" id="vSST">--</div><div class="m-unit">°C</div></div>
-                        <div class="m-tile"><div class="m-label">Speed</div><div class="m-value" id="vCS">--</div><div class="m-unit" id="uCS">km/h</div></div>
-                        <div class="m-tile"><div class="m-label">Direction</div><div class="dir-arrow" id="aCD">↑</div><div class="dir-compass" id="cCD">--</div><div class="m-sub" id="vCD">--</div></div>
+                <div class="douglas-footer">
+                    <span class="ss-label" id="ssLabel"></span>
+                    <span class="ss-deg" id="ssDeg"></span>
+                </div>
+            </div>
+
+            <div class="metric-card tinted" id="mSST">
+                <div class="metric-card-title"><span class="mc-icon">🌡️</span> Sea Temperature</div>
+                <div class="card-center">
+                    <div class="m-value big" id="vSST">--</div>
+                    <div class="m-unit">°C</div>
+                    <div class="m-hint" id="sstHint"></div>
+                </div>
+            </div>
+
+            <div class="metric-card tinted">
+                <div class="metric-card-title"><span class="mc-icon">🧭</span> Ocean Current</div>
+                <div class="card-center">
+                    <div class="m-value big" id="vCS">--</div>
+                    <div class="m-unit" id="uCS">km/h</div>
+                    <div class="current-dir">
+                        <div class="dir-arrow" id="aCD">↑</div>
+                        <div class="current-dir-text">
+                            <div class="dir-compass" id="cCD">--</div>
+                            <div class="m-sub" id="vCD">--</div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="conditions-col">
-                <div class="col-heading">Weather</div>
-                <div class="metric-group">
-                    <div class="group-label">Conditions</div>
-                    <div class="group-tiles cols-2">
-                        <div class="m-tile"><div class="m-label">Sky</div><div class="w-icon" id="vWIcon">--</div><div class="w-cond-label" id="vWCond"></div></div>
-                        <div class="m-tile"><div class="m-label">Precipitation</div><div class="m-value" id="vPrecip">--</div><div class="m-unit">mm</div></div>
-                    </div>
+        </div>
+
+        <div class="section-heading">
+            <span class="section-heading-icon">☁️</span>
+            <h3>General Weather</h3>
+        </div>
+        <div class="card-grid-4">
+            <div class="metric-card" id="mAirTemp">
+                <div class="metric-card-title">Air Temperature</div>
+                <div class="card-center">
+                    <div class="m-value big" id="vAirTemp">--</div>
+                    <div class="m-unit">°C</div>
                 </div>
-                <div class="metric-group">
-                    <div class="group-label">Wind</div>
-                    <div class="group-tiles cols-1">
-                        <div class="m-tile"><div class="m-label">Wind</div><div class="dir-arrow" id="aWind">↑</div><div class="m-value" id="vWind">--</div><div class="m-unit">km/h</div><div class="m-sub" id="vWindGust"></div></div>
-                    </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-card-title">Conditions</div>
+                <div class="card-center">
+                    <div class="w-icon" id="vWIcon">--</div>
+                    <div class="w-cond-label" id="vWCond"></div>
                 </div>
-                <div class="metric-group">
-                    <div class="group-label">Temperature</div>
-                    <div class="group-tiles cols-1">
-                        <div class="m-tile" id="mAirTemp"><div class="m-label">Air Temp</div><div class="m-value" id="vAirTemp">--</div><div class="m-unit">°C</div></div>
-                    </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-card-title">Precipitation</div>
+                <div class="card-center">
+                    <div class="m-value big" id="vPrecip">--</div>
+                    <div class="m-unit">mm</div>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-card-title">Wind</div>
+                <div class="card-center">
+                    <div class="dir-arrow" id="aWind">↑</div>
+                    <div class="m-value" id="vWind">--</div>
+                    <div class="m-unit">km/h</div>
+                    <div class="m-sub" id="vWindGust"></div>
                 </div>
             </div>
         </div>
@@ -659,7 +721,10 @@ function renderConditions(data, weather) {
     setDir('aSD','cSD','vSD', c.swell_wave_direction);
     document.getElementById('vSP').textContent = fmt(c.swell_wave_period, 0);
     document.getElementById('vSST').textContent = fmt(c.sea_surface_temperature);
-    document.getElementById('mSST').className   = 'm-tile ' + tempClass(c.sea_surface_temperature);
+    document.getElementById('mSST').className   = 'metric-card tinted ' + tempClass(c.sea_surface_temperature);
+    // SST hint
+    const sst = c.sea_surface_temperature;
+    document.getElementById('sstHint').textContent = sst != null ? (sst < 15 ? 'Wetsuit recommended' : sst < 20 ? 'Cool — spring suit' : sst < 26 ? 'Comfortable' : 'Warm waters') : '';
     document.getElementById('vCS').textContent  = fmt(c.ocean_current_velocity);
     if (u.ocean_current_velocity) document.getElementById('uCS').textContent = u.ocean_current_velocity;
     setDir('aCD','cCD','vCD', c.ocean_current_direction);
@@ -668,7 +733,7 @@ function renderConditions(data, weather) {
     const wc = weather?.current || {};
     const airTemp = wc.temperature_2m;
     document.getElementById('vAirTemp').textContent = fmt(airTemp, 1);
-    document.getElementById('mAirTemp').className = 'm-tile ' + tempClass(airTemp);
+    document.getElementById('mAirTemp').className = 'metric-card ' + tempClass(airTemp);
     const cond = wmoCondition(wc.weather_code);
     document.getElementById('vWIcon').textContent = cond.icon;
     document.getElementById('vWCond').textContent = cond.label;
