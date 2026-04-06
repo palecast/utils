@@ -142,10 +142,15 @@
         .tc-warm .m-value { color: #ca8a04; }
         .tc-hot  .m-value { color: #dc2626; }
 
-        /* ── Weather section (inside conditions card) ── */
-        .weather-divider { border-top: 1px solid rgba(74, 93, 71, 0.12); margin: 18px 0 14px; }
-        .weather-section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4A5D47; margin-bottom: 12px; }
-        .weather-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        /* ── Two-column conditions layout ── */
+        .conditions-columns { display: flex; gap: 16px; }
+        .conditions-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+        .col-heading { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4A5D47; padding-bottom: 4px; border-bottom: 1px solid rgba(74, 93, 71, 0.12); }
+        .metric-group { display: flex; flex-direction: column; gap: 6px; }
+        .group-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #6B5F54; }
+        .group-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .group-tiles.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .group-tiles.cols-1 { grid-template-columns: 1fr; }
         .w-icon { font-size: 1.75rem; line-height: 1.2; }
         .w-cond-label { font-size: 0.72rem; color: #6B5F54; }
 
@@ -200,8 +205,9 @@
         @media (max-width: 768px) {
             header h1 { font-size: 1.55rem; }
             .location-panel { width: 100%; padding-top: 0; }
+            .conditions-columns { flex-direction: column; }
+            .group-tiles { grid-template-columns: repeat(2, 1fr); }
             .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-            .weather-grid { grid-template-columns: repeat(2, 1fr) !important; }
             .m-value { font-size: 1.65rem; }
         }
         @media (max-width: 480px) {
@@ -271,24 +277,56 @@
             <span class="ss-label" id="ssLabel"></span>
             <span class="ss-deg"   id="ssDeg"></span>
         </div>
-        <div class="metrics-grid">
-            <div class="m-tile"><div class="m-label">Wave Height</div><div class="m-value" id="vWH">--</div><div class="m-unit">m</div></div>
-            <div class="m-tile"><div class="m-label">Wave Direction</div><div class="dir-arrow" id="aWD">↑</div><div class="dir-compass" id="cWD">--</div><div class="m-sub" id="vWD">--</div></div>
-            <div class="m-tile"><div class="m-label">Wave Period</div><div class="m-value" id="vWP">--</div><div class="m-unit">s</div></div>
-            <div class="m-tile"><div class="m-label">Swell Height</div><div class="m-value" id="vSH">--</div><div class="m-unit">m</div></div>
-            <div class="m-tile"><div class="m-label">Swell Direction</div><div class="dir-arrow" id="aSD">↑</div><div class="dir-compass" id="cSD">--</div><div class="m-sub" id="vSD">--</div></div>
-            <div class="m-tile"><div class="m-label">Swell Period</div><div class="m-value" id="vSP">--</div><div class="m-unit">s</div></div>
-            <div class="m-tile" id="mSST"><div class="m-label">Sea Temperature</div><div class="m-value" id="vSST">--</div><div class="m-unit">°C</div></div>
-            <div class="m-tile"><div class="m-label">Current Speed</div><div class="m-value" id="vCS">--</div><div class="m-unit" id="uCS">km/h</div></div>
-            <div class="m-tile"><div class="m-label">Current Direction</div><div class="dir-arrow" id="aCD">↑</div><div class="dir-compass" id="cCD">--</div><div class="m-sub" id="vCD">--</div></div>
-        </div>
-        <div class="weather-divider"></div>
-        <div class="weather-section-label">Weather</div>
-        <div class="metrics-grid weather-grid">
-            <div class="m-tile" id="mAirTemp"><div class="m-label">Air Temp</div><div class="m-value" id="vAirTemp">--</div><div class="m-unit">°C</div></div>
-            <div class="m-tile"><div class="m-label">Conditions</div><div class="w-icon" id="vWIcon">--</div><div class="w-cond-label" id="vWCond"></div></div>
-            <div class="m-tile"><div class="m-label">Precipitation</div><div class="m-value" id="vPrecip">--</div><div class="m-unit">mm</div></div>
-            <div class="m-tile"><div class="m-label">Wind</div><div class="dir-arrow" id="aWind">↑</div><div class="m-value" id="vWind">--</div><div class="m-unit">km/h</div><div class="m-sub" id="vWindGust"></div></div>
+        <div class="conditions-columns">
+            <div class="conditions-col">
+                <div class="col-heading">Marine</div>
+                <div class="metric-group">
+                    <div class="group-label">Waves</div>
+                    <div class="group-tiles">
+                        <div class="m-tile"><div class="m-label">Height</div><div class="m-value" id="vWH">--</div><div class="m-unit">m</div></div>
+                        <div class="m-tile"><div class="m-label">Direction</div><div class="dir-arrow" id="aWD">↑</div><div class="dir-compass" id="cWD">--</div><div class="m-sub" id="vWD">--</div></div>
+                        <div class="m-tile"><div class="m-label">Period</div><div class="m-value" id="vWP">--</div><div class="m-unit">s</div></div>
+                    </div>
+                </div>
+                <div class="metric-group">
+                    <div class="group-label">Swell</div>
+                    <div class="group-tiles">
+                        <div class="m-tile"><div class="m-label">Height</div><div class="m-value" id="vSH">--</div><div class="m-unit">m</div></div>
+                        <div class="m-tile"><div class="m-label">Direction</div><div class="dir-arrow" id="aSD">↑</div><div class="dir-compass" id="cSD">--</div><div class="m-sub" id="vSD">--</div></div>
+                        <div class="m-tile"><div class="m-label">Period</div><div class="m-value" id="vSP">--</div><div class="m-unit">s</div></div>
+                    </div>
+                </div>
+                <div class="metric-group">
+                    <div class="group-label">Sea &amp; Currents</div>
+                    <div class="group-tiles">
+                        <div class="m-tile" id="mSST"><div class="m-label">Sea Temp</div><div class="m-value" id="vSST">--</div><div class="m-unit">°C</div></div>
+                        <div class="m-tile"><div class="m-label">Speed</div><div class="m-value" id="vCS">--</div><div class="m-unit" id="uCS">km/h</div></div>
+                        <div class="m-tile"><div class="m-label">Direction</div><div class="dir-arrow" id="aCD">↑</div><div class="dir-compass" id="cCD">--</div><div class="m-sub" id="vCD">--</div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="conditions-col">
+                <div class="col-heading">Weather</div>
+                <div class="metric-group">
+                    <div class="group-label">Conditions</div>
+                    <div class="group-tiles cols-2">
+                        <div class="m-tile"><div class="m-label">Sky</div><div class="w-icon" id="vWIcon">--</div><div class="w-cond-label" id="vWCond"></div></div>
+                        <div class="m-tile"><div class="m-label">Precipitation</div><div class="m-value" id="vPrecip">--</div><div class="m-unit">mm</div></div>
+                    </div>
+                </div>
+                <div class="metric-group">
+                    <div class="group-label">Wind</div>
+                    <div class="group-tiles cols-1">
+                        <div class="m-tile"><div class="m-label">Wind</div><div class="dir-arrow" id="aWind">↑</div><div class="m-value" id="vWind">--</div><div class="m-unit">km/h</div><div class="m-sub" id="vWindGust"></div></div>
+                    </div>
+                </div>
+                <div class="metric-group">
+                    <div class="group-label">Temperature</div>
+                    <div class="group-tiles cols-1">
+                        <div class="m-tile" id="mAirTemp"><div class="m-label">Air Temp</div><div class="m-value" id="vAirTemp">--</div><div class="m-unit">°C</div></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
