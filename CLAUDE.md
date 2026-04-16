@@ -31,17 +31,20 @@ npx serve .
 
 ### Visual Design Conventions
 
-Most tools share the same purple gradient theme (`#667eea → #764ba2`). 
+See [DESIGN.md](DESIGN.md) for the full style guide (colors, typography, components, motion, responsive rules). Quick summary:
 
-**Standard tool structure:**
-- System font stack: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, ...`
-- Responsive via media queries at `max-width: 768px`
-- White card(s) on gradient background
+- **Palette**: warm off-white page (`#FAF8F5`), sage-green accent (`#4A5D47`), warm brown text (`#3A2F28` / `#6B5F54`). Shadows and borders are brown/accent-tinted — never black or gray.
+- **Font**: Inter (weights 300/400/500/600) from Google Fonts, with a system-font fallback stack.
+- **Layout**: white cards on the off-white background (not on a gradient); `border-radius` ladder of 8 / 12 / 16; single responsive breakpoint at `max-width: 768px`.
+- **One-offs**: `ccy-tracker.html` uses `DM Serif Display` for its distinct branding — intentional exception, not the standard.
+
+When adding or modifying a tool, follow DESIGN.md rather than copying styles from an arbitrary existing file — older tools may still reflect an earlier purple-gradient theme.
 
 ### External Dependencies (CDN)
 
+- **Inter** (`fonts.googleapis.com/css2?family=Inter`) — loaded by every standard tool (weights 300/400/500/600)
 - **Chart.js** (`cdn.jsdelivr.net/npm/chart.js`) — used by `currency-converter.html` and `ccy-tracker.html`
-- **Google Fonts** — used by `ccy-tracker.html` (DM Serif Display, Work Sans)
+- **DM Serif Display, Work Sans** (Google Fonts) — used only by `ccy-tracker.html` (intentional design exception)
 - **Tabulator** (`cdn.jsdelivr.net/npm/tabulator-tables@6`) — used by `org-chart.html` for the table/grid view
 - **d3-org-chart** (`cdn.jsdelivr.net/npm/d3-org-chart@3`) + **d3-flextree** — used by `org-chart.html` for the tree visualization
 - **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx`) — used by `org-chart.html` for Excel import/export
