@@ -366,6 +366,55 @@
             color: #6B5F54;
         }
 
+        .help-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #E8E5DF;
+            color: #6B5F54;
+            border: none;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 4px;
+            vertical-align: middle;
+            transition: background 0.2s;
+        }
+        .help-toggle-btn:hover { background: #d4d1cb; transform: none; }
+
+        .help-panel {
+            display: none;
+            background: rgba(232,229,223,0.4);
+            border: 1px solid rgba(74,93,71,0.12);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            font-size: 0.78rem;
+        }
+        .help-panel.visible { display: block; }
+        .help-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 3px 14px;
+            align-items: center;
+        }
+        .help-grid code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.74rem;
+            color: #4A5D47;
+            background: #FFFFFF;
+            padding: 1px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(74,93,71,0.12);
+        }
+        .help-grid span {
+            color: #6B5F54;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .workspace {
@@ -449,8 +498,20 @@
                 <div class="output-fields-header">
                     <span></span>
                     <span>Field Name</span>
-                    <span>Expression</span>
+                    <span>Expression <button class="help-toggle-btn" id="help-toggle-btn" title="Expression help">?</button></span>
                     <span></span>
+                </div>
+                <div class="help-panel" id="help-panel">
+                    <div class="help-grid">
+                        <code>{{Field}}</code><span>Raw value</span>
+                        <code>{{Field | upper}}</code><span>UPPERCASE</span>
+                        <code>{{Field | lower}}</code><span>lowercase</span>
+                        <code>{{Field | proper}}</code><span>Title Case</span>
+                        <code>{{Field | default("N/A")}}</code><span>Fallback if empty</span>
+                        <code>{{Field | item(2, ";")}}</code><span>2nd item, semicolon-delimited</span>
+                        <code>{{Field | item(1)}}</code><span>1st item, comma-delimited</span>
+                        <code>{{F | proper | default("?")}}</code><span>Chained pipes</span>
+                    </div>
                 </div>
                 <div id="output-fields-list"></div>
                 <div class="add-field-row">
@@ -504,14 +565,88 @@
         }
 
         // ── Template Engine ────────────────────────────────────────
+        function parsePipeArgs(argsStr) {
+            var args = [];
+            var current = '';
+            var inQuotes = false;
+            for (var i = 0; i < argsStr.length; i++) {
+                var ch = argsStr[i];
+                if (ch === '"') {
+                    inQuotes = !inQuotes;
+                } else if (ch === ',' && !inQuotes) {
+                    args.push(current.trim());
+                    current = '';
+                } else {
+                    current += ch;
+                }
+            }
+            if (current.trim()) args.push(current.trim());
+            return args;
+        }
+
+        function applyPipe(value, pipeExpr) {
+            var expr = pipeExpr.trim();
+            var match = expr.match(/^(\w+)(?:\((.+)\))?$/);
+            if (!match) return value;
+
+            var fn = match[1].toLowerCase();
+            var args = match[2] ? parsePipeArgs(match[2]) : [];
+
+            switch (fn) {
+                case 'upper':
+                    return String(value).toUpperCase();
+                case 'lower':
+                    return String(value).toLowerCase();
+                case 'proper':
+                    return String(value).replace(/\S+/g, function(w) {
+                        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+                    });
+                case 'default':
+                    var fallback = args[0] || '';
+                    return (value === '' || value == null) ? fallback : value;
+                case 'item':
+                    var index = parseInt(args[0], 10) || 1;
+                    var delimiter = args[1] || ',';
+                    var parts = String(value).split(delimiter);
+                    return (index >= 1 && index <= parts.length) ? parts[index - 1].trim() : '';
+                default:
+                    return value;
+            }
+        }
+
         function evaluateTemplate(expression, row) {
             if (!expression) return '';
-            return expression.replace(/\{\{(.+?)\}\}/g, function(match, fieldName) {
-                var trimmed = fieldName.trim();
-                if (trimmed in row) {
-                    return row[trimmed] != null ? String(row[trimmed]) : '';
+            return expression.replace(/\{\{(.+?)\}\}/g, function(match, inner) {
+                // Split on | that are outside of quotes
+                var segments = [];
+                var current = '';
+                var inQuotes = false;
+                for (var i = 0; i < inner.length; i++) {
+                    var ch = inner[i];
+                    if (ch === '"') {
+                        inQuotes = !inQuotes;
+                        current += ch;
+                    } else if (ch === '|' && !inQuotes) {
+                        segments.push(current);
+                        current = '';
+                    } else {
+                        current += ch;
+                    }
                 }
-                return match;
+                segments.push(current);
+
+                var fieldName = segments[0].trim();
+                var value;
+                if (fieldName in row) {
+                    value = row[fieldName] != null ? String(row[fieldName]) : '';
+                } else {
+                    return match;
+                }
+
+                for (var j = 1; j < segments.length; j++) {
+                    value = applyPipe(value, segments[j]);
+                }
+                return value;
             });
         }
 
@@ -686,7 +821,7 @@
                 exprInput.type = 'text';
                 exprInput.className = 'field-expr-input';
                 exprInput.value = field.expression;
-                exprInput.placeholder = 'e.g. {{First Name}} {{Last Name}}';
+                exprInput.placeholder = 'e.g. {{First Name | proper}} {{Last Name | upper}}';
                 exprInput.dataset.id = field.id;
                 exprInput.addEventListener('input', function() {
                     var f = outputFields.find(function(o) { return o.id === exprInput.dataset.id; });
@@ -1036,6 +1171,11 @@
             if (name && confirm('Delete preset "' + name + '"?')) {
                 deletePreset(name);
             }
+        });
+
+        // Help toggle
+        document.getElementById('help-toggle-btn').addEventListener('click', function() {
+            document.getElementById('help-panel').classList.toggle('visible');
         });
 
         // ── Init ───────────────────────────────────────────────────
