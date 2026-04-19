@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field Mapper</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #FAF8F5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: #4A5D47;
+            color: #FAF8F5;
+            padding: 10px 20px;
+            flex-shrink: 0;
+        }
+        header h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+        header a.disclaimer-link { color: rgba(250,248,245,0.7); font-size: 0.75rem; text-decoration: none; }
+        header a.disclaimer-link:hover { color: #FAF8F5; }
+
+        .workspace {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* Left Panel - Source */
+        .source-panel {
+            background: #FFFFFF;
+            border-right: 1px solid rgba(74,93,71,0.12);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid rgba(74,93,71,0.12);
+            flex-shrink: 0;
+        }
+        .panel-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6B5F54;
+            margin-bottom: 10px;
+        }
+
+        .upload-area {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        /* Buttons */
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background 0.2s, transform 0.1s;
+        }
+        button:hover { transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        .btn-primary { background: #4A5D47; color: #FAF8F5; }
+        .btn-primary:hover { background: #3D4E3B; }
+        .btn-secondary { background: #E8E5DF; color: #3A2F28; }
+        .btn-secondary:hover { background: #d4d1cb; }
+        .btn-danger { background: transparent; color: #c0392b; padding: 4px 8px; }
+        .btn-danger:hover { background: rgba(192,57,43,0.08); transform: none; }
+        .btn-small { padding: 5px 12px; font-size: 0.8rem; }
+
+        input[type="file"] { display: none; }
+
+        /* Source field chips */
+        .field-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .field-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #E8E5DF;
+            color: #4A5D47;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: grab;
+            user-select: none;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .field-chip:hover { background: #d4d1cb; box-shadow: 0 2px 8px rgba(58,47,40,0.1); }
+        .field-chip.dragging { opacity: 0.4; }
+
+        .chip-hint {
+            font-size: 0.75rem;
+            color: #6B5F54;
+            margin-top: 14px;
+            font-style: italic;
+        }
+
+        /* Source preview table */
+        .source-preview { margin-top: 16px; }
+        .source-preview-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6B5F54;
+            margin-bottom: 8px;
+        }
+
+        .preview-table-wrap {
+            overflow-x: auto;
+            border: 1px solid rgba(74,93,71,0.12);
+            border-radius: 8px;
+        }
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+        .preview-table th {
+            background: #F5F3F0;
+            color: #4A5D47;
+            font-weight: 600;
+            text-align: left;
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(74,93,71,0.12);
+            white-space: nowrap;
+        }
+        .preview-table td {
+            padding: 5px 10px;
+            border-bottom: 1px solid rgba(74,93,71,0.06);
+            color: #3A2F28;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .preview-table tr:last-child td { border-bottom: none; }
+
+        /* Right Panel - Output */
+        .output-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .output-toolbar {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(74,93,71,0.12);
+            background: #FFFFFF;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .toolbar-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .toolbar-separator {
+            width: 1px;
+            height: 24px;
+            background: rgba(74,93,71,0.12);
+            margin: 0 4px;
+        }
+        .preset-select {
+            padding: 6px 10px;
+            border: 1px solid rgba(74,93,71,0.12);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            color: #3A2F28;
+            background: #FFFFFF;
+            min-width: 140px;
+        }
+        .preset-select:focus { outline: none; border-color: #4A5D47; }
+
+        .save-input-wrap {
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
+        .save-input-wrap.visible { display: flex; }
+        .save-input {
+            padding: 6px 10px;
+            border: 2px solid rgba(74,93,71,0.12);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            color: #3A2F28;
+            width: 160px;
+        }
+        .save-input:focus { outline: none; border-color: #4A5D47; }
+
+        .toolbar-spacer { flex: 1; }
+
+        /* Output fields list */
+        .output-fields-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            background: #FAF8F5;
+        }
+
+        .output-field-row {
+            display: grid;
+            grid-template-columns: 28px 1fr 2fr 28px;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 12px;
+            background: #FFFFFF;
+            border: 1px solid rgba(74,93,71,0.12);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .output-field-row:hover { box-shadow: 0 2px 8px rgba(58,47,40,0.06); }
+        .output-field-row.drag-over-row {
+            border-color: #4A5D47;
+            box-shadow: 0 0 0 2px rgba(74,93,71,0.15);
+        }
+        .output-field-row.dragging-row { opacity: 0.4; }
+
+        .drag-handle {
+            cursor: grab;
+            color: #6B5F54;
+            font-size: 1rem;
+            text-align: center;
+            user-select: none;
+            opacity: 0.4;
+            transition: opacity 0.2s;
+        }
+        .drag-handle:hover { opacity: 0.8; }
+
+        .field-name-input,
+        .field-expr-input {
+            padding: 6px 10px;
+            border: 2px solid rgba(74,93,71,0.12);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            color: #3A2F28;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+        .field-name-input:focus,
+        .field-expr-input:focus {
+            outline: none;
+            border-color: #4A5D47;
+        }
+        .field-expr-input.drop-target {
+            border-color: #4A5D47;
+            background: rgba(74,93,71,0.04);
+        }
+        .field-expr-input::placeholder { color: #a89e95; }
+        .field-name-input::placeholder { color: #a89e95; }
+
+        .remove-field-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #a89e95;
+            font-size: 1.1rem;
+            padding: 2px;
+            border-radius: 4px;
+            transition: color 0.2s, background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .remove-field-btn:hover { color: #c0392b; background: rgba(192,57,43,0.08); transform: none; }
+
+        .add-field-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        /* Output preview */
+        .output-preview-section {
+            border-top: 1px solid rgba(74,93,71,0.12);
+            background: #FFFFFF;
+            flex-shrink: 0;
+            max-height: 240px;
+            overflow: auto;
+            padding: 12px 20px;
+        }
+        .output-preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        /* Empty states */
+        .empty-state {
+            color: #a89e95;
+            font-size: 0.88rem;
+            text-align: center;
+            padding: 32px 20px;
+            line-height: 1.6;
+        }
+
+        .source-filename {
+            font-size: 0.78rem;
+            color: #6B5F54;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .source-filename .row-count {
+            background: #E8E5DF;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 500;
+        }
+
+        /* Column headers row */
+        .output-fields-header {
+            display: grid;
+            grid-template-columns: 28px 1fr 2fr 28px;
+            gap: 8px;
+            padding: 0 12px 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6B5F54;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            .source-panel {
+                border-right: none;
+                border-bottom: 1px solid rgba(74,93,71,0.12);
+                max-height: 260px;
+            }
+            .output-toolbar { flex-wrap: wrap; }
+            .output-field-row {
+                grid-template-columns: 28px 1fr 28px;
+            }
+            .field-expr-input {
+                grid-column: 1 / -1;
+                margin-top: 4px;
+            }
+            .output-fields-header { display: none; }
+            header h1 { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Field Mapper</h1>
+        <a href="/disclaimer.html" class="disclaimer-link">Disclaimer</a>
+    </header>
+
+    <div class="workspace">
+        <!-- Left Panel: Source -->
+        <div class="source-panel">
+            <div class="panel-header">
+                <div class="panel-title">Source File</div>
+                <div class="upload-area">
+                    <button class="btn-primary btn-small" id="source-upload-btn">Load File</button>
+                    <input type="file" id="source-file-input" accept=".csv,.xlsx,.xls">
+                </div>
+                <div class="source-filename" id="source-file-info" style="display:none">
+                    <span id="source-filename-text"></span>
+                    <span class="row-count" id="source-row-count"></span>
+                </div>
+            </div>
+            <div class="panel-body" id="source-panel-body">
+                <div class="empty-state">
+                    Load a CSV or Excel file to see its fields
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Output -->
+        <div class="output-panel">
+            <div class="output-toolbar">
+                <div class="toolbar-group">
+                    <button class="btn-secondary btn-small" id="load-template-btn">Load Template File</button>
+                    <input type="file" id="template-file-input" accept=".csv,.xlsx,.xls">
+                </div>
+                <div class="toolbar-separator"></div>
+                <div class="toolbar-group">
+                    <select class="preset-select" id="preset-select">
+                        <option value="">Presets...</option>
+                    </select>
+                    <button class="btn-secondary btn-small" id="load-preset-btn">Load</button>
+                    <button class="btn-secondary btn-small" id="save-preset-btn">Save As</button>
+                    <button class="btn-danger btn-small" id="delete-preset-btn">Delete</button>
+                </div>
+                <div class="save-input-wrap" id="save-input-wrap">
+                    <input type="text" class="save-input" id="save-input" placeholder="Preset name...">
+                    <button class="btn-primary btn-small" id="save-confirm-btn">Save</button>
+                    <button class="btn-secondary btn-small" id="save-cancel-btn">Cancel</button>
+                </div>
+                <div class="toolbar-spacer"></div>
+                <div class="toolbar-group">
+                    <button class="btn-primary btn-small" id="export-csv-btn">Export CSV</button>
+                    <button class="btn-primary btn-small" id="export-excel-btn">Export Excel</button>
+                </div>
+            </div>
+
+            <div class="output-fields-section" id="output-fields-section">
+                <div class="output-fields-header">
+                    <span></span>
+                    <span>Field Name</span>
+                    <span>Expression</span>
+                    <span></span>
+                </div>
+                <div id="output-fields-list"></div>
+                <div class="add-field-row">
+                    <button class="btn-secondary btn-small" id="add-field-btn">+ Add Field</button>
+                </div>
+            </div>
+
+            <div class="output-preview-section" id="output-preview-section">
+                <div class="output-preview-header">
+                    <div class="panel-title" style="margin-bottom:0">Output Preview</div>
+                </div>
+                <div id="output-preview">
+                    <div class="empty-state" style="padding:16px">Define output fields and load source data to see a preview</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script>
+        // ── State ──────────────────────────────────────────────────
+        var sourceHeaders = [];
+        var sourceData = [];
+        var outputFields = [];
+        var presets = {};
+        var lastFocusedExprInput = null;
+        var idCounter = 0;
+
+        var STORAGE_KEY = 'fieldMapperPresets';
+        var PREVIEW_ROWS = 8;
+
+        // ── Utilities ──────────────────────────────────────────────
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function escapeCsvValue(str) {
+            var s = String(str);
+            if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                return '"' + s.replace(/"/g, '""') + '"';
+            }
+            return s;
+        }
+
+        function generateId() {
+            return 'f' + (++idCounter) + '_' + Date.now();
+        }
+
+        // ── Template Engine ────────────────────────────────────────
+        function evaluateTemplate(expression, row) {
+            if (!expression) return '';
+            return expression.replace(/\{\{(.+?)\}\}/g, function(match, fieldName) {
+                var trimmed = fieldName.trim();
+                if (trimmed in row) {
+                    return row[trimmed] != null ? String(row[trimmed]) : '';
+                }
+                return match;
+            });
+        }
+
+        function transformAllRows() {
+            return sourceData.map(function(row) {
+                var outputRow = {};
+                outputFields.forEach(function(field) {
+                    outputRow[field.name || 'Unnamed'] = evaluateTemplate(field.expression, row);
+                });
+                return outputRow;
+            });
+        }
+
+        // ── File Import ───────────────────────────────────────────
+        function parseFile(file, callback) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var data = new Uint8Array(e.target.result);
+                    var workbook = XLSX.read(data, { type: 'array' });
+                    var sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    var jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                    if (jsonData.length === 0) {
+                        alert('The file appears to be empty.');
+                        return;
+                    }
+                    var headers = Object.keys(jsonData[0]);
+                    callback(headers, jsonData, file.name);
+                } catch (err) {
+                    alert('Error reading file: ' + err.message);
+                }
+            };
+            reader.onerror = function() { alert('Error reading file.'); };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function importSourceFile(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            parseFile(file, function(headers, data, filename) {
+                sourceHeaders = headers;
+                sourceData = data;
+                renderSourcePanel(filename);
+                schedulePreviewUpdate();
+            });
+            event.target.value = '';
+        }
+
+        function importTemplateFile(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            parseFile(file, function(headers) {
+                outputFields = headers.map(function(h) {
+                    return { id: generateId(), name: h, expression: '' };
+                });
+                renderOutputFields();
+                schedulePreviewUpdate();
+            });
+            event.target.value = '';
+        }
+
+        // ── Source Panel Rendering (safe DOM construction) ─────────
+        function renderSourcePanel(filename) {
+            var body = document.getElementById('source-panel-body');
+            body.textContent = '';
+
+            // File info
+            var info = document.getElementById('source-file-info');
+            info.style.display = 'flex';
+            document.getElementById('source-filename-text').textContent = filename;
+            document.getElementById('source-row-count').textContent = sourceData.length + ' rows';
+
+            // Field chips container
+            var chipsDiv = document.createElement('div');
+            chipsDiv.className = 'field-chips';
+            chipsDiv.id = 'source-chips';
+
+            sourceHeaders.forEach(function(h) {
+                var chip = document.createElement('span');
+                chip.className = 'field-chip';
+                chip.draggable = true;
+                chip.dataset.field = h;
+                chip.textContent = h;
+                setupChipDrag(chip);
+                chip.addEventListener('click', function() {
+                    if (lastFocusedExprInput) {
+                        insertFieldRef(lastFocusedExprInput, chip.dataset.field);
+                    }
+                });
+                chipsDiv.appendChild(chip);
+            });
+            body.appendChild(chipsDiv);
+
+            // Hint
+            var hint = document.createElement('div');
+            hint.className = 'chip-hint';
+            hint.textContent = 'Drag fields into output expressions, or click to insert';
+            body.appendChild(hint);
+
+            // Preview table
+            var previewDiv = document.createElement('div');
+            previewDiv.className = 'source-preview';
+
+            var label = document.createElement('div');
+            label.className = 'source-preview-label';
+            label.textContent = 'Preview (first ' + Math.min(PREVIEW_ROWS, sourceData.length) + ' rows)';
+            previewDiv.appendChild(label);
+
+            var tableWrap = document.createElement('div');
+            tableWrap.className = 'preview-table-wrap';
+
+            var table = document.createElement('table');
+            table.className = 'preview-table';
+
+            var thead = document.createElement('thead');
+            var headRow = document.createElement('tr');
+            sourceHeaders.forEach(function(h) {
+                var th = document.createElement('th');
+                th.textContent = h;
+                headRow.appendChild(th);
+            });
+            thead.appendChild(headRow);
+            table.appendChild(thead);
+
+            var tbody = document.createElement('tbody');
+            sourceData.slice(0, PREVIEW_ROWS).forEach(function(row) {
+                var tr = document.createElement('tr');
+                sourceHeaders.forEach(function(h) {
+                    var td = document.createElement('td');
+                    td.textContent = row[h] != null ? String(row[h]) : '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            tableWrap.appendChild(table);
+            previewDiv.appendChild(tableWrap);
+            body.appendChild(previewDiv);
+        }
+
+        // ── Output Fields Rendering (safe DOM construction) ────────
+        function renderOutputFields() {
+            var list = document.getElementById('output-fields-list');
+            list.textContent = '';
+
+            outputFields.forEach(function(field) {
+                var row = document.createElement('div');
+                row.className = 'output-field-row';
+                row.dataset.id = field.id;
+
+                var handle = document.createElement('div');
+                handle.className = 'drag-handle';
+                handle.draggable = true;
+                handle.title = 'Drag to reorder';
+                handle.textContent = '\u2630';
+                row.appendChild(handle);
+
+                var nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'field-name-input';
+                nameInput.value = field.name;
+                nameInput.placeholder = 'Field name';
+                nameInput.dataset.id = field.id;
+                nameInput.addEventListener('input', function() {
+                    var f = outputFields.find(function(o) { return o.id === nameInput.dataset.id; });
+                    if (f) f.name = nameInput.value;
+                    schedulePreviewUpdate();
+                });
+                row.appendChild(nameInput);
+
+                var exprInput = document.createElement('input');
+                exprInput.type = 'text';
+                exprInput.className = 'field-expr-input';
+                exprInput.value = field.expression;
+                exprInput.placeholder = 'e.g. {{First Name}} {{Last Name}}';
+                exprInput.dataset.id = field.id;
+                exprInput.addEventListener('input', function() {
+                    var f = outputFields.find(function(o) { return o.id === exprInput.dataset.id; });
+                    if (f) f.expression = exprInput.value;
+                    schedulePreviewUpdate();
+                });
+                exprInput.addEventListener('focus', function() {
+                    lastFocusedExprInput = exprInput;
+                });
+                setupExpressionDrop(exprInput);
+                row.appendChild(exprInput);
+
+                var removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-field-btn';
+                removeBtn.dataset.id = field.id;
+                removeBtn.title = 'Remove field';
+                removeBtn.textContent = '\u2715';
+                removeBtn.addEventListener('click', function() {
+                    outputFields = outputFields.filter(function(o) { return o.id !== removeBtn.dataset.id; });
+                    renderOutputFields();
+                    schedulePreviewUpdate();
+                });
+                row.appendChild(removeBtn);
+
+                list.appendChild(row);
+            });
+
+            setupOutputReorder();
+        }
+
+        // ── Output Preview (safe DOM construction) ─────────────────
+        var previewDebounceTimer = null;
+
+        function schedulePreviewUpdate() {
+            clearTimeout(previewDebounceTimer);
+            previewDebounceTimer = setTimeout(renderOutputPreview, 300);
+        }
+
+        function renderOutputPreview() {
+            var container = document.getElementById('output-preview');
+            container.textContent = '';
+
+            if (!sourceData.length || !outputFields.length) {
+                var empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.style.padding = '16px';
+                empty.textContent = 'Define output fields and load source data to see a preview';
+                container.appendChild(empty);
+                return;
+            }
+
+            var previewData = sourceData.slice(0, PREVIEW_ROWS);
+            var transformed = previewData.map(function(row) {
+                var outputRow = {};
+                outputFields.forEach(function(field) {
+                    outputRow[field.name || 'Unnamed'] = evaluateTemplate(field.expression, row);
+                });
+                return outputRow;
+            });
+
+            var tableWrap = document.createElement('div');
+            tableWrap.className = 'preview-table-wrap';
+
+            var table = document.createElement('table');
+            table.className = 'preview-table';
+
+            var thead = document.createElement('thead');
+            var headRow = document.createElement('tr');
+            outputFields.forEach(function(f) {
+                var th = document.createElement('th');
+                th.textContent = f.name || 'Unnamed';
+                headRow.appendChild(th);
+            });
+            thead.appendChild(headRow);
+            table.appendChild(thead);
+
+            var tbody = document.createElement('tbody');
+            transformed.forEach(function(row) {
+                var tr = document.createElement('tr');
+                outputFields.forEach(function(f) {
+                    var td = document.createElement('td');
+                    td.textContent = row[f.name || 'Unnamed'];
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            tableWrap.appendChild(table);
+            container.appendChild(tableWrap);
+        }
+
+        // ── Drag & Drop: Source chip → Expression input ────────────
+        function setupChipDrag(chipEl) {
+            chipEl.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('application/field-name', chipEl.dataset.field);
+                e.dataTransfer.effectAllowed = 'copy';
+                chipEl.classList.add('dragging');
+            });
+            chipEl.addEventListener('dragend', function() {
+                chipEl.classList.remove('dragging');
+            });
+        }
+
+        function setupExpressionDrop(inputEl) {
+            inputEl.addEventListener('dragover', function(e) {
+                if (e.dataTransfer.types.indexOf('application/field-name') !== -1) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    inputEl.classList.add('drop-target');
+                }
+            });
+            inputEl.addEventListener('dragleave', function() {
+                inputEl.classList.remove('drop-target');
+            });
+            inputEl.addEventListener('drop', function(e) {
+                var fieldName = e.dataTransfer.getData('application/field-name');
+                if (!fieldName) return;
+                e.preventDefault();
+                inputEl.classList.remove('drop-target');
+                insertFieldRef(inputEl, fieldName);
+            });
+        }
+
+        function insertFieldRef(inputEl, fieldName) {
+            var insertion = '{{' + fieldName + '}}';
+            var start = inputEl.selectionStart != null ? inputEl.selectionStart : inputEl.value.length;
+            var end = inputEl.selectionEnd != null ? inputEl.selectionEnd : inputEl.value.length;
+            inputEl.value = inputEl.value.substring(0, start) + insertion + inputEl.value.substring(end);
+            inputEl.selectionStart = inputEl.selectionEnd = start + insertion.length;
+            inputEl.focus();
+            inputEl.dispatchEvent(new Event('input'));
+        }
+
+        // ── Drag & Drop: Output field reorder ──────────────────────
+        function setupOutputReorder() {
+            var container = document.getElementById('output-fields-list');
+            var draggedRow = null;
+
+            container.addEventListener('dragstart', function(e) {
+                var handle = e.target.closest('.drag-handle');
+                if (!handle) return;
+                draggedRow = handle.closest('.output-field-row');
+                if (!draggedRow) return;
+                draggedRow.classList.add('dragging-row');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', draggedRow.dataset.id);
+            });
+
+            container.addEventListener('dragover', function(e) {
+                if (!draggedRow) return;
+                e.preventDefault();
+                var afterElement = getDragAfterElement(container, e.clientY);
+                if (afterElement) {
+                    container.insertBefore(draggedRow, afterElement);
+                } else {
+                    container.appendChild(draggedRow);
+                }
+            });
+
+            container.addEventListener('dragend', function() {
+                if (draggedRow) {
+                    draggedRow.classList.remove('dragging-row');
+                    draggedRow = null;
+                    syncOutputFieldOrder();
+                    schedulePreviewUpdate();
+                }
+            });
+        }
+
+        function getDragAfterElement(container, y) {
+            var elements = Array.from(container.querySelectorAll('.output-field-row:not(.dragging-row)'));
+            var result = { offset: Number.NEGATIVE_INFINITY, element: null };
+            elements.forEach(function(child) {
+                var box = child.getBoundingClientRect();
+                var offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > result.offset) {
+                    result.offset = offset;
+                    result.element = child;
+                }
+            });
+            return result.element;
+        }
+
+        function syncOutputFieldOrder() {
+            var rows = document.querySelectorAll('#output-fields-list .output-field-row');
+            var reordered = [];
+            rows.forEach(function(row) {
+                var field = outputFields.find(function(f) { return f.id === row.dataset.id; });
+                if (field) reordered.push(field);
+            });
+            outputFields = reordered;
+        }
+
+        // ── Presets ────────────────────────────────────────────────
+        function loadPresets() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY);
+                presets = raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                presets = {};
+            }
+            renderPresetSelector();
+        }
+
+        function renderPresetSelector() {
+            var select = document.getElementById('preset-select');
+            var currentValue = select.value;
+            select.textContent = '';
+            var defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = 'Presets...';
+            select.appendChild(defaultOpt);
+
+            Object.keys(presets).sort().forEach(function(name) {
+                var opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+
+            if (currentValue && presets[currentValue]) {
+                select.value = currentValue;
+            }
+        }
+
+        function savePreset(name) {
+            if (!name || !name.trim()) return;
+            presets[name.trim()] = {
+                fields: outputFields.map(function(f) { return { name: f.name, expression: f.expression }; })
+            };
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+            } catch (e) { /* localStorage unavailable */ }
+            renderPresetSelector();
+            document.getElementById('preset-select').value = name.trim();
+        }
+
+        function applyPreset(name) {
+            var preset = presets[name];
+            if (!preset) return;
+            outputFields = preset.fields.map(function(f) {
+                return { id: generateId(), name: f.name, expression: f.expression };
+            });
+            renderOutputFields();
+            schedulePreviewUpdate();
+        }
+
+        function deletePreset(name) {
+            if (!name) return;
+            delete presets[name];
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+            } catch (e) { /* localStorage unavailable */ }
+            renderPresetSelector();
+        }
+
+        // ── Export ─────────────────────────────────────────────────
+        function exportCSV() {
+            if (!sourceData.length) { alert('No source data loaded.'); return; }
+            if (!outputFields.length) { alert('No output fields defined.'); return; }
+
+            var transformed = transformAllRows();
+            var headers = outputFields.map(function(f) { return f.name || 'Unnamed'; });
+
+            var csv = headers.map(escapeCsvValue).join(',') + '\n';
+            transformed.forEach(function(row) {
+                csv += headers.map(function(h) { return escapeCsvValue(String(row[h] || '')); }).join(',') + '\n';
+            });
+
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'mapped-output.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportExcel() {
+            if (!sourceData.length) { alert('No source data loaded.'); return; }
+            if (!outputFields.length) { alert('No output fields defined.'); return; }
+
+            var transformed = transformAllRows();
+            var ws = XLSX.utils.json_to_sheet(transformed);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Mapped Data');
+            XLSX.writeFile(wb, 'mapped-output.xlsx');
+        }
+
+        // ── Event Wiring ──────────────────────────────────────────
+        document.getElementById('source-upload-btn').addEventListener('click', function() {
+            document.getElementById('source-file-input').click();
+        });
+        document.getElementById('source-file-input').addEventListener('change', importSourceFile);
+
+        document.getElementById('load-template-btn').addEventListener('click', function() {
+            document.getElementById('template-file-input').click();
+        });
+        document.getElementById('template-file-input').addEventListener('change', importTemplateFile);
+
+        document.getElementById('add-field-btn').addEventListener('click', function() {
+            outputFields.push({ id: generateId(), name: '', expression: '' });
+            renderOutputFields();
+        });
+
+        document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+        document.getElementById('export-excel-btn').addEventListener('click', exportExcel);
+
+        // Preset buttons
+        document.getElementById('load-preset-btn').addEventListener('click', function() {
+            var name = document.getElementById('preset-select').value;
+            if (name) applyPreset(name);
+        });
+
+        document.getElementById('save-preset-btn').addEventListener('click', function() {
+            var wrap = document.getElementById('save-input-wrap');
+            wrap.classList.add('visible');
+            var input = document.getElementById('save-input');
+            input.value = '';
+            input.focus();
+        });
+
+        document.getElementById('save-confirm-btn').addEventListener('click', function() {
+            var name = document.getElementById('save-input').value;
+            if (name.trim()) {
+                savePreset(name);
+                document.getElementById('save-input-wrap').classList.remove('visible');
+            }
+        });
+
+        document.getElementById('save-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('save-confirm-btn').click();
+            } else if (e.key === 'Escape') {
+                document.getElementById('save-input-wrap').classList.remove('visible');
+            }
+        });
+
+        document.getElementById('save-cancel-btn').addEventListener('click', function() {
+            document.getElementById('save-input-wrap').classList.remove('visible');
+        });
+
+        document.getElementById('delete-preset-btn').addEventListener('click', function() {
+            var name = document.getElementById('preset-select').value;
+            if (name && confirm('Delete preset "' + name + '"?')) {
+                deletePreset(name);
+            }
+        });
+
+        // ── Init ───────────────────────────────────────────────────
+        loadPresets();
+    </script>
+</body>
+</html>
