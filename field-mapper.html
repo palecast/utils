@@ -414,6 +414,52 @@
         .help-grid span {
             color: #6B5F54;
         }
+        .help-section {
+            grid-column: 1 / -1;
+            margin-top: 8px;
+            font-size: 0.66rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #4A5D47;
+            border-bottom: 1px solid rgba(74,93,71,0.12);
+            padding-bottom: 2px;
+        }
+        .help-section:first-child { margin-top: 0; }
+
+        /* Field autocomplete */
+        .field-autocomplete {
+            position: absolute;
+            display: none;
+            background: #FFFFFF;
+            border: 1px solid #4A5D47;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(58,47,40,0.12);
+            max-height: 220px;
+            overflow-y: auto;
+            min-width: 180px;
+            z-index: 1000;
+            padding: 4px 0;
+        }
+        .field-autocomplete-item {
+            padding: 6px 12px;
+            font-size: 0.84rem;
+            color: #3A2F28;
+            cursor: pointer;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+        }
+        .field-autocomplete-item.active,
+        .field-autocomplete-item:hover {
+            background: rgba(74,93,71,0.1);
+            color: #4A5D47;
+        }
+        .field-autocomplete-empty {
+            padding: 8px 12px;
+            font-size: 0.78rem;
+            color: #a89e95;
+            font-style: italic;
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -503,14 +549,37 @@
                 </div>
                 <div class="help-panel" id="help-panel">
                     <div class="help-grid">
+                        <div class="help-section">Basics</div>
                         <code>{{Field}}</code><span>Raw value</span>
+                        <code>{{F | proper | default("?")}}</code><span>Chained pipes</span>
+
+                        <div class="help-section">Strings</div>
                         <code>{{Field | upper}}</code><span>UPPERCASE</span>
                         <code>{{Field | lower}}</code><span>lowercase</span>
                         <code>{{Field | proper}}</code><span>Title Case</span>
-                        <code>{{Field | default("N/A")}}</code><span>Fallback if empty</span>
+                        <code>{{Field | trim}}</code><span>Strip leading/trailing whitespace</span>
+                        <code>{{Field | replace("-","")}}</code><span>Find &amp; replace (literal, all occurrences)</span>
+                        <code>{{Field | slice(0,4)}}</code><span>Substring (negative indices supported)</span>
+                        <code>{{Field | truncate(50)}}</code><span>Cap length (default suffix &hellip;)</span>
+                        <code>{{Field | truncate(50,"...")}}</code><span>Cap length with custom suffix</span>
+                        <code>{{Field | padleft(6,"0")}}</code><span>Zero-pad left to width 6</span>
+                        <code>{{Field | padright(10," ")}}</code><span>Pad right to width 10</span>
                         <code>{{Field | item(2, ";")}}</code><span>2nd item, semicolon-delimited</span>
-                        <code>{{Field | item(1)}}</code><span>1st item, comma-delimited</span>
-                        <code>{{F | proper | default("?")}}</code><span>Chained pipes</span>
+
+                        <div class="help-section">Numbers</div>
+                        <code>{{Field | round(2)}}</code><span>Round to 2 decimal places</span>
+                        <code>{{Field | number}}</code><span>Coerce to number (Excel keeps numeric type)</span>
+                        <code>{{Field | abs}}</code><span>Absolute value</span>
+
+                        <div class="help-section">Dates</div>
+                        <code>{{Field | date("YYYY-MM-DD")}}</code><span>Reformat (auto-detects ISO + Excel serials)</span>
+                        <code>{{Field | date("DD/MM/YYYY","YYYY-MM-DD")}}</code><span>Explicit input format then output format</span>
+                        <span style="font-size:0.72rem;color:#6B5F54;grid-column:1/-1;font-style:italic;margin-top:2px">Tokens: YYYY YY MM M DD D HH H mm m ss s</span>
+
+                        <div class="help-section">Fallbacks</div>
+                        <code>{{Field | default("N/A")}}</code><span>Literal fallback if empty</span>
+                        <code>{{Email | else({{Backup Email}})}}</code><span>Use another field if empty</span>
+                        <code>{{A | else({{B}}) | else("?")}}</code><span>Chain fallbacks across fields</span>
                     </div>
                 </div>
                 <div id="output-fields-list"></div>
@@ -529,6 +598,8 @@
             </div>
         </div>
     </div>
+
+    <div class="field-autocomplete" id="field-autocomplete"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script>
@@ -569,11 +640,20 @@
             var args = [];
             var current = '';
             var inQuotes = false;
+            var braceDepth = 0;
             for (var i = 0; i < argsStr.length; i++) {
                 var ch = argsStr[i];
                 if (ch === '"') {
                     inQuotes = !inQuotes;
-                } else if (ch === ',' && !inQuotes) {
+                } else if (!inQuotes && ch === '{' && argsStr[i+1] === '{') {
+                    braceDepth++;
+                    current += '{{';
+                    i++;
+                } else if (!inQuotes && braceDepth > 0 && ch === '}' && argsStr[i+1] === '}') {
+                    braceDepth--;
+                    current += '}}';
+                    i++;
+                } else if (ch === ',' && !inQuotes && braceDepth === 0) {
                     args.push(current.trim());
                     current = '';
                 } else {
@@ -584,13 +664,93 @@
             return args;
         }
 
-        function applyPipe(value, pipeExpr) {
+        function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+        function formatDate(d, fmt) {
+            var Y = d.getFullYear();
+            var M = d.getMonth() + 1;
+            var D = d.getDate();
+            var H = d.getHours();
+            var mi = d.getMinutes();
+            var s = d.getSeconds();
+            var tokens = {
+                YYYY: String(Y), YY: pad2(Y % 100),
+                MM: pad2(M), M: String(M),
+                DD: pad2(D), D: String(D),
+                HH: pad2(H), H: String(H),
+                mm: pad2(mi), m: String(mi),
+                ss: pad2(s), s: String(s)
+            };
+            return fmt.replace(/YYYY|YY|MM|M|DD|D|HH|H|mm|m|ss|s/g, function(t) {
+                return tokens[t];
+            });
+        }
+
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function buildDateParseRegex(inFmt) {
+            var regexParts = [];
+            var captureKeys = [];
+            var lastIdx = 0;
+            inFmt.replace(/YYYY|YY|MM|M|DD|D|HH|H|mm|m|ss|s/g, function(token, offset) {
+                if (offset > lastIdx) {
+                    regexParts.push(escapeRegex(inFmt.substring(lastIdx, offset)));
+                }
+                captureKeys.push(token);
+                regexParts.push(token.length === 4 ? '(\\d{4})' : '(\\d{1,2})');
+                lastIdx = offset + token.length;
+                return token;
+            });
+            if (lastIdx < inFmt.length) {
+                regexParts.push(escapeRegex(inFmt.substring(lastIdx)));
+            }
+            return { re: new RegExp('^' + regexParts.join('') + '$'), keys: captureKeys };
+        }
+
+        function parseDateValue(value, inFmt) {
+            if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+            var str = String(value).trim();
+            if (!str) return null;
+            if (inFmt) {
+                var parser = buildDateParseRegex(inFmt);
+                var match = str.match(parser.re);
+                if (!match) return null;
+                var p = { Y: 1970, M: 1, D: 1, H: 0, mi: 0, s: 0 };
+                for (var i = 0; i < parser.keys.length; i++) {
+                    var k = parser.keys[i];
+                    var v = parseInt(match[i + 1], 10);
+                    if (k === 'YYYY') p.Y = v;
+                    else if (k === 'YY') p.Y = (v < 70 ? 2000 : 1900) + v;
+                    else if (k === 'MM' || k === 'M') p.M = v;
+                    else if (k === 'DD' || k === 'D') p.D = v;
+                    else if (k === 'HH' || k === 'H') p.H = v;
+                    else if (k === 'mm' || k === 'm') p.mi = v;
+                    else if (k === 'ss' || k === 's') p.s = v;
+                }
+                var dt = new Date(p.Y, p.M - 1, p.D, p.H, p.mi, p.s);
+                return isNaN(dt.getTime()) ? null : dt;
+            }
+            // Auto-detect: Excel serial (plain number, plausible range 1970..~2100)
+            if (/^-?\d+(\.\d+)?$/.test(str)) {
+                var n = parseFloat(str);
+                if (n >= 25569 && n <= 73415) {
+                    return new Date(Math.round((n - 25569) * 86400000));
+                }
+            }
+            var d = new Date(str);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function applyPipe(value, pipeExpr, row) {
             var expr = pipeExpr.trim();
-            var match = expr.match(/^(\w+)(?:\((.+)\))?$/);
+            var match = expr.match(/^(\w+)(?:\((.*)\))?$/);
             if (!match) return value;
 
             var fn = match[1].toLowerCase();
-            var args = match[2] ? parsePipeArgs(match[2]) : [];
+            var args = match[2] != null ? parsePipeArgs(match[2]) : [];
+            var s, n, parts, idx;
 
             switch (fn) {
                 case 'upper':
@@ -601,14 +761,77 @@
                     return String(value).replace(/\S+/g, function(w) {
                         return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
                     });
+                case 'trim':
+                    return String(value).trim();
+                case 'replace':
+                    s = String(value);
+                    var find = args[0] || '';
+                    var repl = args[1] || '';
+                    if (!find) return s;
+                    return s.split(find).join(repl);
+                case 'slice':
+                case 'substring':
+                    var start = parseInt(args[0], 10);
+                    if (isNaN(start)) start = 0;
+                    var end = args.length > 1 ? parseInt(args[1], 10) : NaN;
+                    return String(value).slice(start, isNaN(end) ? undefined : end);
+                case 'truncate':
+                    var width = parseInt(args[0], 10);
+                    if (isNaN(width) || width < 0) return value;
+                    s = String(value);
+                    if (s.length <= width) return s;
+                    var suffix = args.length > 1 ? args[1] : '\u2026';
+                    var cutAt = Math.max(0, width - suffix.length);
+                    return s.slice(0, cutAt) + suffix;
+                case 'pad':
+                case 'padright':
+                    var pwR = parseInt(args[0], 10);
+                    if (isNaN(pwR)) return value;
+                    var pcR = args[1] != null && args[1].length ? args[1] : ' ';
+                    var sideR = (fn === 'pad' && args[2]) ? String(args[2]).toLowerCase() : 'right';
+                    s = String(value);
+                    if (s.length >= pwR) return s;
+                    return sideR === 'left' ? s.padStart(pwR, pcR) : s.padEnd(pwR, pcR);
+                case 'padleft':
+                    var pwL = parseInt(args[0], 10);
+                    if (isNaN(pwL)) return value;
+                    var pcL = args[1] != null && args[1].length ? args[1] : ' ';
+                    s = String(value);
+                    return s.length >= pwL ? s : s.padStart(pwL, pcL);
+                case 'round':
+                    n = parseFloat(value);
+                    if (isNaN(n)) return value;
+                    var dp = parseInt(args[0], 10);
+                    if (isNaN(dp)) dp = 0;
+                    var mult = Math.pow(10, dp);
+                    return String(Math.round(n * mult) / mult);
+                case 'number':
+                    n = parseFloat(value);
+                    return isNaN(n) ? value : n;
+                case 'abs':
+                    n = parseFloat(value);
+                    return isNaN(n) ? value : String(Math.abs(n));
+                case 'date':
+                    var inFmt = args.length >= 2 ? args[0] : null;
+                    var outFmt = args.length >= 2 ? args[1] : args[0];
+                    if (!outFmt) return value;
+                    var dt = parseDateValue(value, inFmt);
+                    return dt ? formatDate(dt, outFmt) : value;
                 case 'default':
-                    var fallback = args[0] || '';
+                    var fallback = args[0] != null ? args[0] : '';
                     return (value === '' || value == null) ? fallback : value;
+                case 'else':
+                    if (value !== '' && value != null) return value;
+                    var arg = args[0] != null ? args[0] : '';
+                    if (arg.indexOf('{{') !== -1 && row) {
+                        return evaluateTemplate(arg, row);
+                    }
+                    return arg;
                 case 'item':
-                    var index = parseInt(args[0], 10) || 1;
+                    idx = parseInt(args[0], 10) || 1;
                     var delimiter = args[1] || ',';
-                    var parts = String(value).split(delimiter);
-                    return (index >= 1 && index <= parts.length) ? parts[index - 1].trim() : '';
+                    parts = String(value).split(delimiter);
+                    return (idx >= 1 && idx <= parts.length) ? parts[idx - 1].trim() : '';
                 default:
                     return value;
             }
@@ -616,45 +839,107 @@
 
         function evaluateTemplate(expression, row) {
             if (!expression) return '';
-            return expression.replace(/\{\{(.+?)\}\}/g, function(match, inner) {
-                // Split on | that are outside of quotes
-                var segments = [];
-                var current = '';
-                var inQuotes = false;
-                for (var i = 0; i < inner.length; i++) {
-                    var ch = inner[i];
-                    if (ch === '"') {
-                        inQuotes = !inQuotes;
-                        current += ch;
-                    } else if (ch === '|' && !inQuotes) {
-                        segments.push(current);
-                        current = '';
-                    } else {
-                        current += ch;
+            var result = '';
+            var i = 0;
+            while (i < expression.length) {
+                if (expression[i] === '{' && expression[i+1] === '{') {
+                    var depth = 1;
+                    var j = i + 2;
+                    while (j < expression.length) {
+                        if (expression[j] === '{' && expression[j+1] === '{') {
+                            depth++;
+                            j += 2;
+                        } else if (expression[j] === '}' && expression[j+1] === '}') {
+                            depth--;
+                            if (depth === 0) break;
+                            j += 2;
+                        } else {
+                            j++;
+                        }
+                    }
+                    if (depth === 0) {
+                        var inner = expression.substring(i + 2, j);
+                        result += evaluatePipeChain(inner, row);
+                        i = j + 2;
+                        continue;
                     }
                 }
-                segments.push(current);
+                result += expression[i];
+                i++;
+            }
+            return result;
+        }
 
-                var fieldName = segments[0].trim();
-                var value;
-                if (fieldName in row) {
-                    value = row[fieldName] != null ? String(row[fieldName]) : '';
+        function evaluatePipeChain(inner, row) {
+            var segments = [];
+            var current = '';
+            var inQuotes = false;
+            var braceDepth = 0;
+            for (var i = 0; i < inner.length; i++) {
+                var ch = inner[i];
+                if (ch === '"') {
+                    inQuotes = !inQuotes;
+                    current += ch;
+                } else if (!inQuotes && ch === '{' && inner[i+1] === '{') {
+                    braceDepth++;
+                    current += '{{';
+                    i++;
+                } else if (!inQuotes && braceDepth > 0 && ch === '}' && inner[i+1] === '}') {
+                    braceDepth--;
+                    current += '}}';
+                    i++;
+                } else if (ch === '|' && !inQuotes && braceDepth === 0) {
+                    segments.push(current);
+                    current = '';
                 } else {
-                    return match;
+                    current += ch;
                 }
+            }
+            segments.push(current);
 
-                for (var j = 1; j < segments.length; j++) {
-                    value = applyPipe(value, segments[j]);
+            var fieldName = segments[0].trim();
+            var value;
+            if (fieldName in row) {
+                value = row[fieldName] != null ? row[fieldName] : '';
+            } else {
+                return '{{' + inner + '}}';
+            }
+
+            for (var k = 1; k < segments.length; k++) {
+                value = applyPipe(value, segments[k], row);
+            }
+            return value == null ? '' : value;
+        }
+
+        // Single-template expressions preserve their pipe's return type
+        // (e.g. {{Amount | number}} returns a JS number, so Excel export
+        // sees it as numeric instead of stringified).
+        function evaluateExpression(expression, row) {
+            if (!expression) return '';
+            var trimmed = expression.trim();
+            if (trimmed.length >= 4 && trimmed.slice(0, 2) === '{{' && trimmed.slice(-2) === '}}') {
+                var depth = 0;
+                var single = true;
+                for (var i = 0; i < trimmed.length; i++) {
+                    if (trimmed[i] === '{' && trimmed[i+1] === '{') { depth++; i++; }
+                    else if (trimmed[i] === '}' && trimmed[i+1] === '}') {
+                        depth--;
+                        if (depth === 0 && i + 2 < trimmed.length) { single = false; break; }
+                        i++;
+                    }
                 }
-                return value;
-            });
+                if (single && depth === 0) {
+                    return evaluatePipeChain(trimmed.slice(2, -2), row);
+                }
+            }
+            return evaluateTemplate(expression, row);
         }
 
         function transformAllRows() {
             return sourceData.map(function(row) {
                 var outputRow = {};
                 outputFields.forEach(function(field) {
-                    outputRow[field.name || 'Unnamed'] = evaluateTemplate(field.expression, row);
+                    outputRow[field.name || 'Unnamed'] = evaluateExpression(field.expression, row);
                 });
                 return outputRow;
             });
@@ -832,6 +1117,7 @@
                     lastFocusedExprInput = exprInput;
                 });
                 setupExpressionDrop(exprInput);
+                setupAutocomplete(exprInput);
                 row.appendChild(exprInput);
 
                 var removeBtn = document.createElement('button');
@@ -877,7 +1163,7 @@
             var transformed = previewData.map(function(row) {
                 var outputRow = {};
                 outputFields.forEach(function(field) {
-                    outputRow[field.name || 'Unnamed'] = evaluateTemplate(field.expression, row);
+                    outputRow[field.name || 'Unnamed'] = evaluateExpression(field.expression, row);
                 });
                 return outputRow;
             });
@@ -912,6 +1198,147 @@
             tableWrap.appendChild(table);
             container.appendChild(tableWrap);
         }
+
+        // ── Autocomplete: type {{ to pick a source field ───────────
+        var acState = { input: null, openIdx: -1, partial: '', items: [], activeIdx: 0 };
+
+        function getActiveTemplatePartial(inputEl) {
+            var pos = inputEl.selectionStart != null ? inputEl.selectionStart : inputEl.value.length;
+            var before = inputEl.value.substring(0, pos);
+            var lastOpen = before.lastIndexOf('{{');
+            if (lastOpen === -1) return null;
+            // any closing }} after the open and before caret means we're outside a template
+            if (before.indexOf('}}', lastOpen) !== -1) return null;
+            var partial = before.substring(lastOpen + 2);
+            // pipes/commas/parens mean we're past the field name — don't autocomplete fields
+            if (/[|,()]/.test(partial)) return null;
+            return { partial: partial, openIdx: lastOpen };
+        }
+
+        function showAutocomplete(inputEl) {
+            if (!sourceHeaders.length) { hideAutocomplete(); return; }
+            var info = getActiveTemplatePartial(inputEl);
+            if (!info) { hideAutocomplete(); return; }
+            var q = info.partial.toLowerCase();
+            var matches = sourceHeaders.filter(function(h) {
+                return h.toLowerCase().indexOf(q) !== -1;
+            });
+            if (!matches.length) { hideAutocomplete(); return; }
+
+            acState.input = inputEl;
+            acState.openIdx = info.openIdx;
+            acState.partial = info.partial;
+            acState.items = matches;
+            acState.activeIdx = 0;
+
+            var dropdown = document.getElementById('field-autocomplete');
+            dropdown.textContent = '';
+            matches.forEach(function(h, i) {
+                var item = document.createElement('div');
+                item.className = 'field-autocomplete-item' + (i === 0 ? ' active' : '');
+                item.textContent = h;
+                item.addEventListener('mousedown', function(e) {
+                    // mousedown beats blur — use this so the input keeps focus during selection
+                    e.preventDefault();
+                    acState.activeIdx = i;
+                    selectAutocomplete();
+                });
+                dropdown.appendChild(item);
+            });
+
+            var rect = inputEl.getBoundingClientRect();
+            dropdown.style.top = (rect.bottom + window.scrollY + 2) + 'px';
+            dropdown.style.left = (rect.left + window.scrollX) + 'px';
+            dropdown.style.minWidth = Math.max(rect.width, 180) + 'px';
+            dropdown.style.display = 'block';
+        }
+
+        function hideAutocomplete() {
+            document.getElementById('field-autocomplete').style.display = 'none';
+            acState.input = null;
+            acState.items = [];
+        }
+
+        function updateAutocompleteActive() {
+            var dropdown = document.getElementById('field-autocomplete');
+            var items = dropdown.querySelectorAll('.field-autocomplete-item');
+            items.forEach(function(el, i) {
+                el.classList.toggle('active', i === acState.activeIdx);
+                if (i === acState.activeIdx) {
+                    var top = el.offsetTop;
+                    var bot = top + el.offsetHeight;
+                    if (top < dropdown.scrollTop) dropdown.scrollTop = top;
+                    else if (bot > dropdown.scrollTop + dropdown.clientHeight) dropdown.scrollTop = bot - dropdown.clientHeight;
+                }
+            });
+        }
+
+        function selectAutocomplete() {
+            if (!acState.input || !acState.items.length) return;
+            var inputEl = acState.input;
+            var fieldName = acState.items[acState.activeIdx];
+            var pos = inputEl.selectionStart != null ? inputEl.selectionStart : inputEl.value.length;
+            var partialStart = acState.openIdx + 2;
+            // Replace whatever the user typed after {{ with FieldName}}
+            var before = inputEl.value.substring(0, partialStart);
+            var after = inputEl.value.substring(pos);
+            // If the rest already starts with }}, don't double-close
+            var insertion = fieldName;
+            if (after.substring(0, 2) !== '}}') insertion += '}}';
+            inputEl.value = before + insertion + after;
+            var newPos = before.length + insertion.length;
+            inputEl.selectionStart = inputEl.selectionEnd = newPos;
+            hideAutocomplete();
+            inputEl.dispatchEvent(new Event('input'));
+            inputEl.focus();
+        }
+
+        function setupAutocomplete(inputEl) {
+            inputEl.addEventListener('input', function() { showAutocomplete(inputEl); });
+            inputEl.addEventListener('click', function() { showAutocomplete(inputEl); });
+            inputEl.addEventListener('keyup', function(e) {
+                // Re-evaluate after navigation keys that change caret position
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') {
+                    showAutocomplete(inputEl);
+                }
+            });
+            inputEl.addEventListener('keydown', function(e) {
+                if (acState.input !== inputEl || !acState.items.length) return;
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    acState.activeIdx = (acState.activeIdx + 1) % acState.items.length;
+                    updateAutocompleteActive();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    acState.activeIdx = (acState.activeIdx - 1 + acState.items.length) % acState.items.length;
+                    updateAutocompleteActive();
+                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    selectAutocomplete();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    hideAutocomplete();
+                }
+            });
+            inputEl.addEventListener('blur', function() {
+                // Delay so a click on a dropdown item can register
+                setTimeout(function() {
+                    if (acState.input === inputEl) hideAutocomplete();
+                }, 150);
+            });
+        }
+
+        // Hide on outside click
+        document.addEventListener('mousedown', function(e) {
+            if (!acState.input) return;
+            var dropdown = document.getElementById('field-autocomplete');
+            if (e.target === acState.input || dropdown.contains(e.target)) return;
+            hideAutocomplete();
+        });
+
+        // Reposition on scroll/resize
+        window.addEventListener('scroll', hideAutocomplete, true);
+        window.addEventListener('resize', hideAutocomplete);
 
         // ── Drag & Drop: Source chip → Expression input ────────────
         function setupChipDrag(chipEl) {
