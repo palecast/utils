@@ -175,6 +175,29 @@
         .stats .stat-removed { color: var(--removed-gutter); }
         .stats .stat-changed { color: var(--changed-gutter); }
 
+        .change-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-nav {
+            padding: 6px 10px;
+            font-size: 13px;
+            line-height: 1;
+        }
+        .btn-nav:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .change-counter {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            min-width: 64px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
         .result {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -245,6 +268,11 @@
         .diff tr.changed td.ln-left,
         .diff tr.changed td.ln-right   { background: var(--changed-bg); color: var(--changed-gutter); }
 
+        .diff tr.current td.ln {
+            background: var(--accent);
+            color: #fff;
+        }
+
         footer {
             margin-top: 40px;
             padding: 24px;
@@ -308,6 +336,13 @@
             <button type="button" class="btn" id="btn-compare">Compare</button>
             <button type="button" class="btn-outline" id="btn-swap">Swap sides</button>
             <button type="button" class="btn-outline" id="btn-clear-both">Clear both</button>
+            <div class="change-nav" id="change-nav" hidden>
+                <button type="button" class="btn-outline btn-nav" id="btn-prev-change"
+                        aria-label="Previous change" title="Previous change (Alt+↑)" disabled>▲</button>
+                <span class="change-counter" id="change-counter"></span>
+                <button type="button" class="btn-outline btn-nav" id="btn-next-change"
+                        aria-label="Next change" title="Next change (Alt+↓)" disabled>▼</button>
+            </div>
             <span class="stats" id="stats"></span>
         </div>
 
@@ -331,8 +366,15 @@
             const fileRight = document.getElementById('file-right');
             const result = document.getElementById('result');
             const stats = document.getElementById('stats');
+            const changeNav = document.getElementById('change-nav');
+            const changeCounter = document.getElementById('change-counter');
+            const btnPrevChange = document.getElementById('btn-prev-change');
+            const btnNextChange = document.getElementById('btn-next-change');
 
             const filenames = { left: '', right: '' };
+
+            let hunkRows = [];
+            let currentHunk = -1;
 
             function splitLines(value) {
                 const arr = value.split('\n');
@@ -393,6 +435,18 @@
                     }
                 }
 
+                let hunkIdx = -1;
+                let inHunk = false;
+                for (const r of rows) {
+                    if (r.type === 'equal') {
+                        r.hunkIndex = null;
+                        inHunk = false;
+                    } else {
+                        if (!inHunk) { hunkIdx++; inHunk = true; }
+                        r.hunkIndex = hunkIdx;
+                    }
+                }
+
                 return rows;
             }
 
@@ -417,14 +471,18 @@
 
             function renderRows(rows) {
                 clearNode(result);
+                hunkRows = [];
+                currentHunk = -1;
 
                 if (rows.length === 0) {
                     showEmptyState('Paste or load text on both sides to see the diff.');
+                    updateNavUI();
                     return;
                 }
 
                 if (rows.every(r => r.type === 'equal')) {
                     showEmptyState('The two inputs are identical.');
+                    updateNavUI();
                     return;
                 }
 
@@ -446,6 +504,11 @@
                 for (const r of rows) {
                     const tr = document.createElement('tr');
                     tr.className = r.type;
+                    if (r.hunkIndex != null) {
+                        tr.dataset.hunk = String(r.hunkIndex);
+                        if (!hunkRows[r.hunkIndex]) hunkRows[r.hunkIndex] = [];
+                        hunkRows[r.hunkIndex].push(tr);
+                    }
                     tr.appendChild(makeCell('ln ln-left', r.leftNo == null ? '' : String(r.leftNo)));
                     tr.appendChild(makeCell('line line-left', r.leftText == null ? '' : r.leftText));
                     tr.appendChild(makeCell('ln ln-right', r.rightNo == null ? '' : String(r.rightNo)));
@@ -455,6 +518,50 @@
                 table.appendChild(tbody);
                 wrap.appendChild(table);
                 result.appendChild(wrap);
+                updateNavUI();
+            }
+
+            function updateNavUI() {
+                const n = hunkRows.length;
+                if (n === 0) {
+                    changeNav.hidden = true;
+                    btnPrevChange.disabled = true;
+                    btnNextChange.disabled = true;
+                    changeCounter.textContent = '';
+                    return;
+                }
+                changeNav.hidden = false;
+                btnPrevChange.disabled = false;
+                btnNextChange.disabled = false;
+                if (currentHunk === -1) {
+                    changeCounter.textContent = n + (n === 1 ? ' change' : ' changes');
+                } else {
+                    changeCounter.textContent = (currentHunk + 1) + ' / ' + n;
+                }
+            }
+
+            function gotoHunk(index) {
+                const n = hunkRows.length;
+                if (n === 0) return;
+                const newIdx = ((index % n) + n) % n;
+                if (currentHunk >= 0 && hunkRows[currentHunk]) {
+                    for (const tr of hunkRows[currentHunk]) tr.classList.remove('current');
+                }
+                currentHunk = newIdx;
+                const target = hunkRows[newIdx];
+                for (const tr of target) tr.classList.add('current');
+                target[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                updateNavUI();
+            }
+
+            function nextChange() {
+                if (hunkRows.length === 0) return;
+                gotoHunk(currentHunk === -1 ? 0 : currentHunk + 1);
+            }
+
+            function prevChange() {
+                if (hunkRows.length === 0) return;
+                gotoHunk(currentHunk === -1 ? hunkRows.length - 1 : currentHunk - 1);
             }
 
             function updateStats(rows) {
@@ -596,9 +703,19 @@
                 compare();
             });
 
+            btnPrevChange.addEventListener('click', prevChange);
+            btnNextChange.addEventListener('click', nextChange);
+
+            document.addEventListener('keydown', function (e) {
+                if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                if (e.key === 'ArrowDown') { e.preventDefault(); nextChange(); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); prevChange(); }
+            });
+
             showEmptyState('Paste or load text on both sides to see the diff.');
             updateStats([]);
             updateCaptions();
+            updateNavUI();
         })();
     </script>
 </body>
