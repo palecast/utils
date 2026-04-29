@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #FAF8F5;
+            --surface: #FFFFFF;
+            --text: #3A2F28;
+            --text-muted: #6B5F54;
+            --accent: #4A5D47;
+            --accent-hover: #3D4E3B;
+            --border: rgba(74, 93, 71, 0.12);
+            --border-strong: rgba(74, 93, 71, 0.2);
+            --pill-bg: #E8E5DF;
+            --tint: rgba(232, 229, 223, 0.4);
+            --shadow: 0 10px 30px rgba(58, 47, 40, 0.08);
+            --mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, Menlo, monospace;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px 20px 40px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .lead {
+            margin-top: 8px;
+            font-weight: 300;
+            font-size: 1.05rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+
+        .filename-line {
+            margin-top: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--pill-bg);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .filename-line #filename-display {
+            font-family: var(--mono);
+            font-weight: 500;
+        }
+
+        #dirty-indicator {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        #restore-note {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toolbar-sep {
+            width: 1px;
+            height: 22px;
+            background: var(--border);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: var(--surface);
+            font: 600 14px 'Inter', sans-serif;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        .btn-outline {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            padding: 9px 16px;
+            border-radius: 8px;
+            font: 500 14px 'Inter', sans-serif;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .btn-outline:hover { background: var(--tint); border-color: var(--border-strong); }
+
+        .panes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .pane {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 60vh;
+        }
+
+        .pane-header {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pane-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+        }
+
+        .pane-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        .editor-textarea {
+            flex: 1;
+            width: 100%;
+            min-height: 50vh;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            font-family: var(--mono);
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text);
+            resize: vertical;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .editor-textarea:focus { outline: none; border-color: var(--accent); }
+
+        .pane-editor.dragover {
+            border-color: var(--accent);
+            background: var(--tint);
+        }
+        .pane-editor.dragover .editor-textarea {
+            border-color: var(--accent);
+            background: var(--tint);
+        }
+
+        /* Preview prose styles */
+        .preview {
+            flex: 1;
+            min-height: 50vh;
+            padding: 8px 4px 8px 8px;
+            overflow-y: auto;
+            color: var(--text);
+            font-size: 15px;
+            line-height: 1.65;
+            word-wrap: break-word;
+        }
+        .preview > *:first-child { margin-top: 0; }
+        .preview > *:last-child { margin-bottom: 0; }
+
+        .preview h1, .preview h2, .preview h3,
+        .preview h4, .preview h5, .preview h6 {
+            color: var(--text);
+            font-weight: 600;
+            line-height: 1.25;
+            margin: 1.6em 0 0.6em;
+            letter-spacing: -0.01em;
+        }
+        .preview h1 { font-size: 1.9rem; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        .preview h2 { font-size: 1.5rem; padding-bottom: 0.25em; border-bottom: 1px solid var(--border); }
+        .preview h3 { font-size: 1.2rem; }
+        .preview h4 { font-size: 1.05rem; }
+        .preview h5 { font-size: 0.95rem; color: var(--text-muted); }
+        .preview h6 { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        .preview p { margin: 0.85em 0; }
+        .preview a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+        .preview a:hover { color: var(--accent-hover); }
+
+        .preview ul, .preview ol { margin: 0.85em 0; padding-left: 1.5em; }
+        .preview li { margin: 0.25em 0; }
+        .preview li > ul, .preview li > ol { margin: 0.25em 0; }
+        .preview li input[type="checkbox"] { margin-right: 6px; transform: translateY(1px); }
+
+        .preview blockquote {
+            margin: 1em 0;
+            padding: 0.4em 1em;
+            border-left: 4px solid var(--accent);
+            background: var(--tint);
+            color: var(--text-muted);
+            border-radius: 0 8px 8px 0;
+        }
+        .preview blockquote > *:first-child { margin-top: 0; }
+        .preview blockquote > *:last-child { margin-bottom: 0; }
+
+        .preview code {
+            font-family: var(--mono);
+            font-size: 0.92em;
+            padding: 0.15em 0.4em;
+            background: var(--tint);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+        .preview pre {
+            margin: 1em 0;
+            padding: 14px 16px;
+            background: #f6f8fa;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .preview pre code {
+            padding: 0;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            font-size: inherit;
+        }
+
+        .preview table {
+            border-collapse: collapse;
+            margin: 1em 0;
+            width: 100%;
+            font-size: 0.95em;
+        }
+        .preview th, .preview td {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        .preview th {
+            background: var(--tint);
+            font-weight: 600;
+        }
+        .preview tr:nth-child(even) td { background: rgba(232, 229, 223, 0.18); }
+
+        .preview hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 2em 0;
+        }
+
+        .preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+        }
+
+        .preview kbd {
+            font-family: var(--mono);
+            font-size: 0.85em;
+            padding: 1px 6px;
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
+            border-bottom-width: 2px;
+            border-radius: 4px;
+            color: var(--text);
+        }
+
+        .preview del { color: var(--text-muted); }
+
+        .preview .empty-preview {
+            color: var(--text-muted);
+            font-weight: 300;
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 1.05rem;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding: 24px;
+            text-align: center;
+            font: 300 0.875rem 'Inter', sans-serif;
+            color: var(--text-muted);
+        }
+        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        footer a:hover { color: var(--text); }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px; height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.6rem; }
+            .panes { grid-template-columns: 1fr; gap: 16px; }
+            .pane { min-height: 40vh; }
+            .editor-textarea { min-height: 35vh; font-size: 13px; }
+            .preview { min-height: 35vh; font-size: 14px; }
+            .toolbar { gap: 8px; }
+            .btn, .btn-outline { padding: 8px 14px; font-size: 13px; }
+        }
+
+        @page { margin: 1in; }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+            .container { max-width: none; padding: 0; }
+            header.page-header,
+            .toolbar,
+            footer,
+            .pane-editor,
+            .pane-preview .pane-header { display: none !important; }
+            .panes { display: block; }
+            .pane-preview {
+                background: #fff;
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                min-height: 0;
+            }
+            .preview {
+                color: #000;
+                font-family: 'Inter', Georgia, serif;
+                font-size: 11pt;
+                line-height: 1.55;
+                padding: 0;
+                min-height: 0;
+                overflow: visible;
+            }
+            .preview h1, .preview h2, .preview h3, .preview h4 { page-break-after: avoid; }
+            .preview pre,
+            .preview table,
+            .preview blockquote,
+            .preview img,
+            .preview figure { page-break-inside: avoid; }
+            .preview pre {
+                background: #f5f5f5 !important;
+                border: 1px solid #ddd !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .preview code {
+                background: #f5f5f5 !important;
+                border: 1px solid #eee;
+            }
+            .hljs, .hljs * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .preview a, .preview a:visited {
+                color: #000;
+                text-decoration: underline;
+            }
+            .preview a[href^="http"]::after {
+                content: " (" attr(href) ")";
+                font-size: 9pt;
+                color: #555;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <h1>Markdown Editor</h1>
+            <p class="lead">Write Markdown with a live side-by-side preview. Open and save <code>.md</code> files locally, export to PDF with selectable text.</p>
+            <div class="filename-line">
+                <span id="filename-display">Untitled.md</span>
+                <span id="dirty-indicator" hidden>*</span>
+                <span id="restore-note" hidden>(restored from local autosave)</span>
+            </div>
+        </header>
+
+        <div class="toolbar" role="toolbar" aria-label="Editor actions">
+            <div class="toolbar-group">
+                <button type="button" class="btn-outline" id="btn-new">New</button>
+                <button type="button" class="btn-outline" id="btn-open">Open</button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group">
+                <button type="button" class="btn" id="btn-save">Save</button>
+                <button type="button" class="btn-outline" id="btn-save-as">Save As</button>
+            </div>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <div class="toolbar-group">
+                <button type="button" class="btn-outline" id="btn-export-pdf">Export PDF</button>
+            </div>
+            <input type="file" id="file-input" class="visually-hidden"
+                   accept=".md,.markdown,.txt,text/markdown,text/plain">
+        </div>
+
+        <section class="panes">
+            <div class="pane pane-editor" id="pane-editor">
+                <div class="pane-header">
+                    <span class="pane-label">Editor</span>
+                    <span class="pane-hint">Tab inserts spaces · Esc then Tab to leave editor · Drop a file to load</span>
+                </div>
+                <textarea id="editor" class="editor-textarea"
+                          spellcheck="true"
+                          placeholder="Type or paste Markdown here…"
+                          aria-label="Markdown source"></textarea>
+            </div>
+            <div class="pane pane-preview">
+                <div class="pane-header">
+                    <span class="pane-label">Preview</span>
+                </div>
+                <article id="preview" class="preview" aria-label="Rendered preview" aria-live="polite"></article>
+            </div>
+        </section>
+
+        <footer>
+            <a href="/disclaimer.html">Disclaimer &amp; Terms</a>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked-highlight/lib/index.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+    <script>
+        (function () {
+            'use strict';
+
+            // --- DOM refs ---
+            const editor = document.getElementById('editor');
+            const preview = document.getElementById('preview');
+            const paneEditor = document.getElementById('pane-editor');
+            const filenameDisplay = document.getElementById('filename-display');
+            const dirtyIndicator = document.getElementById('dirty-indicator');
+            const restoreNote = document.getElementById('restore-note');
+            const fileInput = document.getElementById('file-input');
+            const btnNew = document.getElementById('btn-new');
+            const btnOpen = document.getElementById('btn-open');
+            const btnSave = document.getElementById('btn-save');
+            const btnSaveAs = document.getElementById('btn-save-as');
+            const btnExportPdf = document.getElementById('btn-export-pdf');
+
+            // --- State ---
+            const state = {
+                fileHandle: null,
+                currentFilename: 'Untitled.md',
+                useFsaApi: false,
+                lastSavedContent: '',
+                lastSavedAt: null
+            };
+
+            const STORAGE_KEY = 'markdownEditorState';
+            const ACCEPTED_FILE_TYPES = {
+                description: 'Markdown',
+                accept: {
+                    'text/markdown': ['.md', '.markdown'],
+                    'text/plain': ['.txt']
+                }
+            };
+
+            // --- Helpers ---
+            function escapeHtml(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function debounce(fn, ms) {
+                let handle = null;
+                return function () {
+                    const args = arguments;
+                    const self = this;
+                    if (handle !== null) clearTimeout(handle);
+                    handle = setTimeout(function () { fn.apply(self, args); }, ms);
+                };
+            }
+
+            function hasFileSystemAccessAPI() {
+                return typeof window !== 'undefined'
+                    && 'showSaveFilePicker' in window
+                    && 'showOpenFilePicker' in window
+                    && window.isSecureContext;
+            }
+
+            function readFileAsText(file) {
+                return new Promise(function (resolve, reject) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const text = typeof e.target.result === 'string' ? e.target.result : '';
+                        resolve(text);
+                    };
+                    reader.onerror = function () { reject(new Error('Could not read file.')); };
+                    reader.readAsText(file);
+                });
+            }
+
+            function triggerDownload(filename, text) {
+                const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename || 'Untitled.md';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            function ensureMarkdownExtension(name) {
+                if (!name) return 'Untitled.md';
+                if (/\.(md|markdown|txt)$/i.test(name)) return name;
+                return name + '.md';
+            }
+
+            function clearNode(node) {
+                while (node.firstChild) node.removeChild(node.firstChild);
+            }
+
+            // --- Marked + hljs configuration ---
+            function configureMarked() {
+                if (typeof window.markedHighlight !== 'undefined' && typeof window.hljs !== 'undefined') {
+                    marked.use(window.markedHighlight.markedHighlight({
+                        langPrefix: 'hljs language-',
+                        highlight: function (code, lang) {
+                            const language = window.hljs.getLanguage(lang) ? lang : 'plaintext';
+                            try {
+                                return window.hljs.highlight(code, { language: language }).value;
+                            } catch (_e) {
+                                return code;
+                            }
+                        }
+                    }));
+                }
+                marked.setOptions({ gfm: true, breaks: false });
+            }
+
+            // --- Render & dirty ---
+            // Renders the markdown source, sanitises the resulting HTML with DOMPurify,
+            // then attaches it to the preview node via a parser-based fragment so we never
+            // assign untrusted HTML to a live DOM element directly.
+            function renderPreview() {
+                clearNode(preview);
+                const src = editor.value;
+                if (src.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-preview';
+                    empty.textContent = 'Start typing Markdown on the left to see the preview here.';
+                    preview.appendChild(empty);
+                    return;
+                }
+                let rawHtml;
+                try {
+                    rawHtml = marked.parse(src);
+                } catch (e) {
+                    const errEl = document.createElement('div');
+                    errEl.className = 'empty-preview';
+                    errEl.textContent = 'Render error: ' + (e && e.message ? e.message : String(e));
+                    preview.appendChild(errEl);
+                    return;
+                }
+                const cleanHtml = DOMPurify.sanitize(rawHtml, {
+                    USE_PROFILES: { html: true },
+                    ADD_ATTR: ['target']
+                });
+                const range = document.createRange();
+                range.selectNodeContents(preview);
+                const fragment = range.createContextualFragment(cleanHtml);
+                preview.appendChild(fragment);
+            }
+
+            function isDirty() {
+                return editor.value !== state.lastSavedContent;
+            }
+
+            function updateDirtyUI() {
+                const dirty = isDirty();
+                dirtyIndicator.hidden = !dirty;
+                document.title = (dirty ? '* ' : '') + state.currentFilename + ' — Markdown Editor';
+            }
+
+            function updateFilenameUI() {
+                filenameDisplay.textContent = state.currentFilename;
+                updateDirtyUI();
+            }
+
+            function confirmDiscardIfDirty(actionLabel) {
+                if (!isDirty()) return true;
+                return window.confirm('You have unsaved changes. ' + actionLabel + ' anyway?');
+            }
+
+            // --- Persistence ---
+            function saveStateToLocalStorage() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        content: editor.value,
+                        currentFilename: state.currentFilename,
+                        lastSavedAt: state.lastSavedAt
+                    }));
+                } catch (_e) {
+                    // localStorage may be full or disabled; ignore.
+                }
+            }
+
+            function loadStateFromLocalStorage() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    return raw ? JSON.parse(raw) : null;
+                } catch (_e) {
+                    return null;
+                }
+            }
+
+            // --- File ops ---
+            async function handleNew() {
+                if (!confirmDiscardIfDirty('Discard and start new?')) return;
+                editor.value = '';
+                state.fileHandle = null;
+                state.currentFilename = 'Untitled.md';
+                state.lastSavedContent = '';
+                state.lastSavedAt = null;
+                restoreNote.hidden = true;
+                updateFilenameUI();
+                renderPreview();
+                saveStateToLocalStorage();
+            }
+
+            async function handleOpen() {
+                if (!confirmDiscardIfDirty('Open another file?')) return;
+                if (state.useFsaApi) {
+                    try {
+                        const handles = await window.showOpenFilePicker({
+                            multiple: false,
+                            types: [ACCEPTED_FILE_TYPES]
+                        });
+                        const handle = handles[0];
+                        const file = await handle.getFile();
+                        const text = await file.text();
+                        editor.value = text;
+                        state.fileHandle = handle;
+                        state.currentFilename = handle.name;
+                        state.lastSavedContent = text;
+                        state.lastSavedAt = Date.now();
+                        restoreNote.hidden = true;
+                        updateFilenameUI();
+                        renderPreview();
+                        saveStateToLocalStorage();
+                    } catch (e) {
+                        if (e && e.name === 'AbortError') return;
+                        alert('Could not open file: ' + (e.message || e));
+                    }
+                } else {
+                    fileInput.click();
+                }
+            }
+
+            async function handleFileInputChange(event) {
+                const file = event.target.files && event.target.files[0];
+                event.target.value = '';
+                if (!file) return;
+                try {
+                    const text = await readFileAsText(file);
+                    editor.value = text;
+                    state.fileHandle = null;
+                    state.currentFilename = file.name;
+                    state.lastSavedContent = text;
+                    state.lastSavedAt = Date.now();
+                    restoreNote.hidden = true;
+                    updateFilenameUI();
+                    renderPreview();
+                    saveStateToLocalStorage();
+                } catch (e) {
+                    alert('Could not read file: ' + (e.message || e));
+                }
+            }
+
+            async function writeThroughHandle(handle, text) {
+                const writable = await handle.createWritable();
+                await writable.write(text);
+                await writable.close();
+            }
+
+            async function handleSave() {
+                if (state.useFsaApi && state.fileHandle) {
+                    try {
+                        await writeThroughHandle(state.fileHandle, editor.value);
+                        state.lastSavedContent = editor.value;
+                        state.lastSavedAt = Date.now();
+                        updateDirtyUI();
+                        saveStateToLocalStorage();
+                    } catch (e) {
+                        alert('Could not save: ' + (e.message || e));
+                    }
+                    return;
+                }
+                if (state.useFsaApi) {
+                    return handleSaveAs();
+                }
+                // Fallback: trigger download
+                const name = ensureMarkdownExtension(state.currentFilename);
+                triggerDownload(name, editor.value);
+                state.currentFilename = name;
+                state.lastSavedContent = editor.value;
+                state.lastSavedAt = Date.now();
+                updateFilenameUI();
+                saveStateToLocalStorage();
+            }
+
+            async function handleSaveAs() {
+                if (state.useFsaApi) {
+                    try {
+                        const handle = await window.showSaveFilePicker({
+                            suggestedName: ensureMarkdownExtension(state.currentFilename),
+                            types: [ACCEPTED_FILE_TYPES]
+                        });
+                        await writeThroughHandle(handle, editor.value);
+                        state.fileHandle = handle;
+                        state.currentFilename = handle.name;
+                        state.lastSavedContent = editor.value;
+                        state.lastSavedAt = Date.now();
+                        restoreNote.hidden = true;
+                        updateFilenameUI();
+                        saveStateToLocalStorage();
+                    } catch (e) {
+                        if (e && e.name === 'AbortError') return;
+                        alert('Could not save: ' + (e.message || e));
+                    }
+                    return;
+                }
+                // Fallback: prompt for filename then download
+                const suggested = ensureMarkdownExtension(state.currentFilename);
+                const name = window.prompt('Save as:', suggested);
+                if (!name) return;
+                const finalName = ensureMarkdownExtension(name);
+                triggerDownload(finalName, editor.value);
+                state.currentFilename = finalName;
+                state.lastSavedContent = editor.value;
+                state.lastSavedAt = Date.now();
+                updateFilenameUI();
+                saveStateToLocalStorage();
+            }
+
+            function handleExportPdf() {
+                window.print();
+            }
+
+            // --- Drag-drop ---
+            function wireDropTarget(el) {
+                el.addEventListener('dragover', function (e) {
+                    if (!e.dataTransfer || !e.dataTransfer.types) return;
+                    if (Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') === -1) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    el.classList.add('dragover');
+                });
+                el.addEventListener('dragleave', function (e) {
+                    if (e.target !== el) return;
+                    el.classList.remove('dragover');
+                });
+                el.addEventListener('drop', async function (e) {
+                    el.classList.remove('dragover');
+                    if (!e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+                    e.preventDefault();
+                    const file = e.dataTransfer.files[0];
+                    if (!confirmDiscardIfDirty('Replace contents with dropped file?')) return;
+                    try {
+                        const text = await readFileAsText(file);
+                        editor.value = text;
+                        state.fileHandle = null;
+                        state.currentFilename = file.name;
+                        state.lastSavedContent = text;
+                        state.lastSavedAt = Date.now();
+                        restoreNote.hidden = true;
+                        updateFilenameUI();
+                        renderPreview();
+                        saveStateToLocalStorage();
+                    } catch (err) {
+                        alert('Could not read file: ' + (err.message || err));
+                    }
+                });
+            }
+
+            // --- Keyboard ---
+            function handleGlobalKeydown(e) {
+                const mod = e.ctrlKey || e.metaKey;
+                if (!mod) return;
+                const key = e.key.toLowerCase();
+                if (key === 's' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSave();
+                } else if (key === 's' && e.shiftKey) {
+                    e.preventDefault();
+                    handleSaveAs();
+                } else if (key === 'o') {
+                    e.preventDefault();
+                    handleOpen();
+                } else if (key === 'p') {
+                    e.preventDefault();
+                    handleExportPdf();
+                }
+            }
+
+            function indentSelection(textarea, indentStr) {
+                const value = textarea.value;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+
+                if (start === end) {
+                    textarea.value = value.slice(0, start) + indentStr + value.slice(end);
+                    textarea.selectionStart = textarea.selectionEnd = start + indentStr.length;
+                    return;
+                }
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                const block = value.slice(lineStart, end);
+                const lines = block.split('\n');
+                const indented = lines.map(function (l) { return indentStr + l; }).join('\n');
+                textarea.value = value.slice(0, lineStart) + indented + value.slice(end);
+                textarea.selectionStart = lineStart;
+                textarea.selectionEnd = lineStart + indented.length;
+            }
+
+            function outdentSelection(textarea) {
+                const value = textarea.value;
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                let blockEnd;
+                if (end > start) {
+                    blockEnd = end;
+                } else {
+                    const nextNewline = value.indexOf('\n', start);
+                    blockEnd = nextNewline === -1 ? value.length : nextNewline;
+                }
+                const block = value.slice(lineStart, blockEnd);
+                const lines = block.split('\n');
+                let removedFromFirst = 0;
+                const outdented = lines.map(function (l, i) {
+                    if (l.startsWith('  ')) {
+                        if (i === 0) removedFromFirst = 2;
+                        return l.slice(2);
+                    }
+                    if (l.startsWith('\t') || l.startsWith(' ')) {
+                        if (i === 0) removedFromFirst = 1;
+                        return l.slice(1);
+                    }
+                    return l;
+                }).join('\n');
+                textarea.value = value.slice(0, lineStart) + outdented + value.slice(blockEnd);
+                if (start === end) {
+                    const newPos = Math.max(lineStart, start - removedFromFirst);
+                    textarea.selectionStart = textarea.selectionEnd = newPos;
+                } else {
+                    textarea.selectionStart = lineStart;
+                    textarea.selectionEnd = lineStart + outdented.length;
+                }
+            }
+
+            function handleEditorKeydown(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        outdentSelection(editor);
+                    } else {
+                        indentSelection(editor, '  ');
+                    }
+                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                } else if (e.key === 'Escape') {
+                    editor.blur();
+                }
+            }
+
+            // --- Lifecycle ---
+            const debouncedRender = debounce(function () {
+                renderPreview();
+                saveStateToLocalStorage();
+                updateDirtyUI();
+            }, 180);
+
+            function init() {
+                state.useFsaApi = hasFileSystemAccessAPI();
+                configureMarked();
+
+                const restored = loadStateFromLocalStorage();
+                if (restored && typeof restored.content === 'string' && restored.content.length > 0) {
+                    editor.value = restored.content;
+                    state.currentFilename = restored.currentFilename || 'Untitled.md';
+                    // The file handle cannot be persisted; treat restored content as dirty.
+                    state.lastSavedContent = '';
+                    state.lastSavedAt = restored.lastSavedAt || null;
+                    restoreNote.hidden = false;
+                } else {
+                    state.lastSavedContent = '';
+                }
+
+                updateFilenameUI();
+                renderPreview();
+
+                editor.addEventListener('input', debouncedRender);
+                editor.addEventListener('keydown', handleEditorKeydown);
+
+                btnNew.addEventListener('click', handleNew);
+                btnOpen.addEventListener('click', handleOpen);
+                btnSave.addEventListener('click', handleSave);
+                btnSaveAs.addEventListener('click', handleSaveAs);
+                btnExportPdf.addEventListener('click', handleExportPdf);
+
+                fileInput.addEventListener('change', handleFileInputChange);
+
+                wireDropTarget(paneEditor);
+
+                document.addEventListener('keydown', handleGlobalKeydown);
+
+                window.addEventListener('beforeunload', function (e) {
+                    if (isDirty()) {
+                        e.preventDefault();
+                        e.returnValue = '';
+                        return '';
+                    }
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>
