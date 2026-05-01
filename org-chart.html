@@ -952,6 +952,12 @@
         let openFileFormat = '';          // 'csv' | 'xlsx' (xls upgrades to xlsx on save)
         let openFileHandle = null;        // FileSystemFileHandle when FSA path used
         let openFileIsTestData = false;   // test data has no real source — Save acts as Save As
+        let isDirty = false;              // unsaved data changes since last open / save
+        function markDirty() {
+            if (isDirty) return;
+            isDirty = true;
+            updateFilenameIndicator();
+        }
         const HAS_FSA = typeof window.showOpenFilePicker === 'function'
                      && typeof window.showSaveFilePicker === 'function';
         let colorField = '';
@@ -1019,6 +1025,7 @@
                 tags: []
             });
             render();
+            markDirty();
         }
 
         function deleteRole(roleId) {
@@ -1030,6 +1037,7 @@
             });
             roles = roles.filter(r => r.roleId !== roleId);
             render();
+            markDirty();
         }
 
         function updateRoleField(roleId, field, value) {
@@ -1058,6 +1066,7 @@
 
             validateRoles();
             if (activeTab === 'chart') renderChart();
+            markDirty();
         }
 
         // --- Validation ---
@@ -1185,30 +1194,30 @@
                                 else if (action === 'delete') deleteRole(roleId);
                             }
                         }
-                    ],
-                    cellEdited: function(cell) {
-                        const field = cell.getField();
-                        if (field === '_actions') return;
-                        const rowData = cell.getRow().getData();
-                        const newValue = cell.getValue();
-                        const roleId = field === 'roleId' ? cell.getOldValue() : rowData.roleId;
-                        updateRoleField(roleId, field, newValue);
-                        if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle') {
-                            tabulatorGrid.replaceData(roles.slice());
-                        }
-                        if (field === 'tags') {
-                            // Drop tag-filter selections that no longer exist; refresh dropdown.
-                            const live = new Set(getAllTags());
-                            [...tagFilter].forEach(t => { if (!live.has(t)) tagFilter.delete(t); });
-                            syncFilterUI();
-                        }
-                        if (activeTab === 'chart') renderChart();
-                    }
+                    ]
                 });
 
                 tabulatorGrid.on('cellEditing', function() { isEditing = true; });
                 tabulatorGrid.on('cellEditCancelled', function() { isEditing = false; });
-                tabulatorGrid.on('cellEdited', function() { isEditing = false; });
+                // Tabulator v6 ignores the top-level `cellEdited` callback option — wire it via .on().
+                tabulatorGrid.on('cellEdited', function(cell) {
+                    isEditing = false;
+                    const field = cell.getField();
+                    if (field === '_actions') return;
+                    const rowData = cell.getRow().getData();
+                    const newValue = cell.getValue();
+                    const roleId = field === 'roleId' ? cell.getOldValue() : rowData.roleId;
+                    updateRoleField(roleId, field, newValue);
+                    if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle') {
+                        tabulatorGrid.replaceData(roles.slice());
+                    }
+                    if (field === 'tags') {
+                        const live = new Set(getAllTags());
+                        [...tagFilter].forEach(t => { if (!live.has(t)) tagFilter.delete(t); });
+                        syncFilterUI();
+                    }
+                    if (activeTab === 'chart') renderChart();
+                });
                 tabulatorGrid.on('cellClick', function(e, cell) {
                     if (cell.getField() === '_actions') return;
                     document.querySelectorAll('.tabulator-cell.tabulator-cell-active').forEach(el => el.classList.remove('tabulator-cell-active'));
@@ -1313,6 +1322,7 @@
                 tags: []
             });
             render();
+            markDirty();
         }
 
         function duplicateRowById(roleId) {
@@ -1321,6 +1331,7 @@
             const src = roles[idx];
             roles.splice(idx + 1, 0, { ...src, roleId: generateRoleId(), tags: (src.tags || []).slice() });
             render();
+            markDirty();
         }
 
         // --- Tree building ---
@@ -2257,6 +2268,7 @@
             openFileFormat = state.format || '';
             openFileHandle = state.handle || null;
             openFileIsTestData = !!state.isTestData;
+            isDirty = false;
             updateFilenameIndicator();
             updateSaveButtonState();
         }
@@ -2269,13 +2281,14 @@
                 el.classList.remove('has-file');
                 el.title = '';
             } else if (openFileIsTestData) {
-                el.textContent = '(test data — unsaved)';
+                el.textContent = (isDirty ? '• ' : '') + '(test data — unsaved)';
                 el.classList.remove('has-file');
-                el.title = '';
+                el.title = isDirty ? 'Test data with unsaved edits' : '';
             } else {
-                el.textContent = openFileName;
+                el.textContent = (isDirty ? '• ' : '') + openFileName;
                 el.classList.add('has-file');
-                el.title = openFileName + (openFileHandle ? ' (linked — Save will overwrite)' : ' (Save will download)');
+                const baseTitle = openFileName + (openFileHandle ? ' (linked — Save will overwrite)' : ' (Save will download)');
+                el.title = isDirty ? baseTitle + ' — unsaved changes' : baseTitle;
             }
         }
 
@@ -2335,6 +2348,7 @@
                     const writable = await openFileHandle.createWritable();
                     await writable.write(blob);
                     await writable.close();
+                    isDirty = false;
                     flashSaveIndicator('Saved');
                 } catch (err) {
                     alert('Error saving file: ' + (err && err.message || err));
@@ -2344,6 +2358,7 @@
                 const url = URL.createObjectURL(blob);
                 triggerDownload(url, openFileName);
                 URL.revokeObjectURL(url);
+                isDirty = false;
                 flashSaveIndicator('Downloaded');
             } else {
                 return saveFileAs();
