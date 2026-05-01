@@ -147,6 +147,86 @@
             cursor: pointer;
         }
 
+        /* File handling toolbar */
+        .filename-indicator {
+            font-size: 0.85rem;
+            color: #6B5F54;
+            font-style: italic;
+            padding: 0 4px;
+            white-space: nowrap;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .filename-indicator.has-file { font-style: normal; font-weight: 500; color: #3A2F28; }
+
+        button:disabled { opacity: 0.45; cursor: not-allowed; }
+        button:disabled:hover { background: #4A5D47; }
+
+        /* AND label between filter rows */
+        .filter-and-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6B5F54;
+            text-align: center;
+            padding: 2px 0;
+            opacity: 0.6;
+        }
+
+        /* Tag chips on chart cards */
+        .node-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-top: 4px;
+        }
+        .node-tag {
+            display: inline-block;
+            background: rgba(74,93,71,0.12);
+            color: #4A5D47;
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        /* Save As fallback dialog */
+        #saveas-dialog {
+            border: 1px solid rgba(74,93,71,0.18);
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 12px 40px rgba(58,47,40,0.18);
+            background: white;
+            color: #3A2F28;
+            font-family: inherit;
+            min-width: 320px;
+        }
+        #saveas-dialog::backdrop { background: rgba(58,47,40,0.35); }
+        #saveas-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+        #saveas-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+        #saveas-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
+        #saveas-dialog input[type="text"] {
+            padding: 8px 10px;
+            border: 1px solid rgba(74,93,71,0.18);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+        #saveas-dialog fieldset {
+            border: 1px solid rgba(74,93,71,0.12);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            gap: 14px;
+        }
+        #saveas-dialog fieldset legend { padding: 0 4px; font-size: 0.75rem; color: #6B5F54; font-weight: 600; }
+        #saveas-dialog fieldset label { font-weight: 400; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+        #saveas-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
+
         /* Warning banner */
         .warning-banner {
             background: #fff3cd;
@@ -580,8 +660,13 @@
         <div class="panel">
             <div class="controls">
                 <div class="control-group">
-                    <button class="btn-primary" onclick="document.getElementById('file-input').click()">Import</button>
+                    <button class="btn-primary" onclick="openFile()">Open</button>
+                    <button class="btn-primary" id="btn-save" onclick="saveFile()" disabled>Save</button>
+                    <button class="btn-primary" onclick="saveFileAs()">Save As&hellip;</button>
                     <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
+                    <span class="filename-indicator" id="filename-indicator">(no file)</span>
+                </div>
+                <div class="control-group">
                     <button class="btn-secondary" onclick="loadTestData()">Load test data</button>
                     <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
                     <button class="btn-secondary" onclick="exportExcel()">Export Excel</button>
@@ -633,8 +718,8 @@
                             <div class="control-section-label">Data</div>
                             <div class="control-section-body">
                                 <div class="control-group">
-                                    <label>Filter:</label>
-                                    <select id="filter-field" onchange="onFilterFieldChange()">
+                                    <label>Filter 1:</label>
+                                    <select id="filter-field-0" onchange="onFilterFieldChange(0, 'chart')">
                                         <option value="">None</option>
                                         <option value="status">Status</option>
                                         <option value="department">Department</option>
@@ -644,8 +729,33 @@
                                         <option value="workingPattern">Working Pattern</option>
                                     </select>
                                     <div class="filter-container">
-                                        <button class="btn-secondary btn-small" id="filter-values-btn" onclick="toggleFilterDropdown()" style="display:none">Select values</button>
-                                        <div class="filter-values" id="filter-values-dropdown"></div>
+                                        <button class="btn-secondary btn-small" id="filter-values-btn-0" onclick="toggleFilterDropdown(0, 'chart')" style="display:none">Select values</button>
+                                        <div class="filter-values" id="filter-values-dropdown-0"></div>
+                                    </div>
+                                </div>
+                                <div class="filter-and-label">AND</div>
+                                <div class="control-group">
+                                    <label>Filter 2:</label>
+                                    <select id="filter-field-1" onchange="onFilterFieldChange(1, 'chart')">
+                                        <option value="">None</option>
+                                        <option value="status">Status</option>
+                                        <option value="department">Department</option>
+                                        <option value="location">Location</option>
+                                        <option value="incumbentGender">Gender</option>
+                                        <option value="employmentType">Employment Type</option>
+                                        <option value="workingPattern">Working Pattern</option>
+                                    </select>
+                                    <div class="filter-container">
+                                        <button class="btn-secondary btn-small" id="filter-values-btn-1" onclick="toggleFilterDropdown(1, 'chart')" style="display:none">Select values</button>
+                                        <div class="filter-values" id="filter-values-dropdown-1"></div>
+                                    </div>
+                                </div>
+                                <div class="filter-and-label">AND</div>
+                                <div class="control-group">
+                                    <label>Tags:</label>
+                                    <div class="filter-container">
+                                        <button class="btn-secondary btn-small" id="tag-filter-btn" onclick="toggleTagFilterDropdown('chart')">Select tags</button>
+                                        <div class="filter-values" id="tag-filter-dropdown"></div>
                                     </div>
                                 </div>
                                 <span class="control-divider"></span>
@@ -736,8 +846,8 @@
                             <div class="control-section-label">Filter</div>
                             <div class="control-section-body">
                                 <div class="control-group">
-                                    <label>Field:</label>
-                                    <select id="pivot-filter-field" onchange="onPivotFilterFieldChange()">
+                                    <label>Filter 1:</label>
+                                    <select id="filter-field-0-pivot" onchange="onFilterFieldChange(0, 'pivot')">
                                         <option value="">None</option>
                                         <option value="status">Status</option>
                                         <option value="department">Department</option>
@@ -747,8 +857,33 @@
                                         <option value="workingPattern">Working Pattern</option>
                                     </select>
                                     <div class="filter-container">
-                                        <button class="btn-secondary btn-small" id="pivot-filter-values-btn" onclick="togglePivotFilterDropdown()" style="display:none">Select values</button>
-                                        <div class="filter-values" id="pivot-filter-values-dropdown"></div>
+                                        <button class="btn-secondary btn-small" id="filter-values-btn-0-pivot" onclick="toggleFilterDropdown(0, 'pivot')" style="display:none">Select values</button>
+                                        <div class="filter-values" id="filter-values-dropdown-0-pivot"></div>
+                                    </div>
+                                </div>
+                                <div class="filter-and-label">AND</div>
+                                <div class="control-group">
+                                    <label>Filter 2:</label>
+                                    <select id="filter-field-1-pivot" onchange="onFilterFieldChange(1, 'pivot')">
+                                        <option value="">None</option>
+                                        <option value="status">Status</option>
+                                        <option value="department">Department</option>
+                                        <option value="location">Location</option>
+                                        <option value="incumbentGender">Gender</option>
+                                        <option value="employmentType">Employment Type</option>
+                                        <option value="workingPattern">Working Pattern</option>
+                                    </select>
+                                    <div class="filter-container">
+                                        <button class="btn-secondary btn-small" id="filter-values-btn-1-pivot" onclick="toggleFilterDropdown(1, 'pivot')" style="display:none">Select values</button>
+                                        <div class="filter-values" id="filter-values-dropdown-1-pivot"></div>
+                                    </div>
+                                </div>
+                                <div class="filter-and-label">AND</div>
+                                <div class="control-group">
+                                    <label>Tags:</label>
+                                    <div class="filter-container">
+                                        <button class="btn-secondary btn-small" id="tag-filter-btn-pivot" onclick="toggleTagFilterDropdown('pivot')">Select tags</button>
+                                        <div class="filter-values" id="tag-filter-dropdown-pivot"></div>
                                     </div>
                                 </div>
                             </div>
@@ -770,6 +905,27 @@
         <div class="summary-content" id="summary-content"></div>
     </div>
 
+    <dialog id="saveas-dialog">
+        <form method="dialog" id="saveas-form">
+            <h3>Save As</h3>
+            <div class="saveas-row">
+                <label for="saveas-name">Filename</label>
+                <input id="saveas-name" type="text" placeholder="org-chart.xlsx">
+            </div>
+            <div class="saveas-row">
+                <fieldset>
+                    <legend>Format</legend>
+                    <label><input type="radio" name="saveas-fmt" value="xlsx" checked> Excel (.xlsx)</label>
+                    <label><input type="radio" name="saveas-fmt" value="csv"> CSV (.csv)</label>
+                </fieldset>
+            </div>
+            <menu>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('saveas-dialog').close('cancel')">Cancel</button>
+                <button type="submit" class="btn-primary" value="save">Save</button>
+            </menu>
+        </form>
+    </dialog>
+
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css">
@@ -782,8 +938,22 @@
         let roles = [];
         let activeTab = 'table';
         let nextId = 1;
-        let filterField = '';
-        let filterValues = new Set();
+        // Two filter slots, ANDed together. Each slot: { field, values:Set }.
+        // Empty field or "all values selected" is inert.
+        let filters = [
+            { field: '', values: new Set() },
+            { field: '', values: new Set() }
+        ];
+        // Tag filter — record matches if it has ANY of the selected tags.
+        // ANDed with the two field filters above.
+        let tagFilter = new Set();
+        // File handling state
+        let openFileName = '';            // display name e.g. "team.xlsx" — '' = no file
+        let openFileFormat = '';          // 'csv' | 'xlsx' (xls upgrades to xlsx on save)
+        let openFileHandle = null;        // FileSystemFileHandle when FSA path used
+        let openFileIsTestData = false;   // test data has no real source — Save acts as Save As
+        const HAS_FSA = typeof window.showOpenFilePicker === 'function'
+                     && typeof window.showSaveFilePicker === 'function';
         let colorField = '';
         let colorMap = {};
         let maxDepth = 0; // 0 = show all
@@ -845,7 +1015,8 @@
                 incumbentGender: '',
                 employmentType: 'Permanent',
                 workingPattern: 'Full-time',
-                comments: ''
+                comments: '',
+                tags: []
             });
             render();
         }
@@ -974,6 +1145,31 @@
                         },
                         { title: 'Comments', field: 'comments', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
+                            title: 'Tags', field: 'tags',
+                            editor: function(cell, onRendered, success, cancel) {
+                                const input = document.createElement('input');
+                                input.type = 'text';
+                                input.style.cssText = 'width:100%;padding:4px;box-sizing:border-box;';
+                                input.value = tagsToString(cell.getValue());
+                                onRendered(function() { input.focus(); input.select(); });
+                                input.addEventListener('blur', function() { success(parseTagString(input.value)); });
+                                input.addEventListener('keydown', function(e) {
+                                    if (e.key === 'Enter') success(parseTagString(input.value));
+                                    if (e.key === 'Escape') cancel();
+                                });
+                                return input;
+                            },
+                            headerFilter: 'input', headerFilterPlaceholder: 'Filter tags...',
+                            formatter: function(cell) { return escapeHtml(tagsToString(cell.getValue())); },
+                            mutator: function(val) { return Array.isArray(val) ? val : parseTagString(val); },
+                            headerFilterFunc: function(term, cellVal) {
+                                if (!term) return true;
+                                const arr = Array.isArray(cellVal) ? cellVal : parseTagString(cellVal);
+                                const t = String(term).toLowerCase();
+                                return arr.some(tag => String(tag).toLowerCase().includes(t));
+                            }
+                        },
+                        {
                             title: '', field: '_actions', width: 120, headerSort: false, editable: false,
                             formatter: function() {
                                 return '<button class="row-action-btn" data-action="addChild" title="Add Direct Report">+child</button>'
@@ -999,6 +1195,12 @@
                         updateRoleField(roleId, field, newValue);
                         if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle') {
                             tabulatorGrid.replaceData(roles.slice());
+                        }
+                        if (field === 'tags') {
+                            // Drop tag-filter selections that no longer exist; refresh dropdown.
+                            const live = new Set(getAllTags());
+                            [...tagFilter].forEach(t => { if (!live.has(t)) tagFilter.delete(t); });
+                            syncFilterUI();
                         }
                         if (activeTab === 'chart') renderChart();
                     }
@@ -1107,7 +1309,8 @@
                 incumbentGender: '',
                 employmentType: 'Permanent',
                 workingPattern: 'Full-time',
-                comments: ''
+                comments: '',
+                tags: []
             });
             render();
         }
@@ -1115,7 +1318,8 @@
         function duplicateRowById(roleId) {
             const idx = roles.findIndex(r => r.roleId === roleId);
             if (idx < 0) return;
-            roles.splice(idx + 1, 0, { ...roles[idx], roleId: generateRoleId() });
+            const src = roles[idx];
+            roles.splice(idx + 1, 0, { ...src, roleId: generateRoleId(), tags: (src.tags || []).slice() });
             render();
         }
 
@@ -1165,16 +1369,24 @@
 
         // --- Filtering ---
         function getFilteredRoles() {
-            if (!filterField || filterValues.size === 0) return roles.slice();
+            // A field-filter slot is "active" only if a field is chosen and the user
+            // has selected a strict subset of its possible values. All-selected = no constraint.
+            const active = filters.filter(f => {
+                if (!f.field || f.values.size === 0) return false;
+                return f.values.size < getUniqueValues(f.field).length;
+            });
+            const tagsActive = tagFilter.size > 0;
+            // A field with zero values selected explicitly excludes everything.
+            const hardEmpty = filters.some(f => f.field && f.values.size === 0);
 
-            const allValues = getUniqueValues(filterField);
-            if (filterValues.size === allValues.length) return roles.slice();
+            if (!active.length && !tagsActive && !hardEmpty) return roles.slice();
 
             const kept = new Set();
             const removedMap = {};
             roles.forEach(r => {
-                const val = String(r[filterField] || '');
-                if (filterValues.has(val)) {
+                const passField = !hardEmpty && active.every(f => f.values.has(String(r[f.field] || '')));
+                const passTags  = !tagsActive || (Array.isArray(r.tags) && r.tags.some(t => tagFilter.has(t)));
+                if (passField && passTags) {
                     kept.add(r.roleId);
                 } else {
                     removedMap[r.roleId] = r.managerRoleId;
@@ -1198,21 +1410,18 @@
             return [...vals].sort();
         }
 
-        function onFilterFieldChange() {
-            filterField = document.getElementById('filter-field').value;
-            applyFilterFieldChange();
+        function getAllTags() {
+            const vals = new Set();
+            roles.forEach(r => (r.tags || []).forEach(t => { if (t) vals.add(t); }));
+            return [...vals].sort();
         }
 
-        function onPivotFilterFieldChange() {
-            filterField = document.getElementById('pivot-filter-field').value;
-            applyFilterFieldChange();
-        }
-
-        function applyFilterFieldChange() {
-            filterValues = new Set();
-            if (filterField) {
-                const vals = getUniqueValues(filterField);
-                filterValues = new Set(vals);
+        function onFilterFieldChange(idx, scope) {
+            const id = 'filter-field-' + idx + (scope === 'pivot' ? '-pivot' : '');
+            filters[idx].field = document.getElementById(id).value;
+            filters[idx].values = new Set();
+            if (filters[idx].field) {
+                filters[idx].values = new Set(getUniqueValues(filters[idx].field));
             }
             syncFilterUI();
             if (activeTab === 'chart') renderChart();
@@ -1220,49 +1429,85 @@
         }
 
         function syncFilterUI() {
-            // Sync select dropdowns
-            document.getElementById('filter-field').value = filterField;
-            document.getElementById('pivot-filter-field').value = filterField;
-
-            // Sync value buttons and checkboxes
-            const chartBtn = document.getElementById('filter-values-btn');
-            const pivotBtn = document.getElementById('pivot-filter-values-btn');
-
-            if (!filterField) {
-                chartBtn.style.display = 'none';
-                pivotBtn.style.display = 'none';
-                document.getElementById('filter-values-dropdown').classList.remove('open');
-                document.getElementById('pivot-filter-values-dropdown').classList.remove('open');
-            } else {
-                chartBtn.style.display = '';
-                pivotBtn.style.display = '';
-                const vals = getUniqueValues(filterField);
-                rebuildFilterCheckboxes('filter-values-dropdown', vals);
-                rebuildFilterCheckboxes('pivot-filter-values-dropdown', vals);
-            }
-        }
-
-        function rebuildFilterCheckboxes(dropdownId, vals) {
-            const dropdown = document.getElementById(dropdownId);
-            let html = '';
-            vals.forEach(v => {
-                const checked = filterValues.has(v) ? ' checked' : '';
-                html += '<label><input type="checkbox"' + checked + ' onchange="toggleFilterValue(\'' + escapeHtml(v) + '\', this.checked)"> ' + escapeHtml(v || '(empty)') + '</label>';
+            ['chart', 'pivot'].forEach(scope => {
+                const sfx = scope === 'pivot' ? '-pivot' : '';
+                [0, 1].forEach(idx => {
+                    const sel = document.getElementById('filter-field-' + idx + sfx);
+                    const btn = document.getElementById('filter-values-btn-' + idx + sfx);
+                    const dd  = document.getElementById('filter-values-dropdown-' + idx + sfx);
+                    if (!sel || !btn || !dd) return;
+                    sel.value = filters[idx].field;
+                    if (!filters[idx].field) {
+                        btn.style.display = 'none';
+                        dd.classList.remove('open');
+                        while (dd.firstChild) dd.removeChild(dd.firstChild);
+                    } else {
+                        btn.style.display = '';
+                        rebuildFilterCheckboxes(dd, getUniqueValues(filters[idx].field), filters[idx].values, idx);
+                    }
+                });
+                const tdd = document.getElementById('tag-filter-dropdown' + sfx);
+                if (tdd) rebuildTagCheckboxes(tdd, getAllTags());
             });
-            dropdown.innerHTML = html;
         }
 
-        function toggleFilterDropdown() {
-            document.getElementById('filter-values-dropdown').classList.toggle('open');
+        // DOM-built (no innerHTML) — safe for arbitrary tag/value strings.
+        function rebuildFilterCheckboxes(dropdown, vals, selected, idx) {
+            while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+            vals.forEach(v => {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = selected.has(v);
+                cb.addEventListener('change', () => toggleFilterValue(idx, v, cb.checked));
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(' ' + (v || '(empty)')));
+                dropdown.appendChild(label);
+            });
         }
 
-        function togglePivotFilterDropdown() {
-            document.getElementById('pivot-filter-values-dropdown').classList.toggle('open');
+        function rebuildTagCheckboxes(dropdown, tags) {
+            while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+            if (!tags.length) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'font-size:0.8rem;color:#888;padding:4px';
+                empty.textContent = 'No tags yet';
+                dropdown.appendChild(empty);
+                return;
+            }
+            tags.forEach(t => {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = tagFilter.has(t);
+                cb.addEventListener('change', () => toggleTagFilterValue(t, cb.checked));
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(' ' + t));
+                dropdown.appendChild(label);
+            });
         }
 
-        function toggleFilterValue(val, checked) {
-            if (checked) filterValues.add(val);
-            else filterValues.delete(val);
+        function toggleFilterDropdown(idx, scope) {
+            const sfx = scope === 'pivot' ? '-pivot' : '';
+            document.getElementById('filter-values-dropdown-' + idx + sfx).classList.toggle('open');
+        }
+
+        function toggleTagFilterDropdown(scope) {
+            const sfx = scope === 'pivot' ? '-pivot' : '';
+            document.getElementById('tag-filter-dropdown' + sfx).classList.toggle('open');
+        }
+
+        function toggleFilterValue(idx, val, checked) {
+            if (checked) filters[idx].values.add(val);
+            else filters[idx].values.delete(val);
+            syncFilterUI();
+            if (activeTab === 'chart') renderChart();
+            if (activeTab === 'pivot') renderPivotTable();
+        }
+
+        function toggleTagFilterValue(tag, checked) {
+            if (checked) tagFilter.add(tag);
+            else tagFilter.delete(tag);
             syncFilterUI();
             if (activeTab === 'chart') renderChart();
             if (activeTab === 'pivot') renderPivotTable();
@@ -1270,14 +1515,21 @@
 
         // Close filter dropdowns on outside click
         document.addEventListener('click', function(e) {
-            const chartContainer = document.getElementById('filter-values-btn')?.closest('.filter-container');
-            if (chartContainer && !chartContainer.contains(e.target)) {
-                document.getElementById('filter-values-dropdown').classList.remove('open');
-            }
-            const pivotContainer = document.getElementById('pivot-filter-values-btn')?.closest('.filter-container');
-            if (pivotContainer && !pivotContainer.contains(e.target)) {
-                document.getElementById('pivot-filter-values-dropdown').classList.remove('open');
-            }
+            ['chart', 'pivot'].forEach(scope => {
+                const sfx = scope === 'pivot' ? '-pivot' : '';
+                [0, 1].forEach(idx => {
+                    const btn = document.getElementById('filter-values-btn-' + idx + sfx);
+                    const container = btn && btn.closest('.filter-container');
+                    if (container && !container.contains(e.target)) {
+                        document.getElementById('filter-values-dropdown-' + idx + sfx).classList.remove('open');
+                    }
+                });
+                const tagBtn = document.getElementById('tag-filter-btn' + sfx);
+                const tagContainer = tagBtn && tagBtn.closest('.filter-container');
+                if (tagContainer && !tagContainer.contains(e.target)) {
+                    document.getElementById('tag-filter-dropdown' + sfx).classList.remove('open');
+                }
+            });
         });
 
         // --- Color coding ---
@@ -1455,6 +1707,7 @@
                     employmentType: r.employmentType,
                     workingPattern: r.workingPattern,
                     comments: r.comments,
+                    tags: Array.isArray(r.tags) ? r.tags.slice() : [],
                     cumulativeHeadcount: cumul.cumulativeHeadcount || 0,
                     cumulativeCost: cumul.cumulativeCost || 0
                 };
@@ -1567,6 +1820,14 @@
                     html += '<div class="node-meta">' + mf.label + ': ' + val + '</div>';
                 }
             });
+
+            if (Array.isArray(role.tags) && role.tags.length) {
+                html += '<div class="node-tags">';
+                role.tags.forEach(t => {
+                    html += '<span class="node-tag">#' + escapeHtml(String(t)) + '</span>';
+                });
+                html += '</div>';
+            }
 
             html += '</div></div>';
             return html;
@@ -1889,7 +2150,8 @@
             'incumbentgender': 'incumbentGender', 'incumbent gender': 'incumbentGender', 'incumbent_gender': 'incumbentGender', 'gender': 'incumbentGender',
             'employmenttype': 'employmentType', 'employment type': 'employmentType', 'employment_type': 'employmentType', 'emp type': 'employmentType', 'contract type': 'employmentType',
             'workingpattern': 'workingPattern', 'working pattern': 'workingPattern', 'working_pattern': 'workingPattern', 'work pattern': 'workingPattern', 'fte': 'workingPattern',
-            'comments': 'comments', 'notes': 'comments', 'comment': 'comments'
+            'comments': 'comments', 'notes': 'comments', 'comment': 'comments',
+            'tags': 'tags', 'tag': 'tags', 'keywords': 'tags', 'labels': 'tags'
         };
 
         function mapHeaders(rawHeaders) {
@@ -1918,7 +2180,7 @@
                     roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
                     managerRoleId: '', department: '', costToCompany: 0,
                     location: '', incumbentGender: '', employmentType: 'Permanent',
-                    workingPattern: 'Full-time', comments: ''
+                    workingPattern: 'Full-time', comments: '', tags: []
                 };
                 Object.entries(row).forEach(([col, val]) => {
                     const field = headerMap[col];
@@ -1928,6 +2190,8 @@
                         } else if (field === 'status') {
                             const s = String(val).toLowerCase().trim();
                             role[field] = ['filled','vacant','pending start','planned','on hold','sunsetting','removed','earmarked'].includes(s) ? s : 'planned';
+                        } else if (field === 'tags') {
+                            role[field] = parseTagString(val);
                         } else {
                             role[field] = String(val);
                         }
@@ -1945,6 +2209,8 @@
             render();
         }
 
+        // Fallback (non-FSA) Open path. The hidden <input type="file"> is triggered
+        // by openFile() when the File System Access API isn't available.
         function importFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1953,6 +2219,9 @@
             reader.onload = function(e) {
                 try {
                     processImportData(e.target.result);
+                    // Remember the source so subsequent Save can fall back to a download
+                    // with the original filename and format.
+                    setOpenFile({ name: file.name, format: detectFormat(file.name), handle: null, isTestData: false });
                 } catch (err) {
                     alert('Error importing file: ' + err.message);
                 }
@@ -1970,53 +2239,241 @@
                 })
                 .then(function(arrayBuffer) {
                     processImportData(arrayBuffer);
+                    setOpenFile({ name: 'test data', format: 'csv', handle: null, isTestData: true });
                 })
                 .catch(function(err) {
                     alert(err.message);
                 });
         }
 
-        // --- Export ---
-        function exportCSV() {
-            if (!roles.length) { alert('No data to export.'); return; }
-            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments'];
-            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments'];
+        // --- File handling (Open / Save / Save As) ---
+        function detectFormat(name) {
+            const m = String(name || '').toLowerCase().match(/\.(csv|xlsx|xls)$/);
+            return m ? m[1] : 'xlsx';
+        }
 
-            let csv = headers.join(',') + '\n';
-            roles.forEach(r => {
-                csv += fields.map(f => {
-                    let v = String(r[f] || '');
+        function setOpenFile(state) {
+            openFileName = state.name || '';
+            openFileFormat = state.format || '';
+            openFileHandle = state.handle || null;
+            openFileIsTestData = !!state.isTestData;
+            updateFilenameIndicator();
+            updateSaveButtonState();
+        }
+
+        function updateFilenameIndicator() {
+            const el = document.getElementById('filename-indicator');
+            if (!el) return;
+            if (!openFileName) {
+                el.textContent = '(no file)';
+                el.classList.remove('has-file');
+                el.title = '';
+            } else if (openFileIsTestData) {
+                el.textContent = '(test data — unsaved)';
+                el.classList.remove('has-file');
+                el.title = '';
+            } else {
+                el.textContent = openFileName;
+                el.classList.add('has-file');
+                el.title = openFileName + (openFileHandle ? ' (linked — Save will overwrite)' : ' (Save will download)');
+            }
+        }
+
+        function updateSaveButtonState() {
+            const btn = document.getElementById('btn-save');
+            if (!btn) return;
+            const canSave = roles.length > 0 && (openFileHandle || (openFileName && !openFileIsTestData));
+            btn.disabled = !canSave;
+        }
+
+        async function openFile() {
+            if (HAS_FSA) {
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        types: [{
+                            description: 'Org chart data',
+                            accept: {
+                                'text/csv': ['.csv'],
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                                'application/vnd.ms-excel': ['.xls']
+                            }
+                        }],
+                        excludeAcceptAllOption: false,
+                        multiple: false
+                    });
+                    const file = await handle.getFile();
+                    const buf = await file.arrayBuffer();
+                    processImportData(buf);
+                    setOpenFile({ name: file.name, format: detectFormat(file.name), handle: handle, isTestData: false });
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return; // user cancelled
+                    alert('Error opening file: ' + (err && err.message || err));
+                }
+            } else {
+                document.getElementById('file-input').click();
+            }
+        }
+
+        async function saveFile() {
+            if (!roles.length) { alert('No data to save.'); return; }
+            // .xls is read-only in SheetJS — upgrade to .xlsx on first save.
+            if (openFileFormat === 'xls') {
+                openFileFormat = 'xlsx';
+                openFileName = openFileName.replace(/\.xls$/i, '.xlsx');
+                if (openFileHandle) {
+                    // The original .xls handle won't accept .xlsx content — fall back to Save As.
+                    alert('This file was opened as .xls. SheetJS can only write .xlsx, so please choose a new location.');
+                    openFileHandle = null;
+                    return saveFileAs();
+                }
+            }
+
+            const blob = openFileFormat === 'csv' ? rolesToCsvBlob(roles) : rolesToXlsxBlob(roles);
+
+            if (openFileHandle && HAS_FSA) {
+                try {
+                    const writable = await openFileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    flashSaveIndicator('Saved');
+                } catch (err) {
+                    alert('Error saving file: ' + (err && err.message || err));
+                }
+            } else if (openFileName) {
+                // Non-FSA fallback: download with the remembered filename.
+                const url = URL.createObjectURL(blob);
+                triggerDownload(url, openFileName);
+                URL.revokeObjectURL(url);
+                flashSaveIndicator('Downloaded');
+            } else {
+                return saveFileAs();
+            }
+            updateFilenameIndicator();
+        }
+
+        async function saveFileAs() {
+            if (!roles.length) { alert('No data to save.'); return; }
+            if (HAS_FSA) {
+                try {
+                    const suggested = openFileName || 'org-chart.xlsx';
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: suggested,
+                        types: [
+                            { description: 'Excel workbook', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } },
+                            { description: 'CSV', accept: { 'text/csv': ['.csv'] } }
+                        ]
+                    });
+                    const chosenName = handle.name || suggested;
+                    const fmt = detectFormat(chosenName);
+                    const blob = fmt === 'csv' ? rolesToCsvBlob(roles) : rolesToXlsxBlob(roles);
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    setOpenFile({ name: chosenName, format: fmt, handle: handle, isTestData: false });
+                    flashSaveIndicator('Saved');
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return;
+                    alert('Error saving file: ' + (err && err.message || err));
+                }
+            } else {
+                openSaveAsDialog();
+            }
+        }
+
+        function openSaveAsDialog() {
+            const dlg = document.getElementById('saveas-dialog');
+            const nameInput = document.getElementById('saveas-name');
+            const form = document.getElementById('saveas-form');
+            nameInput.value = openFileName || 'org-chart.xlsx';
+            const fmtRadios = form.querySelectorAll('input[name="saveas-fmt"]');
+            const initialFmt = openFileFormat === 'csv' ? 'csv' : 'xlsx';
+            fmtRadios.forEach(r => { r.checked = (r.value === initialFmt); });
+
+            dlg.onclose = function() {
+                // Only proceed when the user clicked Save. Escape / Cancel close with
+                // a different (or empty) returnValue.
+                if (dlg.returnValue !== 'save') return;
+                let name = nameInput.value.trim() || 'org-chart.xlsx';
+                const fmt = form.querySelector('input[name="saveas-fmt"]:checked').value;
+                // Force extension to match selected format.
+                if (!new RegExp('\\.' + fmt + '$', 'i').test(name)) {
+                    name = name.replace(/\.(csv|xlsx|xls)$/i, '') + '.' + fmt;
+                }
+                const blob = fmt === 'csv' ? rolesToCsvBlob(roles) : rolesToXlsxBlob(roles);
+                const url = URL.createObjectURL(blob);
+                triggerDownload(url, name);
+                URL.revokeObjectURL(url);
+                setOpenFile({ name: name, format: fmt, handle: null, isTestData: false });
+                flashSaveIndicator('Downloaded');
+            };
+            try { dlg.showModal(); } catch (err) { alert('Save As dialog unavailable in this browser.'); }
+        }
+
+        function flashSaveIndicator(text) {
+            const el = document.getElementById('filename-indicator');
+            if (!el) return;
+            const original = el.textContent;
+            el.textContent = text + ' ✓  ' + (openFileName || '');
+            setTimeout(() => { updateFilenameIndicator(); }, 1400);
+        }
+
+        // --- Export / serialisation helpers ---
+        const EXPORT_HEADERS = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments','Tags'];
+        const EXPORT_FIELDS  = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments','tags'];
+
+        function parseTagString(val) {
+            if (Array.isArray(val)) return val.map(t => String(t).trim()).filter(Boolean);
+            return String(val || '').split(',').map(t => t.trim()).filter(Boolean);
+        }
+
+        function tagsToString(tags) {
+            return Array.isArray(tags) ? tags.join(', ') : String(tags || '');
+        }
+
+        function fieldToCellValue(role, field) {
+            if (field === 'tags') return tagsToString(role.tags);
+            return role[field] !== undefined && role[field] !== null ? role[field] : '';
+        }
+
+        function rolesToCsvBlob(rs) {
+            let csv = EXPORT_HEADERS.join(',') + '\n';
+            rs.forEach(r => {
+                csv += EXPORT_FIELDS.map(f => {
+                    let v = String(fieldToCellValue(r, f));
                     if (v.includes(',') || v.includes('"') || v.includes('\n')) {
                         v = '"' + v.replace(/"/g, '""') + '"';
                     }
                     return v;
                 }).join(',') + '\n';
             });
+            return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        }
 
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'org-chart.csv';
-            a.click();
+        function rolesToXlsxBlob(rs) {
+            const data = rs.map(r => {
+                const row = {};
+                EXPORT_FIELDS.forEach((f, i) => row[EXPORT_HEADERS[i]] = fieldToCellValue(r, f));
+                return row;
+            });
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Org Chart');
+            const ab = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            return new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        }
+
+        function exportCSV() {
+            if (!roles.length) { alert('No data to export.'); return; }
+            const url = URL.createObjectURL(rolesToCsvBlob(roles));
+            triggerDownload(url, 'org-chart.csv');
             URL.revokeObjectURL(url);
         }
 
         function exportExcel() {
             if (!roles.length) { alert('No data to export.'); return; }
-            const headers = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments'];
-            const fields = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments'];
-
-            const data = roles.map(r => {
-                const row = {};
-                fields.forEach((f, i) => row[headers[i]] = r[f]);
-                return row;
-            });
-
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Org Chart');
-            XLSX.writeFile(wb, 'org-chart.xlsx');
+            const url = URL.createObjectURL(rolesToXlsxBlob(roles));
+            triggerDownload(url, 'org-chart.xlsx');
+            URL.revokeObjectURL(url);
         }
 
         // --- Render ---
@@ -2024,6 +2481,7 @@
             renderTable();
             if (activeTab === 'chart') renderChart();
             if (activeTab === 'pivot') renderPivotTable();
+            updateSaveButtonState();
         }
 
         // --- Export / Print ---
@@ -2070,6 +2528,8 @@
         // --- Init ---
         renderFieldsDropdown();
         render();
+        updateFilenameIndicator();
+        syncFilterUI();
     </script>
 </body>
 </html>
