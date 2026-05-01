@@ -257,6 +257,29 @@
         .node-status { margin: 2px 0; }
         .node-meta { color: #6B5F54; font-size: 0.7rem; margin-top: 3px; }
 
+        /* Dabeng OrgChart v5 overrides — strip default chrome, tint connectors to sage palette */
+        .orgchart { background-image: none !important; padding: 12px !important; }
+        .orgchart .node { width: 220px; padding: 0; border: 1px dashed transparent; }
+        .orgchart .node:hover, .orgchart .node.selected, .orgchart .node.focused,
+        .orgchart ul li .node:hover, .orgchart ul li .node.selected {
+            background-color: rgba(74,93,71,0.10) !important;
+            transition: 0.25s;
+        }
+        /* Tint all connector lines/links from default red to sage */
+        .orgchart .hierarchy::before,
+        .orgchart .hierarchy.spouse:not(.couple)::after,
+        .orgchart .couple::after,
+        .orgchart .nodes.vertical .hierarchy::before,
+        .orgchart .nodes.vertical .hierarchy::after { border-color: rgba(74,93,71,0.45) !important; }
+        .orgchart .hierarchy:not(.couple) > .node:has(+ .nodes)::after,
+        .orgchart > ul > li > ul li > .node:not(.outsider)::before,
+        .orgchart .couple:has(> .nodes) > .node:first-child::after { background-color: rgba(74,93,71,0.45) !important; }
+        .orgchart > ul > li > ul li > .node.outsider::before { border-right-color: rgba(74,93,71,0.45) !important; }
+        /* Toggle button (collapse/expand) and edges in sage */
+        .orgchart .node .toggleBtn::before { background-color: rgba(74,93,71,0.7) !important; }
+        .orgchart .node .toggleBtn:hover::before { background-color: #4A5D47 !important; }
+        .orgchart .node .edge::before { border-color: rgba(74,93,71,0.6) !important; }
+
         .reparent-panel {
             position: fixed; z-index: 1000; background: white; border-radius: 8px;
             box-shadow: 0 8px 30px rgba(58,47,40,0.12); padding: 16px; min-width: 240px;
@@ -530,15 +553,19 @@
         }
 
         @media print {
-            body { height: auto; overflow: visible; }
+            body { height: auto; overflow: visible; background: white; }
             header, .panel, .chart-sidebar, .sidebar-toggle, .summary-panel,
-            .reparent-panel, .tab-bar, .pivot-container { display: none !important; }
+            .reparent-panel, .tab-bar, .pivot-container, .chart-legend { display: none !important; }
             .container, .panel-main, .design-surface { display: block !important; overflow: visible !important; height: auto !important; }
             #chart-container {
-                width: 100% !important; height: auto !important;
+                width: auto !important; height: auto !important;
                 overflow: visible !important;
             }
-            #chart-container svg { width: 100% !important; height: auto !important; }
+            #chart-container .orgchart {
+                background: white !important;
+                background-image: none !important;
+            }
+            .orgchart .node { page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -590,11 +617,9 @@
                             <div class="control-section-body">
                                 <label>Layout:</label>
                                 <select id="chart-layout" onchange="onLayoutChange()">
+                                    <option value="top-hybrid" selected>Top-down Hybrid</option>
                                     <option value="top">Top-down</option>
-                                    <option value="top-compact" selected>Top-down Compact</option>
                                     <option value="left">Left-to-right</option>
-                                    <option value="left-compact">Left-to-right Compact</option>
-                                    <option value="bottom">Bottom-up</option>
                                 </select>
                                 <div class="depth-row">
                                     <label>Depth:</label>
@@ -747,9 +772,10 @@
 
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.1.2/build/d3-flextree.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/orgchart@5/dist/js/jquery.orgchart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script>
         // --- Data model ---
@@ -765,14 +791,12 @@
         let chartInstance = null;
         let tabulatorGrid = null;
         let isEditing = false;
-        let chartLayout = 'top-compact';
+        let chartLayout = 'top-hybrid';
 
         const LAYOUT_PRESETS = {
-            'top':            { layout: 'top',    compact: false, label: 'Top-down' },
-            'top-compact':    { layout: 'top',    compact: true,  label: 'Top-down Compact' },
-            'left':           { layout: 'left',   compact: false, label: 'Left-to-right' },
-            'left-compact':   { layout: 'left',   compact: true,  label: 'Left-to-right Compact' },
-            'bottom':         { layout: 'bottom', compact: false, label: 'Bottom-up' },
+            'top-hybrid': { direction: 't2b', hybrid: true,  label: 'Top-down Hybrid' },
+            'top':        { direction: 't2b', hybrid: false, label: 'Top-down' },
+            'left':       { direction: 'l2r', hybrid: false, label: 'Left-to-right' },
         };
 
         const GRID_COLUMNS = [
@@ -1441,6 +1465,37 @@
             return flat;
         }
 
+        function toNestedChartData(filteredRoles) {
+            const flat = toFlatChartData(filteredRoles);
+            if (!flat.length) return null;
+            const byId = {};
+            flat.forEach(e => { byId[e.id] = Object.assign({}, e, { children: [] }); });
+            let root = null;
+            flat.forEach(e => {
+                const node = byId[e.id];
+                if (e.parentId && byId[e.parentId]) byId[e.parentId].children.push(node);
+                else root = node;
+            });
+            return root;
+        }
+
+        // A parent renders its children vertically when none of those children have
+        // visible grandchildren under the current depth limit. A child counts as a
+        // "visual leaf" if it has no real children OR if its own children fall
+        // beyond maxLevel. Pass maxLevel = 0 to mean "no limit" (treat real leaves only).
+        function applyLeafParentHybrid(node, currentLevel, maxLevel) {
+            if (!node.children || !node.children.length) return;
+            currentLevel = currentLevel || 1;
+            delete node.hybrid;
+            const allVisualLeaves = node.children.every(function(c) {
+                if (!c.children || !c.children.length) return true;
+                if (maxLevel && (currentLevel + 1) >= maxLevel) return true;
+                return false;
+            });
+            if (allVisualLeaves) node.hybrid = true;
+            node.children.forEach(function(c) { applyLeafParentHybrid(c, currentLevel + 1, maxLevel); });
+        }
+
         function computeNodeHeight() {
             let lines = 1; // title bar always
             Object.keys(chartFields).forEach(f => { if (chartFields[f]) lines++; });
@@ -1475,7 +1530,7 @@
             if (chartFields.workingPattern && role.workingPattern) {
                 html += '<div class="node-meta">' + escapeHtml(role.workingPattern) + '</div>';
             }
-            if (chartFields.cost && role.costToCompany) {
+            if (chartFields.cost && role.costToCompany != null) {
                 html += '<div class="node-meta">Cost: ' + Number(role.costToCompany).toLocaleString() + '</div>';
             }
             if (chartFields.comments && role.comments) {
@@ -1574,9 +1629,8 @@
 
         // --- Chart rendering ---
         function renderChart() {
-
             const container = document.getElementById('chart-container');
-            container.innerHTML = '';
+            while (container.firstChild) container.removeChild(container.firstChild);
             const legendDiv = document.createElement('div');
             legendDiv.className = 'chart-legend';
             legendDiv.id = 'legend';
@@ -1584,44 +1638,80 @@
 
             const filtered = getFilteredRoles();
             if (!filtered.length) {
-                container.innerHTML = '<p style="padding:40px;color:#888">No roles to display. Add data in the Table tab.</p>';
+                container.appendChild(emptyMsg('No roles to display. Add data in the Table tab.'));
                 updateSummaryPanel(filtered);
                 return;
             }
 
-            const flatData = toFlatChartData(filtered);
-            if (!flatData.length) {
-                container.innerHTML = '<p style="padding:40px;color:#888">Unable to build tree. Check your data.</p>';
+            const tree = toNestedChartData(filtered);
+            if (!tree) {
+                container.appendChild(emptyMsg('Unable to build tree. Check your data.'));
                 updateSummaryPanel(filtered);
                 return;
             }
 
-            const nodeH = computeNodeHeight();
-            const expandLevel = maxDepth === 0 ? Infinity : maxDepth;
+            const preset = LAYOUT_PRESETS[chartLayout] || LAYOUT_PRESETS['top-hybrid'];
+            const hasVirtualRoot = tree.roleId === '_root';
+            const maxLevel = maxDepth === 0 ? 0 : maxDepth + (hasVirtualRoot ? 1 : 0);
 
-            const preset = LAYOUT_PRESETS[chartLayout] || LAYOUT_PRESETS['top-compact'];
+            if (preset.hybrid) applyLeafParentHybrid(tree, 1, maxLevel);
 
-            chartInstance = new d3.OrgChart()
-                .container('#chart-container')
-                .data(flatData)
-                .layout(preset.layout)
-                .nodeWidth(function(d) { return 220; })
-                .nodeHeight(function(d) { return nodeH; })
-                .compactMarginBetween(function(d) { return 25; })
-                .compactMarginPair(function(d) { return 50; })
-                .neighbourMargin(function(a, b) { return 25; })
-                .siblingsMargin(function(d) { return 25; })
-                .childrenMargin(function(d) { return 50; })
-                .compact(preset.compact)
-                .initialExpandLevel(expandLevel)
-                .nodeContent(function(d) { return buildNodeContentHtml(d); })
-                .onNodeClick(function(nodeId, e) {
-                    showReparentPanel(nodeId, e || window.event || { pageX: 300, pageY: 300 });
-                })
-                .render();
+            chartInstance = $('#chart-container').orgchart({
+                data: tree,
+                direction: preset.direction,
+                pan: true,
+                zoom: true,
+                visibleLevel: 999,
+                nodeContent: 'roleTitle',
+                nodeTemplate: function(data) { return buildNodeContentHtml(data); },
+                createNode: function($node, data) {
+                    $node.on('click', function(e) {
+                        if ($(e.target).closest('.edge, .toggleBtn, .topEdge, .rightEdge, .bottomEdge, .leftEdge').length) return;
+                        if (data.roleId && data.roleId !== '_root') {
+                            showReparentPanel(data.roleId, e);
+                        }
+                    });
+                }
+            });
+
+            if (maxLevel > 0) applyDepthLimit(container, maxLevel);
 
             renderLegend();
             updateSummaryPanel(filtered);
+        }
+
+        // Manually apply collapse classes at a given depth. dabeng v5's built-in
+        // visibleLevel option leaves connector artefacts in hybrid mode (it slides
+        // descendants out via opacity but never hides the .nodes container or marks
+        // the parent .isChildrenCollapsed). Replicating what hideChildren() does on
+        // a manual toggle gives clean collapse with full connector suppression.
+        function applyDepthLimit(container, maxLevel) {
+            const roots = container.querySelectorAll('.orgchart > ul.nodes > li.hierarchy');
+            roots.forEach(function(r) { collapseAtDepth(r, 1, maxLevel); });
+        }
+
+        function collapseAtDepth(hierarchy, level, maxLevel) {
+            const childUl = hierarchy.querySelector(':scope > ul.nodes');
+            if (!childUl) return;
+            if (level >= maxLevel) {
+                hierarchy.classList.add('isChildrenCollapsed');
+                childUl.classList.add('hidden');
+                childUl.querySelectorAll('.node').forEach(function(n) { n.classList.add('slide-up'); });
+                if (!childUl.classList.contains('vertical')) {
+                    childUl.querySelectorAll('.hierarchy').forEach(function(h) { h.classList.add('isCollapsedDescendant'); });
+                }
+                return;
+            }
+            childUl.querySelectorAll(':scope > li.hierarchy').forEach(function(child) {
+                collapseAtDepth(child, level + 1, maxLevel);
+            });
+        }
+
+        function emptyMsg(text) {
+            const p = document.createElement('p');
+            p.style.cssText = 'padding:40px;color:#888';
+            p.textContent = text;
+            return p;
         }
 
         // --- Sidebar, Summary, Minimap ---
@@ -1938,204 +2028,34 @@
 
         // --- Export / Print ---
 
-        function inlineSVGStyles(svgClone) {
-            const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-            const styles = [];
-            for (const sheet of document.styleSheets) {
-                try {
-                    for (const rule of sheet.cssRules) {
-                        if (rule.selectorText && (
-                            rule.selectorText.includes('.node-') ||
-                            rule.selectorText.includes('.status-') ||
-                            rule.selectorText.includes('.legend') ||
-                            rule.selectorText.includes('.chart-legend')
-                        )) {
-                            styles.push(rule.cssText);
-                        }
-                    }
-                } catch(e) { /* cross-origin sheets */ }
-            }
-            styleEl.textContent = styles.join('\n');
-            svgClone.insertBefore(styleEl, svgClone.firstChild);
-        }
-
-        function prepareSvgForExport() {
-            const svgEl = document.querySelector('#chart-container svg');
-            if (!svgEl) return null;
-            const clone = svgEl.cloneNode(true);
-            const bbox = svgEl.getBBox();
-            const pad = 20;
-            const width = bbox.width + pad * 2;
-            const height = bbox.height + pad * 2;
-            clone.setAttribute('viewBox', (bbox.x - pad) + ' ' + (bbox.y - pad) + ' ' + width + ' ' + height);
-            clone.setAttribute('width', width);
-            clone.setAttribute('height', height);
-            // Reset the inner <g> transform to strip zoom/pan
-            const innerG = clone.querySelector('g');
-            if (innerG) {
-                // d3-org-chart wraps everything in a <g> with a zoom transform; remove it
-                const origTransform = innerG.getAttribute('transform');
-                if (origTransform && origTransform.includes('scale')) {
-                    innerG.removeAttribute('transform');
-                }
-            }
-            inlineSVGStyles(clone);
-            return { clone, width, height };
-        }
-
         function printChart() {
-            const result = prepareSvgForExport();
-            if (!result) return;
-            const svgStr = new XMLSerializer().serializeToString(result.clone);
-            const win = window.open('', '_blank');
-            if (!win) { alert('Please allow popups to print the chart.'); return; }
-            win.document.write('<!DOCTYPE html><html><head><title>Org Chart</title><style>body{margin:0}svg{width:100%;height:auto}</style></head><body>' + svgStr + '</body></html>');
-            win.document.close();
-            win.focus();
-            setTimeout(function() { win.print(); setTimeout(function() { win.close(); }, 1000); }, 300);
-        }
-
-        function convertForeignObjectsToSvg(svgClone) {
-            const fos = svgClone.querySelectorAll('foreignObject');
-            fos.forEach(function(fo) {
-                const x = parseFloat(fo.getAttribute('x')) || 0;
-                const y = parseFloat(fo.getAttribute('y')) || 0;
-                const w = parseFloat(fo.getAttribute('width')) || 180;
-                const h = parseFloat(fo.getAttribute('height')) || 80;
-
-                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-                // Parse the HTML content
-                const cardDiv = fo.querySelector('.node-card');
-                const titleBar = fo.querySelector('.node-title-bar');
-                const bodyDiv = fo.querySelector('.node-body');
-
-                const titleText = titleBar ? titleBar.textContent.trim() : '';
-                const titleBg = titleBar ? (titleBar.style.backgroundColor || '#4A5D47') : '#4A5D47';
-                const titleH = 26;
-                const fontSize = 11;
-                const lineHeight = 15;
-                const padX = 8;
-                const radius = 6;
-
-                // Title bar background
-                const titleRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                titleRect.setAttribute('x', x);
-                titleRect.setAttribute('y', y);
-                titleRect.setAttribute('width', w);
-                titleRect.setAttribute('height', titleH);
-                titleRect.setAttribute('rx', radius);
-                titleRect.setAttribute('ry', radius);
-                titleRect.setAttribute('fill', titleBg);
-                g.appendChild(titleRect);
-
-                // Square off bottom corners of title bar
-                const titleFill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                titleFill.setAttribute('x', x);
-                titleFill.setAttribute('y', y + titleH - radius);
-                titleFill.setAttribute('width', w);
-                titleFill.setAttribute('height', radius);
-                titleFill.setAttribute('fill', titleBg);
-                g.appendChild(titleFill);
-
-                // Title text
-                const titleTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                titleTxt.setAttribute('x', x + padX);
-                titleTxt.setAttribute('y', y + titleH / 2 + 4);
-                titleTxt.setAttribute('fill', 'white');
-                titleTxt.setAttribute('font-size', fontSize + 1);
-                titleTxt.setAttribute('font-weight', '600');
-                titleTxt.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif');
-                // Clip long titles
-                const maxTitleChars = Math.floor((w - padX * 2) / (fontSize * 0.58));
-                titleTxt.textContent = titleText.length > maxTitleChars ? titleText.substring(0, maxTitleChars - 1) + '\u2026' : titleText;
-                g.appendChild(titleTxt);
-
-                // Body background
-                const bodyRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                bodyRect.setAttribute('x', x);
-                bodyRect.setAttribute('y', y + titleH);
-                bodyRect.setAttribute('width', w);
-                bodyRect.setAttribute('height', h - titleH);
-                bodyRect.setAttribute('fill', 'white');
-                bodyRect.setAttribute('rx', radius);
-                bodyRect.setAttribute('ry', radius);
-                g.appendChild(bodyRect);
-
-                // Square off top corners of body
-                const bodyFill = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                bodyFill.setAttribute('x', x);
-                bodyFill.setAttribute('y', y + titleH);
-                bodyFill.setAttribute('width', w);
-                bodyFill.setAttribute('height', radius);
-                bodyFill.setAttribute('fill', 'white');
-                g.appendChild(bodyFill);
-
-                // Body text lines
-                if (bodyDiv) {
-                    const lines = bodyDiv.querySelectorAll('div');
-                    let lineY = y + titleH + lineHeight;
-                    lines.forEach(function(line) {
-                        if (lineY + lineHeight > y + h) return; // skip if overflows
-                        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        txt.setAttribute('x', x + padX);
-                        txt.setAttribute('y', lineY);
-                        txt.setAttribute('fill', '#333');
-                        txt.setAttribute('font-size', fontSize);
-                        txt.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif');
-                        const maxChars = Math.floor((w - padX * 2) / (fontSize * 0.55));
-                        const text = line.textContent.trim();
-                        txt.textContent = text.length > maxChars ? text.substring(0, maxChars - 1) + '\u2026' : text;
-                        g.appendChild(txt);
-                        lineY += lineHeight;
-                    });
-                }
-
-                // Border
-                const border = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                border.setAttribute('x', x);
-                border.setAttribute('y', y);
-                border.setAttribute('width', w);
-                border.setAttribute('height', h);
-                border.setAttribute('rx', radius);
-                border.setAttribute('ry', radius);
-                border.setAttribute('fill', 'none');
-                border.setAttribute('stroke', 'rgba(74,93,71,0.12)');
-                border.setAttribute('stroke-width', '1');
-                g.appendChild(border);
-
-                fo.parentNode.replaceChild(g, fo);
-            });
+            const oc = document.querySelector('#chart-container .orgchart');
+            if (!oc) return;
+            const prevTransform = oc.style.transform;
+            oc.style.transform = ''; // clear pan/zoom override, keep CSS-defined rotation for l2r/r2l/b2t
+            window.print();
+            oc.style.transform = prevTransform;
         }
 
         function downloadPNG() {
-            const result = prepareSvgForExport();
-            if (!result) return;
-            convertForeignObjectsToSvg(result.clone);
-            const svgStr = new XMLSerializer().serializeToString(result.clone);
-            const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const img = new Image();
-            const scale = 2;
-            const w = result.width;
-            const h = result.height;
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = w * scale;
-                canvas.height = h * scale;
-                const ctx = canvas.getContext('2d');
-                ctx.scale(scale, scale);
-                ctx.drawImage(img, 0, 0, w, h);
-                URL.revokeObjectURL(url);
-                canvas.toBlob(function(pngBlob) {
-                    triggerDownload(URL.createObjectURL(pngBlob), 'org-chart.png');
+            const oc = document.querySelector('#chart-container .orgchart');
+            if (!oc) { alert('Render the chart before exporting.'); return; }
+            const prevTransform = oc.style.transform;
+            oc.style.transform = '';
+            html2canvas(oc, {
+                scale: 3,
+                backgroundColor: '#FAF8F5',
+                useCORS: true,
+                logging: false
+            }).then(function(canvas) {
+                oc.style.transform = prevTransform;
+                canvas.toBlob(function(blob) {
+                    triggerDownload(URL.createObjectURL(blob), 'org-chart.png');
                 }, 'image/png');
-            };
-            img.onerror = function() {
-                URL.revokeObjectURL(url);
+            }).catch(function() {
+                oc.style.transform = prevTransform;
                 alert('Failed to render chart image.');
-            };
-            img.src = url;
+            });
         }
 
         function triggerDownload(href, filename) {
