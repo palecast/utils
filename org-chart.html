@@ -689,7 +689,15 @@
                 background: white !important;
                 background-image: none !important;
             }
-            .orgchart .node { page-break-inside: avoid; }
+            .orgchart .node {
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .orgchart .node *, .chart-legend, .chart-legend * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
             .chart-legend {
                 position: static !important;
                 max-height: none !important;
