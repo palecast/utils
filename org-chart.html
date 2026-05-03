@@ -138,6 +138,15 @@
 
         .filter-values.open { display: block; }
 
+        /* Body-attached floating dropdown — escapes the chart-sidebar's overflow:hidden
+           so it can be wider/taller than the sidebar. JS sets top/left/width/maxHeight
+           inline; the class only handles the standalone visual treatment. */
+        .filter-values.dropdown-floating {
+            box-shadow: 0 8px 28px rgba(58,47,40,0.22);
+            border-color: rgba(74,93,71,0.25);
+            overflow-y: auto;
+        }
+
         .filter-values label {
             display: flex;
             align-items: center;
@@ -1771,7 +1780,7 @@
                     sel.value = filters[idx].field;
                     if (!filters[idx].field) {
                         btn.style.display = 'none';
-                        dd.classList.remove('open');
+                        if (dd.classList.contains('open')) closeFloatingDropdown(dd);
                         while (dd.firstChild) dd.removeChild(dd.firstChild);
                     } else {
                         btn.style.display = '';
@@ -1813,14 +1822,10 @@
         function toggleFocusPicker(scope) {
             const sfx = scope === 'pivot' ? '-pivot' : '';
             const dd = document.getElementById('focus-picker-dropdown' + sfx);
+            const btn = document.getElementById('focus-picker-btn' + sfx);
             if (!dd) return;
-            const wasOpen = dd.classList.contains('open');
-            // Close every other Show-from / filter dropdown — they share the popup zone.
-            document.querySelectorAll('.focus-picker-dropdown.open, .filter-values.open').forEach(el => {
-                if (el !== dd) el.classList.remove('open');
-            });
-            if (wasOpen) {
-                dd.classList.remove('open');
+            if (dd.classList.contains('open')) {
+                closeFloatingDropdown(dd);
                 return;
             }
             // Auto-expand path to current focus so it's visible without manual unfolding.
@@ -1828,7 +1833,7 @@
                 getFocusAncestors(focusRoleId).forEach(a => focusTreeExpanded.add(a.roleId));
             }
             rebuildFocusTree(dd);
-            dd.classList.add('open');
+            openFloatingDropdown(dd, btn);
         }
 
         // Build the tree DOM into `dropdown`. Only roles that have ≥ 1 direct child appear.
@@ -1908,7 +1913,7 @@
             if (!opts.isCurrent) {
                 label.addEventListener('click', () => {
                     focusOnRole(opts.roleId);
-                    document.querySelectorAll('.focus-picker-dropdown.open').forEach(el => el.classList.remove('open'));
+                    closeAllFloatingDropdowns();
                 });
             }
             row.appendChild(label);
@@ -2055,12 +2060,20 @@
 
         function toggleFilterDropdown(idx, scope) {
             const sfx = scope === 'pivot' ? '-pivot' : '';
-            document.getElementById('filter-values-dropdown-' + idx + sfx).classList.toggle('open');
+            const dd = document.getElementById('filter-values-dropdown-' + idx + sfx);
+            const btn = document.getElementById('filter-values-btn-' + idx + sfx);
+            if (!dd) return;
+            if (dd.classList.contains('open')) closeFloatingDropdown(dd);
+            else openFloatingDropdown(dd, btn);
         }
 
         function toggleTagFilterDropdown(scope) {
             const sfx = scope === 'pivot' ? '-pivot' : '';
-            document.getElementById('tag-filter-dropdown' + sfx).classList.toggle('open');
+            const dd = document.getElementById('tag-filter-dropdown' + sfx);
+            const btn = document.getElementById('tag-filter-btn' + sfx);
+            if (!dd) return;
+            if (dd.classList.contains('open')) closeFloatingDropdown(dd);
+            else openFloatingDropdown(dd, btn);
         }
 
         function toggleFilterValue(idx, val, checked) {
@@ -2079,22 +2092,23 @@
             if (activeTab === 'pivot') renderPivotTable();
         }
 
-        // Close filter dropdowns on outside click
+        // Unified outside-click handler for every floating sidebar dropdown. The
+        // dropdown is body-attached when open so closest('.filter-container') would
+        // miss it — we check the trigger button + the dropdown body directly via id.
         document.addEventListener('click', function(e) {
+            const pairs = [];
             ['chart', 'pivot'].forEach(scope => {
                 const sfx = scope === 'pivot' ? '-pivot' : '';
-                [0, 1].forEach(idx => {
-                    const btn = document.getElementById('filter-values-btn-' + idx + sfx);
-                    const container = btn && btn.closest('.filter-container');
-                    if (container && !container.contains(e.target)) {
-                        document.getElementById('filter-values-dropdown-' + idx + sfx).classList.remove('open');
-                    }
-                });
-                const tagBtn = document.getElementById('tag-filter-btn' + sfx);
-                const tagContainer = tagBtn && tagBtn.closest('.filter-container');
-                if (tagContainer && !tagContainer.contains(e.target)) {
-                    document.getElementById('tag-filter-dropdown' + sfx).classList.remove('open');
-                }
+                [0, 1].forEach(idx => pairs.push(['filter-values-btn-' + idx + sfx, 'filter-values-dropdown-' + idx + sfx]));
+                pairs.push(['tag-filter-btn' + sfx, 'tag-filter-dropdown' + sfx]);
+            });
+            pairs.push(['fields-btn', 'fields-dropdown']);
+            pairs.push(['focus-picker-btn', 'focus-picker-dropdown']);
+            pairs.push(['focus-picker-btn-pivot', 'focus-picker-dropdown-pivot']);
+            pairs.forEach(([btnId, ddId]) => {
+                const dd = document.getElementById(ddId);
+                if (!dd || !dd.classList.contains('open')) return;
+                if (!isClickInsideDropdownPair(e, btnId, ddId)) closeFloatingDropdown(dd);
             });
         });
 
@@ -2161,7 +2175,10 @@
 
         function toggleFieldsDropdown() {
             const dd = document.getElementById('fields-dropdown');
-            dd.classList.toggle('open');
+            const btn = document.getElementById('fields-btn');
+            if (!dd) return;
+            if (dd.classList.contains('open')) closeFloatingDropdown(dd);
+            else openFloatingDropdown(dd, btn);
         }
 
         // --- Depth controls ---
@@ -2192,27 +2209,6 @@
             });
             return max;
         }
-
-        // Extend outside click handler to close fields dropdown
-        document.addEventListener('click', function(e) {
-            const fc = document.getElementById('fields-container');
-            if (fc && !fc.contains(e.target)) {
-                document.getElementById('fields-dropdown').classList.remove('open');
-            }
-        });
-
-        // Close Show-from popovers on outside click. The trigger button toggles via
-        // toggleFocusPicker(), so a click on it must not also be treated as "outside".
-        document.addEventListener('click', function(e) {
-            ['', '-pivot'].forEach(sfx => {
-                const dd = document.getElementById('focus-picker-dropdown' + sfx);
-                if (!dd || !dd.classList.contains('open')) return;
-                const container = dd.closest('.focus-picker-container');
-                if (container && !container.contains(e.target)) {
-                    dd.classList.remove('open');
-                }
-            });
-        });
 
         // --- Chart data helpers ---
         function toFlatChartData(filteredRoles) {
@@ -2406,6 +2402,83 @@
             html += '</div></div>';
             return html;
         }
+
+        // --- Floating dropdown helper ---
+        // Sidebar dropdowns are clipped by .chart-sidebar { overflow: hidden }, which
+        // makes them painfully cramped. When opened, transplant them to <body>, position
+        // them under the trigger via getBoundingClientRect(), and clamp to viewport.
+        // On close, restore them to their original DOM position so other lookups
+        // (querySelector, syncFilterUI) keep working unchanged.
+        const _floatDropdownOrig = new WeakMap();
+        let _activeFloating = null; // { dd, btn } — for resize/scroll repositioning
+
+        function openFloatingDropdown(dd, triggerBtn) {
+            if (!dd || !triggerBtn) return;
+            if (_activeFloating && _activeFloating.dd !== dd) {
+                closeFloatingDropdown(_activeFloating.dd);
+            }
+            if (!_floatDropdownOrig.has(dd)) {
+                _floatDropdownOrig.set(dd, { parent: dd.parentElement, next: dd.nextElementSibling });
+            }
+            if (dd.parentElement !== document.body) document.body.appendChild(dd);
+            dd.classList.add('open', 'dropdown-floating');
+            positionFloatingDropdown(dd, triggerBtn);
+            _activeFloating = { dd: dd, btn: triggerBtn };
+        }
+
+        function positionFloatingDropdown(dd, triggerBtn) {
+            const r = triggerBtn.getBoundingClientRect();
+            const margin = 8;
+            const minW = Math.max(r.width, 220);
+            const desiredW = 360;
+            const availableRight = window.innerWidth - r.left - margin;
+            const width = Math.max(minW, Math.min(desiredW, availableRight));
+            const spaceBelow = window.innerHeight - r.bottom - margin;
+            dd.style.position = 'absolute';
+            dd.style.left = (r.left + window.scrollX) + 'px';
+            dd.style.top = (r.bottom + window.scrollY + 2) + 'px';
+            dd.style.minWidth = minW + 'px';
+            dd.style.width = width + 'px';
+            dd.style.maxHeight = Math.max(180, spaceBelow) + 'px';
+            dd.style.zIndex = '1000';
+        }
+
+        function closeFloatingDropdown(dd) {
+            if (!dd) return;
+            dd.classList.remove('open', 'dropdown-floating');
+            ['position','left','top','minWidth','width','maxHeight','zIndex'].forEach(p => { dd.style[p] = ''; });
+            const orig = _floatDropdownOrig.get(dd);
+            if (orig && orig.parent && dd.parentElement !== orig.parent) {
+                if (orig.next && orig.next.parentElement === orig.parent) {
+                    orig.parent.insertBefore(dd, orig.next);
+                } else {
+                    orig.parent.appendChild(dd);
+                }
+            }
+            if (_activeFloating && _activeFloating.dd === dd) _activeFloating = null;
+        }
+
+        function closeAllFloatingDropdowns() {
+            if (_activeFloating) closeFloatingDropdown(_activeFloating.dd);
+        }
+
+        // Whether a click landed on (a) the trigger button or (b) inside the dropdown body.
+        // Both must miss for an outside-click to be considered "outside".
+        function isClickInsideDropdownPair(e, btnId, ddId) {
+            const btn = document.getElementById(btnId);
+            const dd = document.getElementById(ddId);
+            return (btn && btn.contains(e.target)) || (dd && dd.contains(e.target));
+        }
+
+        // Reposition the active floating dropdown when layout shifts — capture-phase
+        // scroll listener catches scrolls in any scrollable ancestor (scroll events
+        // don't bubble, but capture fires on the way down).
+        window.addEventListener('resize', () => {
+            if (_activeFloating) positionFloatingDropdown(_activeFloating.dd, _activeFloating.btn);
+        });
+        window.addEventListener('scroll', () => {
+            if (_activeFloating) positionFloatingDropdown(_activeFloating.dd, _activeFloating.btn);
+        }, true);
 
         // --- Reparent UI ---
         function showReparentPanel(roleId, event) {
@@ -2738,6 +2811,7 @@
 
         // --- Tab switching ---
         function switchTab(tab) {
+            closeAllFloatingDropdowns();
             activeTab = tab;
             document.querySelectorAll('.tab-btn').forEach((btn, i) => {
                 btn.classList.toggle('active', (i === 0 && tab === 'table') || (i === 1 && tab === 'chart') || (i === 2 && tab === 'pivot'));
