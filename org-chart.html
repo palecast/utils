@@ -411,6 +411,46 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
+        /* Legend strip used only inside the off-screen PNG export wrapper */
+        .chart-export-legend {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: #FFFFFF;
+            border: 1px solid rgba(74,93,71,0.12);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(58,47,40,0.08);
+            color: #3A2F28;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chart-export-legend .legend-title {
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6B5F54;
+        }
+        .chart-export-legend .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+        }
+        .chart-export-legend .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #3A2F28;
+        }
+        .chart-export-legend .legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
         /* Zoom % display in sidebar — clickable to reset to 100% */
         .zoom-pct { cursor: pointer; font-variant-numeric: tabular-nums; }
         .zoom-pct:hover { color: #4A5D47; }
@@ -639,7 +679,7 @@
         @media print {
             body { height: auto; overflow: visible; background: white; }
             header, .panel, .chart-sidebar, .sidebar-toggle, .summary-panel,
-            .reparent-panel, .tab-bar, .pivot-container, .chart-legend { display: none !important; }
+            .reparent-panel, .tab-bar, .pivot-container { display: none !important; }
             .container, .panel-main, .design-surface { display: block !important; overflow: visible !important; height: auto !important; }
             #chart-container {
                 width: auto !important; height: auto !important;
@@ -650,6 +690,20 @@
                 background-image: none !important;
             }
             .orgchart .node { page-break-inside: avoid; }
+            .chart-legend {
+                position: static !important;
+                max-height: none !important;
+                overflow: visible !important;
+                margin-top: 16px;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+            .chart-legend .legend-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                margin: 0 12px 6px 0;
+            }
         }
     </style>
 </head>
@@ -2572,22 +2626,66 @@
         function downloadPNG() {
             const oc = document.querySelector('#chart-container .orgchart');
             if (!oc) { alert('Render the chart before exporting.'); return; }
-            const prevTransform = oc.style.transform;
-            oc.style.transform = '';
-            html2canvas(oc, {
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chart-export-wrapper';
+            wrapper.style.cssText = 'position:fixed;left:-99999px;top:0;background:#FAF8F5;padding:24px;display:inline-block;';
+
+            const ocClone = oc.cloneNode(true);
+            ocClone.style.transform = '';
+            wrapper.appendChild(ocClone);
+
+            if (colorField && colorMap && Object.keys(colorMap).length) {
+                wrapper.appendChild(buildExportLegend());
+            }
+
+            document.body.appendChild(wrapper);
+
+            const cleanup = function() {
+                if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+            };
+
+            html2canvas(wrapper, {
                 scale: 3,
                 backgroundColor: '#FAF8F5',
                 useCORS: true,
                 logging: false
             }).then(function(canvas) {
-                oc.style.transform = prevTransform;
                 canvas.toBlob(function(blob) {
                     triggerDownload(URL.createObjectURL(blob), 'org-chart.png');
+                    cleanup();
                 }, 'image/png');
             }).catch(function() {
-                oc.style.transform = prevTransform;
+                cleanup();
                 alert('Failed to render chart image.');
             });
+        }
+
+        function buildExportLegend() {
+            const fieldLabels = { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' };
+            const root = document.createElement('div');
+            root.className = 'chart-export-legend';
+            const title = document.createElement('div');
+            title.className = 'legend-title';
+            title.textContent = fieldLabels[colorField] || colorField;
+            root.appendChild(title);
+            const items = document.createElement('div');
+            items.className = 'legend-items';
+            Object.entries(colorMap).forEach(function(entry) {
+                const label = entry[0], color = entry[1];
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                const sw = document.createElement('span');
+                sw.className = 'legend-swatch';
+                sw.style.background = color;
+                const tx = document.createElement('span');
+                tx.textContent = label || '(empty)';
+                item.appendChild(sw);
+                item.appendChild(tx);
+                items.appendChild(item);
+            });
+            root.appendChild(items);
+            return root;
         }
 
         function triggerDownload(href, filename) {
