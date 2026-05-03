@@ -411,6 +411,10 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
+        /* Zoom % display in sidebar — clickable to reset to 100% */
+        .zoom-pct { cursor: pointer; font-variant-numeric: tabular-nums; }
+        .zoom-pct:hover { color: #4A5D47; }
+
         /* Tab bar */
         .tab-bar-container {
             background: white;
@@ -700,12 +704,12 @@
                         <div class="control-section">
                             <div class="control-section-label">View</div>
                             <div class="control-section-body">
-                                <label>Layout:</label>
-                                <select id="chart-layout" onchange="onLayoutChange()">
-                                    <option value="top-hybrid" selected>Top-down Hybrid</option>
-                                    <option value="top">Top-down</option>
-                                    <option value="left">Left-to-right</option>
-                                </select>
+                                <div class="depth-row">
+                                    <label>Zoom:</label>
+                                    <button class="btn-secondary" id="zoom-out" title="Zoom out (&minus;10%)">&minus;</button>
+                                    <span id="zoom-pct" class="zoom-pct" title="Reset to 100%">100%</span>
+                                    <button class="btn-secondary" id="zoom-in" title="Zoom in (+10%)">+</button>
+                                </div>
                                 <div class="depth-row">
                                     <label>Depth:</label>
                                     <button class="btn-secondary" onclick="changeDepth(-1)">&minus;</button>
@@ -1610,11 +1614,6 @@
         }
 
         // --- Depth controls ---
-        function onLayoutChange() {
-            chartLayout = document.getElementById('chart-layout').value;
-            if (activeTab === 'chart') renderChart();
-        }
-
         function changeDepth(delta) {
             const filtered = getFilteredRoles();
             const tree = buildTree(filtered);
@@ -1899,6 +1898,52 @@
             }
         });
 
+        // --- Chart zoom (tame trackpad wheel + ± / 100% controls) ---
+        const ZOOM_MIN = 0.25;
+        const ZOOM_MAX = 2.0;
+        const ZOOM_BTN_STEP = 0.10;
+        const ZOOM_WHEEL_STEP = 0.05;
+
+        function getOrgchartEl() { return document.querySelector('#chart-container .orgchart'); }
+
+        function readMatrix(el) {
+            if (!el) return new DOMMatrix();
+            const t = el.style.transform || getComputedStyle(el).transform;
+            if (!t || t === 'none') return new DOMMatrix();
+            try { return new DOMMatrix(t); } catch (_) { return new DOMMatrix(); }
+        }
+
+        function clampZoom(s) { return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s)); }
+
+        function setZoom(targetScale, originX, originY) {
+            const oc = getOrgchartEl();
+            if (!oc) return;
+            const m = readMatrix(oc);
+            const oldScale = m.a || 1;
+            const newScale = clampZoom(targetScale);
+            if (originX != null && originY != null) {
+                const ratio = newScale / oldScale;
+                m.e = originX - (originX - m.e) * ratio;
+                m.f = originY - (originY - m.f) * ratio;
+            }
+            m.a = newScale;
+            m.d = newScale;
+            oc.style.transform = m.toString();
+            updateZoomBadge();
+        }
+
+        function updateZoomBadge() {
+            const oc = getOrgchartEl();
+            const pct = document.getElementById('zoom-pct');
+            const minus = document.getElementById('zoom-out');
+            const plus = document.getElementById('zoom-in');
+            if (!pct || !oc) return;
+            const s = readMatrix(oc).a || 1;
+            pct.textContent = Math.round(s * 100) + '%';
+            if (minus) minus.disabled = s <= ZOOM_MIN + 1e-6;
+            if (plus)  plus.disabled  = s >= ZOOM_MAX - 1e-6;
+        }
+
         // --- Chart rendering ---
         function renderChart() {
             const container = document.getElementById('chart-container');
@@ -1907,6 +1952,19 @@
             legendDiv.className = 'chart-legend';
             legendDiv.id = 'legend';
             container.appendChild(legendDiv);
+
+            // Wheel zoom — wired once on the container; survives re-renders since container itself isn't replaced
+            if (!container.dataset.zoomWired) {
+                container.dataset.zoomWired = '1';
+                container.addEventListener('wheel', function(e) {
+                    if (!getOrgchartEl()) return;
+                    e.preventDefault();
+                    const dir = e.deltaY > 0 ? -1 : 1;
+                    const s = readMatrix(getOrgchartEl()).a || 1;
+                    const rect = container.getBoundingClientRect();
+                    setZoom(s + dir * ZOOM_WHEEL_STEP, e.clientX - rect.left, e.clientY - rect.top);
+                }, { passive: false });
+            }
 
             const filtered = getFilteredRoles();
             if (!filtered.length) {
@@ -1932,7 +1990,7 @@
                 data: tree,
                 direction: preset.direction,
                 pan: true,
-                zoom: true,
+                zoom: false,
                 visibleLevel: 999,
                 nodeContent: 'roleTitle',
                 nodeTemplate: function(data) { return buildNodeContentHtml(data); },
@@ -1949,6 +2007,7 @@
             if (maxLevel > 0) applyDepthLimit(container, maxLevel);
 
             renderLegend();
+            updateZoomBadge();
             updateSummaryPanel(filtered);
         }
 
@@ -2545,6 +2604,17 @@
         render();
         updateFilenameIndicator();
         syncFilterUI();
+
+        // Sidebar zoom controls (elements are static — wire once)
+        document.getElementById('zoom-out').addEventListener('click', function() {
+            const s = readMatrix(getOrgchartEl()).a || 1;
+            setZoom(s - ZOOM_BTN_STEP);
+        });
+        document.getElementById('zoom-in').addEventListener('click', function() {
+            const s = readMatrix(getOrgchartEl()).a || 1;
+            setZoom(s + ZOOM_BTN_STEP);
+        });
+        document.getElementById('zoom-pct').addEventListener('click', function() { setZoom(1); });
     </script>
 </body>
 </html>
