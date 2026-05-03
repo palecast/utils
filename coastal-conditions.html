@@ -769,7 +769,9 @@ function renderConditions(data, weather) {
     document.getElementById('sstHint').textContent = sst != null ? (sst < 15 ? 'Wetsuit recommended' : sst < 20 ? 'Cool — spring suit' : sst < 26 ? 'Comfortable' : 'Warm waters') : '';
     document.getElementById('vCS').textContent  = fmt(c.ocean_current_velocity);
     if (u.ocean_current_velocity) document.getElementById('uCS').textContent = u.ocean_current_velocity;
-    setDir('aCD','cCD','vCD', c.ocean_current_direction);
+    // Ocean current direction is "flowing toward" (opposite convention to wind/wave/swell which are "coming from").
+    // Offset arrow by 180° so it visually points at the source, matching the other arrows in the UI.
+    setDir('aCD','cCD','vCD', c.ocean_current_direction, 180);
 
     // Weather data
     const wc = weather?.current || {};
@@ -882,9 +884,10 @@ function renderTide() {
     });
 }
 
-function setDir(aId, cId, vId, deg) {
+function setDir(aId, cId, vId, deg, arrowOffset) {
     if (deg != null) {
-        document.getElementById(aId).style.transform = 'rotate(' + deg + 'deg)';
+        const rot = ((deg + (arrowOffset || 0)) % 360 + 360) % 360;
+        document.getElementById(aId).style.transform = 'rotate(' + rot + 'deg)';
         document.getElementById(cId).textContent = degToCompass(deg);
         document.getElementById(vId).textContent = Math.round(deg) + '°';
     } else {
