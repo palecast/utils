@@ -314,6 +314,78 @@
         }
         .focus-warning button:hover { background: #856404; color: white; }
 
+        /* Tree-view "Show from" picker — button + nested role tree dropdown. */
+        .focus-picker-container { width: 100%; }
+        .focus-picker-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            text-align: left;
+        }
+        .focus-picker-btn .focus-picker-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+        .focus-picker-btn .focus-picker-chev {
+            font-size: 0.7rem;
+            color: #6B5F54;
+            flex-shrink: 0;
+        }
+        .focus-picker-dropdown {
+            min-width: 280px;
+            max-height: 320px;
+            padding: 4px;
+        }
+        .focus-tree {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .focus-tree-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #3A2F28;
+            cursor: default;
+        }
+        .focus-tree-row:hover { background: rgba(74,93,71,0.08); }
+        .focus-tree-row.current {
+            background: #4A5D47;
+            color: #FAF8F5;
+        }
+        .focus-tree-row.current:hover { background: #4A5D47; }
+        .focus-tree-toggle {
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: inherit;
+            font-size: 0.7rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .focus-tree-toggle.spacer { cursor: default; visibility: hidden; }
+        .focus-tree-label {
+            flex: 1;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .focus-tree-row.current .focus-tree-label { cursor: default; }
+
         /* Tabs */
         .tab-bar {
             display: flex;
@@ -678,7 +750,20 @@
             align-items: center;
             border-bottom: 1px solid rgba(74,93,71,0.12);
             border-radius: 6px 6px 0 0;
-            justify-content: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+        .control-section-label:hover { background: #DDD9D2; }
+        .control-section-label .control-section-title {
+            flex: 1;
+            text-align: center;
+        }
+        .control-section-label .control-section-toggle {
+            font-size: 0.7rem;
+            color: #6B5F54;
+            line-height: 1;
+            margin-right: -2px;
         }
 
         .control-section-body {
@@ -687,6 +772,18 @@
             align-items: stretch;
             gap: 6px;
             padding: 8px;
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.2s ease, padding 0.2s ease;
+        }
+        .control-section.collapsed .control-section-label {
+            border-bottom-color: transparent;
+            border-radius: 6px;
+        }
+        .control-section.collapsed .control-section-body {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
         }
 
         .control-divider {
@@ -815,8 +912,6 @@
                 </div>
                 <div class="control-group">
                     <button class="btn-secondary" onclick="loadTestData()">Load test data</button>
-                    <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
-                    <button class="btn-secondary" onclick="exportExcel()">Export Excel</button>
                 </div>
             </div>
         </div>
@@ -866,9 +961,13 @@
                             <div class="control-section-body">
                                 <div class="control-group">
                                     <label>Show from:</label>
-                                    <select id="focus-role" onchange="onFocusRoleChange('chart')">
-                                        <option value="">Entire organization (root)</option>
-                                    </select>
+                                    <div class="filter-container focus-picker-container">
+                                        <button class="btn-secondary btn-small focus-picker-btn" id="focus-picker-btn" onclick="toggleFocusPicker('chart')">
+                                            <span class="focus-picker-label" id="focus-picker-label">Entire organization</span>
+                                            <span class="focus-picker-chev">&#9662;</span>
+                                        </button>
+                                        <div class="filter-values focus-picker-dropdown" id="focus-picker-dropdown"></div>
+                                    </div>
                                 </div>
                                 <span class="control-divider"></span>
                                 <div class="control-group">
@@ -941,6 +1040,10 @@
                                 <button class="btn-secondary btn-small" onclick="printChart()">&#128424; Print</button>
                                 <span class="control-divider"></span>
                                 <button class="btn-secondary btn-small" onclick="downloadPNG()">&#11015; PNG</button>
+                                <span class="control-divider"></span>
+                                <button class="btn-secondary btn-small" onclick="exportCSV()">&#11015; CSV</button>
+                                <span class="control-divider"></span>
+                                <button class="btn-secondary btn-small" onclick="exportExcel()">&#11015; Excel</button>
                             </div>
                         </div>
                     </div>
@@ -1001,9 +1104,13 @@
                             <div class="control-section-body">
                                 <div class="control-group">
                                     <label>Show from:</label>
-                                    <select id="focus-role-pivot" onchange="onFocusRoleChange('pivot')">
-                                        <option value="">Entire organization (root)</option>
-                                    </select>
+                                    <div class="filter-container focus-picker-container">
+                                        <button class="btn-secondary btn-small focus-picker-btn" id="focus-picker-btn-pivot" onclick="toggleFocusPicker('pivot')">
+                                            <span class="focus-picker-label" id="focus-picker-label-pivot">Entire organization</span>
+                                            <span class="focus-picker-chev">&#9662;</span>
+                                        </button>
+                                        <div class="filter-values focus-picker-dropdown" id="focus-picker-dropdown-pivot"></div>
+                                    </div>
                                 </div>
                                 <span class="control-divider"></span>
                                 <div class="control-group">
@@ -1047,6 +1154,14 @@
                                         <div class="filter-values" id="tag-filter-dropdown-pivot"></div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <div class="control-section-label">Export</div>
+                            <div class="control-section-body">
+                                <button class="btn-secondary btn-small" onclick="exportCSV()">&#11015; CSV</button>
+                                <span class="control-divider"></span>
+                                <button class="btn-secondary btn-small" onclick="exportExcel()">&#11015; Excel</button>
                             </div>
                         </div>
                     </div>
@@ -1660,56 +1775,143 @@
                 const tdd = document.getElementById('tag-filter-dropdown' + sfx);
                 if (tdd) rebuildTagCheckboxes(tdd, getAllTags());
             });
-            syncFocusRoleSelect();
+            syncFocusRolePicker();
         }
 
-        // Repopulate both Show-from selects from current `roles`. Called whenever roles
-        // change (render) and when the filter UI re-syncs (tab switch). Drops focus if
-        // the previously-focused role no longer exists.
-        function syncFocusRoleSelect() {
+        // Tracks which subtrees in the focus picker tree are expanded. Persists across
+        // popover open/close within a session, but not across page reloads.
+        let focusTreeExpanded = new Set();
+
+        // Refresh the trigger button label on both pickers and rebuild any open dropdown.
+        // Called when roles change (render) and on tab switch (via syncFilterUI).
+        function syncFocusRolePicker() {
             if (focusRoleId && !roles.some(r => r.roleId === focusRoleId)) {
                 focusRoleId = '';
             }
+            const focused = focusRoleId ? roles.find(r => r.roleId === focusRoleId) : null;
+            const labelText = focused ? (focused.roleTitle || focused.roleId) : 'Entire organization';
+            const titleText = focused
+                ? ['Root'].concat(getFocusAncestors(focusRoleId).map(a => a.roleTitle || a.roleId), [labelText]).join(' › ')
+                : 'Entire organization';
             ['', '-pivot'].forEach(sfx => {
-                const sel = document.getElementById('focus-role' + sfx);
-                if (!sel) return;
-                while (sel.firstChild) sel.removeChild(sel.firstChild);
-                const root = document.createElement('option');
-                root.value = '';
-                root.textContent = 'Entire organization (root)';
-                sel.appendChild(root);
-                roles.slice()
-                    .sort((a, b) => String(a.roleTitle || a.roleId).localeCompare(String(b.roleTitle || b.roleId)))
-                    .forEach(r => {
-                        const opt = document.createElement('option');
-                        opt.value = r.roleId;
-                        const title = r.roleTitle || r.roleId;
-                        const incumbent = r.incumbentName ? ' — ' + r.incumbentName : '';
-                        opt.textContent = title + incumbent;
-                        sel.appendChild(opt);
-                    });
-                sel.value = focusRoleId;
+                const lbl = document.getElementById('focus-picker-label' + sfx);
+                if (lbl) lbl.textContent = labelText;
+                const btn = document.getElementById('focus-picker-btn' + sfx);
+                if (btn) btn.title = titleText;
+                // If the dropdown is currently open, rebuild its contents.
+                const dd = document.getElementById('focus-picker-dropdown' + sfx);
+                if (dd && dd.classList.contains('open')) rebuildFocusTree(dd);
             });
         }
 
-        function onFocusRoleChange(scope) {
-            const id = scope === 'pivot' ? 'focus-role-pivot' : 'focus-role';
-            const sel = document.getElementById(id);
-            if (!sel) return;
-            focusRoleId = sel.value || '';
-            // Mirror to the other-scope selector so both stay in sync.
-            const other = document.getElementById(scope === 'pivot' ? 'focus-role' : 'focus-role-pivot');
-            if (other) other.value = focusRoleId;
-            if (activeTab === 'chart') renderChart();
-            if (activeTab === 'pivot') renderPivotTable();
+        function toggleFocusPicker(scope) {
+            const sfx = scope === 'pivot' ? '-pivot' : '';
+            const dd = document.getElementById('focus-picker-dropdown' + sfx);
+            if (!dd) return;
+            const wasOpen = dd.classList.contains('open');
+            // Close every other Show-from / filter dropdown — they share the popup zone.
+            document.querySelectorAll('.focus-picker-dropdown.open, .filter-values.open').forEach(el => {
+                if (el !== dd) el.classList.remove('open');
+            });
+            if (wasOpen) {
+                dd.classList.remove('open');
+                return;
+            }
+            // Auto-expand path to current focus so it's visible without manual unfolding.
+            if (focusRoleId) {
+                getFocusAncestors(focusRoleId).forEach(a => focusTreeExpanded.add(a.roleId));
+            }
+            rebuildFocusTree(dd);
+            dd.classList.add('open');
+        }
+
+        // Build the tree DOM into `dropdown`. Only roles that have ≥ 1 direct child appear.
+        // Triangles toggle expansion; labels call focusOnRole and close.
+        function rebuildFocusTree(dropdown) {
+            while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+            const tree = document.createElement('div');
+            tree.className = 'focus-tree';
+
+            // Root row — always visible, clears focus.
+            tree.appendChild(buildFocusTreeRow({
+                roleId: '',
+                label: 'Entire organization (root)',
+                depth: 0,
+                hasChildren: false,
+                isCurrent: !focusRoleId
+            }));
+
+            // Adjacency from unfiltered roles. We only render roles that have ≥ 1 direct
+            // child (focusing on a leaf is degenerate — same as hiding everything else).
+            const childrenById = {};
+            roles.forEach(r => {
+                if (!r.managerRoleId) return;
+                (childrenById[r.managerRoleId] = childrenById[r.managerRoleId] || []).push(r);
+            });
+            const hasChildren = id => !!(childrenById[id] && childrenById[id].length);
+
+            // Pre-order walk from each top-level role (no manager, or manager not in roles).
+            const inRoles = new Set(roles.map(r => r.roleId));
+            const roots = roles.filter(r => !r.managerRoleId || !inRoles.has(r.managerRoleId));
+            const sortByLabel = arr => arr.slice().sort((a, b) =>
+                String(a.roleTitle || a.roleId).localeCompare(String(b.roleTitle || b.roleId)));
+
+            function walk(role, depth) {
+                if (!hasChildren(role.roleId)) return; // skip leaves entirely
+                tree.appendChild(buildFocusTreeRow({
+                    roleId: role.roleId,
+                    label: (role.roleTitle || role.roleId) + (role.incumbentName ? ' — ' + role.incumbentName : ''),
+                    depth: depth,
+                    hasChildren: true,
+                    isCurrent: role.roleId === focusRoleId
+                }));
+                if (!focusTreeExpanded.has(role.roleId)) return;
+                sortByLabel(childrenById[role.roleId] || []).forEach(c => walk(c, depth + 1));
+            }
+            sortByLabel(roots).forEach(r => walk(r, 1));
+
+            dropdown.appendChild(tree);
+        }
+
+        function buildFocusTreeRow(opts) {
+            const row = document.createElement('div');
+            row.className = 'focus-tree-row' + (opts.isCurrent ? ' current' : '');
+            row.style.paddingLeft = (6 + opts.depth * 16) + 'px';
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'focus-tree-toggle' + (opts.hasChildren ? '' : ' spacer');
+            if (opts.hasChildren) {
+                const open = focusTreeExpanded.has(opts.roleId);
+                toggle.textContent = open ? '▾' : '▸'; // ▾ / ▸
+                toggle.title = open ? 'Collapse' : 'Expand';
+                toggle.addEventListener('click', e => {
+                    e.stopPropagation();
+                    if (open) focusTreeExpanded.delete(opts.roleId);
+                    else focusTreeExpanded.add(opts.roleId);
+                    // Re-render the same dropdown the row lives in.
+                    const dd = row.closest('.focus-picker-dropdown');
+                    if (dd) rebuildFocusTree(dd);
+                });
+            }
+            row.appendChild(toggle);
+
+            const label = document.createElement('span');
+            label.className = 'focus-tree-label';
+            label.textContent = opts.label;
+            if (!opts.isCurrent) {
+                label.addEventListener('click', () => {
+                    focusOnRole(opts.roleId);
+                    document.querySelectorAll('.focus-picker-dropdown.open').forEach(el => el.classList.remove('open'));
+                });
+            }
+            row.appendChild(label);
+            return row;
         }
 
         function focusOnRole(roleId) {
             focusRoleId = roleId || '';
-            const sel = document.getElementById('focus-role');
-            if (sel) sel.value = focusRoleId;
-            const selp = document.getElementById('focus-role-pivot');
-            if (selp) selp.value = focusRoleId;
+            syncFocusRolePicker();
             if (activeTab === 'chart') renderChart();
             if (activeTab === 'pivot') renderPivotTable();
         }
@@ -1991,6 +2193,19 @@
             if (fc && !fc.contains(e.target)) {
                 document.getElementById('fields-dropdown').classList.remove('open');
             }
+        });
+
+        // Close Show-from popovers on outside click. The trigger button toggles via
+        // toggleFocusPicker(), so a click on it must not also be treated as "outside".
+        document.addEventListener('click', function(e) {
+            ['', '-pivot'].forEach(sfx => {
+                const dd = document.getElementById('focus-picker-dropdown' + sfx);
+                if (!dd || !dd.classList.contains('open')) return;
+                const container = dd.closest('.focus-picker-container');
+                if (container && !container.contains(e.target)) {
+                    dd.classList.remove('open');
+                }
+            });
         });
 
         // --- Chart data helpers ---
@@ -2437,6 +2652,32 @@
             const icon = document.getElementById('summary-toggle-icon');
             panel.classList.toggle('collapsed');
             icon.innerHTML = panel.classList.contains('collapsed') ? '&#9650;' : '&#9660;';
+        }
+
+        // Walk every .control-section-label, wrap its plain-text content in a centered
+        // title span, append a chevron, and wire a click toggle. Idempotent — safe to
+        // call more than once. Run once at init from any page that uses these sections.
+        function enhanceControlSections() {
+            document.querySelectorAll('.control-section-label').forEach(label => {
+                if (label.querySelector('.control-section-title')) return;
+                const title = document.createElement('span');
+                title.className = 'control-section-title';
+                while (label.firstChild) title.appendChild(label.firstChild);
+                label.appendChild(title);
+                const chev = document.createElement('span');
+                chev.className = 'control-section-toggle';
+                chev.textContent = '▾';
+                label.appendChild(chev);
+                label.addEventListener('click', () => toggleControlSection(label));
+            });
+        }
+
+        function toggleControlSection(labelEl) {
+            const section = labelEl.closest('.control-section');
+            if (!section) return;
+            section.classList.toggle('collapsed');
+            const chev = labelEl.querySelector('.control-section-toggle');
+            if (chev) chev.textContent = section.classList.contains('collapsed') ? '▸' : '▾';
         }
 
         function updateSummaryPanel(filtered) {
@@ -2942,7 +3183,7 @@
         // --- Render ---
         function render() {
             renderTable();
-            syncFocusRoleSelect();
+            syncFocusRolePicker();
             if (activeTab === 'chart') renderChart();
             if (activeTab === 'pivot') renderPivotTable();
             updateSaveButtonState();
@@ -3035,6 +3276,7 @@
 
         // --- Init ---
         renderFieldsDropdown();
+        enhanceControlSections();
         render();
         updateFilenameIndicator();
         syncFilterUI();
