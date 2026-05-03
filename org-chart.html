@@ -239,6 +239,81 @@
             display: none;
         }
 
+        /* Focus breadcrumb — sits above the chart when a subtree is selected */
+        .focus-breadcrumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px 16px;
+            background: #F2F0EB;
+            border-bottom: 1px solid rgba(74,93,71,0.12);
+            font-size: 0.8rem;
+            color: #6B5F54;
+            flex-shrink: 0;
+        }
+        .focus-breadcrumb-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            color: #6B5F54;
+            margin-right: 4px;
+        }
+        .focus-breadcrumb-segment {
+            background: white;
+            border: 1px solid rgba(74,93,71,0.18);
+            color: #4A5D47;
+            padding: 3px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            font-family: inherit;
+            font-size: 0.8rem;
+            transition: background 0.15s, color 0.15s;
+        }
+        .focus-breadcrumb-segment:hover { background: #4A5D47; color: #FAF8F5; }
+        .focus-breadcrumb-segment.current {
+            background: #4A5D47;
+            color: #FAF8F5;
+            cursor: default;
+        }
+        .focus-breadcrumb-segment.current:hover { background: #4A5D47; color: #FAF8F5; }
+        .focus-breadcrumb-sep { color: rgba(74,93,71,0.5); padding: 0 2px; user-select: none; }
+        .focus-breadcrumb-reset {
+            margin-left: auto;
+            background: transparent;
+            border: 1px solid rgba(74,93,71,0.25);
+            color: #6B5F54;
+            padding: 3px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.75rem;
+        }
+        .focus-breadcrumb-reset:hover { background: white; color: #4A5D47; border-color: #4A5D47; }
+        .focus-warning {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #fff3cd;
+            border-bottom: 1px solid #ffc107;
+            color: #856404;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+        .focus-warning button {
+            background: white;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .focus-warning button:hover { background: #856404; color: white; }
+
         /* Tabs */
         .tab-bar {
             display: flex;
@@ -367,6 +442,12 @@
         .reparent-panel h4 { margin: 0 0 8px; font-size: 0.9rem; color: #333; }
         .reparent-panel select { width: 100%; padding: 6px 8px; border: 1px solid rgba(74,93,71,0.12); border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px; }
         .reparent-panel .reparent-btns { display: flex; gap: 8px; justify-content: flex-end; }
+        .reparent-panel .reparent-focus-row {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(74,93,71,0.12);
+        }
+        .reparent-panel .reparent-focus-row button { width: 100%; }
 
         /* Legend (floating overlay on chart) */
         .chart-legend {
@@ -784,6 +865,13 @@
                             <div class="control-section-label">Data</div>
                             <div class="control-section-body">
                                 <div class="control-group">
+                                    <label>Show from:</label>
+                                    <select id="focus-role" onchange="onFocusRoleChange('chart')">
+                                        <option value="">Entire organization (root)</option>
+                                    </select>
+                                </div>
+                                <span class="control-divider"></span>
+                                <div class="control-group">
                                     <label>Filter 1:</label>
                                     <select id="filter-field-0" onchange="onFilterFieldChange(0, 'chart')">
                                         <option value="">None</option>
@@ -912,6 +1000,13 @@
                             <div class="control-section-label">Filter</div>
                             <div class="control-section-body">
                                 <div class="control-group">
+                                    <label>Show from:</label>
+                                    <select id="focus-role-pivot" onchange="onFocusRoleChange('pivot')">
+                                        <option value="">Entire organization (root)</option>
+                                    </select>
+                                </div>
+                                <span class="control-divider"></span>
+                                <div class="control-group">
                                     <label>Filter 1:</label>
                                     <select id="filter-field-0-pivot" onchange="onFilterFieldChange(0, 'pivot')">
                                         <option value="">None</option>
@@ -1029,6 +1124,10 @@
         let colorField = '';
         let colorMap = {};
         let maxDepth = 0; // 0 = show all
+        // Subtree focus — '' means whole chart (root). Otherwise a roleId; chart/pivot/summary
+        // restrict to that role and its descendants. Stacks with field/tag filters.
+        let focusRoleId = '';
+        let focusFellBack = false; // set by getFilteredRoles when focus target was filtered out
         let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPendingStart: false, hcPlanned: false, hcOnHold: false, hcSunsetting: false, hcRemoved: false, hcEarmarked: false, costFilled: false, costVacant: false, costPendingStart: false, costPlanned: false, costOnHold: false, costSunsetting: false, costRemoved: false, costEarmarked: false };
         let chartInstance = null;
         let tabulatorGrid = null;
@@ -1446,6 +1545,7 @@
 
         // --- Filtering ---
         function getFilteredRoles() {
+            focusFellBack = false;
             // A field-filter slot is "active" only if a field is chosen and the user
             // has selected a strict subset of its possible values. All-selected = no constraint.
             const active = filters.filter(f => {
@@ -1456,29 +1556,63 @@
             // A field with zero values selected explicitly excludes everything.
             const hardEmpty = filters.some(f => f.field && f.values.size === 0);
 
-            if (!active.length && !tagsActive && !hardEmpty) return roles.slice();
+            let result;
+            if (!active.length && !tagsActive && !hardEmpty) {
+                result = roles.slice();
+            } else {
+                const kept = new Set();
+                const removedMap = {};
+                roles.forEach(r => {
+                    const passField = !hardEmpty && active.every(f => f.values.has(String(r[f.field] || '')));
+                    const passTags  = !tagsActive || (Array.isArray(r.tags) && r.tags.some(t => tagFilter.has(t)));
+                    if (passField && passTags) {
+                        kept.add(r.roleId);
+                    } else {
+                        removedMap[r.roleId] = r.managerRoleId;
+                    }
+                });
 
-            const kept = new Set();
-            const removedMap = {};
-            roles.forEach(r => {
-                const passField = !hardEmpty && active.every(f => f.values.has(String(r[f.field] || '')));
-                const passTags  = !tagsActive || (Array.isArray(r.tags) && r.tags.some(t => tagFilter.has(t)));
-                if (passField && passTags) {
-                    kept.add(r.roleId);
-                } else {
-                    removedMap[r.roleId] = r.managerRoleId;
-                }
-            });
+                result = roles.filter(r => kept.has(r.roleId)).map(r => ({ ...r }));
+                result.forEach(r => {
+                    let mgr = r.managerRoleId;
+                    while (mgr && removedMap.hasOwnProperty(mgr)) {
+                        mgr = removedMap[mgr];
+                    }
+                    r.managerRoleId = mgr;
+                });
+            }
 
-            const result = roles.filter(r => kept.has(r.roleId)).map(r => ({ ...r }));
-            result.forEach(r => {
-                let mgr = r.managerRoleId;
-                while (mgr && removedMap.hasOwnProperty(mgr)) {
-                    mgr = removedMap[mgr];
-                }
-                r.managerRoleId = mgr;
+            return applyFocusSubtree(result);
+        }
+
+        // Restrict the filtered set to the focused role and its descendants. If the
+        // focus target was filtered out (or no longer exists), set focusFellBack and
+        // return the unmodified set so the chart still renders.
+        function applyFocusSubtree(rolesIn) {
+            if (!focusRoleId) return rolesIn;
+            const focused = rolesIn.find(r => r.roleId === focusRoleId);
+            if (!focused) {
+                focusFellBack = true;
+                return rolesIn;
+            }
+            const childrenOf = {};
+            rolesIn.forEach(r => {
+                if (!r.managerRoleId) return;
+                (childrenOf[r.managerRoleId] = childrenOf[r.managerRoleId] || []).push(r.roleId);
             });
-            return result;
+            const keep = new Set([focusRoleId]);
+            const stack = [focusRoleId];
+            while (stack.length) {
+                const id = stack.pop();
+                (childrenOf[id] || []).forEach(cid => {
+                    if (!keep.has(cid)) { keep.add(cid); stack.push(cid); }
+                });
+            }
+            const subset = rolesIn.filter(r => keep.has(r.roleId)).map(r => ({ ...r }));
+            // Detach the focused role from its (now hidden) manager so the tree builder
+            // treats it as the new root.
+            subset.forEach(r => { if (r.roleId === focusRoleId) r.managerRoleId = ''; });
+            return subset;
         }
 
         function getUniqueValues(field) {
@@ -1526,6 +1660,153 @@
                 const tdd = document.getElementById('tag-filter-dropdown' + sfx);
                 if (tdd) rebuildTagCheckboxes(tdd, getAllTags());
             });
+            syncFocusRoleSelect();
+        }
+
+        // Repopulate both Show-from selects from current `roles`. Called whenever roles
+        // change (render) and when the filter UI re-syncs (tab switch). Drops focus if
+        // the previously-focused role no longer exists.
+        function syncFocusRoleSelect() {
+            if (focusRoleId && !roles.some(r => r.roleId === focusRoleId)) {
+                focusRoleId = '';
+            }
+            ['', '-pivot'].forEach(sfx => {
+                const sel = document.getElementById('focus-role' + sfx);
+                if (!sel) return;
+                while (sel.firstChild) sel.removeChild(sel.firstChild);
+                const root = document.createElement('option');
+                root.value = '';
+                root.textContent = 'Entire organization (root)';
+                sel.appendChild(root);
+                roles.slice()
+                    .sort((a, b) => String(a.roleTitle || a.roleId).localeCompare(String(b.roleTitle || b.roleId)))
+                    .forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r.roleId;
+                        const title = r.roleTitle || r.roleId;
+                        const incumbent = r.incumbentName ? ' — ' + r.incumbentName : '';
+                        opt.textContent = title + incumbent;
+                        sel.appendChild(opt);
+                    });
+                sel.value = focusRoleId;
+            });
+        }
+
+        function onFocusRoleChange(scope) {
+            const id = scope === 'pivot' ? 'focus-role-pivot' : 'focus-role';
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            focusRoleId = sel.value || '';
+            // Mirror to the other-scope selector so both stay in sync.
+            const other = document.getElementById(scope === 'pivot' ? 'focus-role' : 'focus-role-pivot');
+            if (other) other.value = focusRoleId;
+            if (activeTab === 'chart') renderChart();
+            if (activeTab === 'pivot') renderPivotTable();
+        }
+
+        function focusOnRole(roleId) {
+            focusRoleId = roleId || '';
+            const sel = document.getElementById('focus-role');
+            if (sel) sel.value = focusRoleId;
+            const selp = document.getElementById('focus-role-pivot');
+            if (selp) selp.value = focusRoleId;
+            if (activeTab === 'chart') renderChart();
+            if (activeTab === 'pivot') renderPivotTable();
+        }
+
+        // Walk up managerRoleId chain in the unfiltered `roles` to produce the
+        // ancestor list (root-first), excluding the focused role itself. Cycle-safe.
+        function getFocusAncestors(roleId) {
+            const out = [];
+            const seen = new Set();
+            let curr = roles.find(r => r.roleId === roleId);
+            if (!curr) return out;
+            let mgrId = curr.managerRoleId;
+            while (mgrId && !seen.has(mgrId)) {
+                seen.add(mgrId);
+                const mgr = roles.find(r => r.roleId === mgrId);
+                if (!mgr) break;
+                out.unshift(mgr);
+                mgrId = mgr.managerRoleId;
+            }
+            return out;
+        }
+
+        // Build the focus breadcrumb element (or null if no focus). Each ancestor segment
+        // jumps focus to that role; the leading "Root" chip clears focus entirely.
+        function buildFocusBreadcrumb() {
+            if (!focusRoleId) return null;
+            const focused = roles.find(r => r.roleId === focusRoleId);
+            if (!focused) return null;
+
+            const bar = document.createElement('div');
+            bar.className = 'focus-breadcrumb';
+
+            const label = document.createElement('span');
+            label.className = 'focus-breadcrumb-label';
+            label.textContent = 'Showing from:';
+            bar.appendChild(label);
+
+            const rootBtn = document.createElement('button');
+            rootBtn.type = 'button';
+            rootBtn.className = 'focus-breadcrumb-segment';
+            rootBtn.textContent = 'Root';
+            rootBtn.title = 'Show entire organization';
+            rootBtn.onclick = () => focusOnRole('');
+            bar.appendChild(rootBtn);
+
+            const ancestors = getFocusAncestors(focusRoleId);
+            ancestors.forEach(a => {
+                const sep = document.createElement('span');
+                sep.className = 'focus-breadcrumb-sep';
+                sep.textContent = '›';
+                bar.appendChild(sep);
+                const seg = document.createElement('button');
+                seg.type = 'button';
+                seg.className = 'focus-breadcrumb-segment';
+                seg.textContent = a.roleTitle || a.roleId;
+                seg.title = 'Focus on ' + (a.roleTitle || a.roleId);
+                seg.onclick = () => focusOnRole(a.roleId);
+                bar.appendChild(seg);
+            });
+
+            const sep = document.createElement('span');
+            sep.className = 'focus-breadcrumb-sep';
+            sep.textContent = '›';
+            bar.appendChild(sep);
+            const current = document.createElement('button');
+            current.type = 'button';
+            current.className = 'focus-breadcrumb-segment current';
+            current.textContent = focused.roleTitle || focused.roleId;
+            current.disabled = true;
+            bar.appendChild(current);
+
+            const reset = document.createElement('button');
+            reset.type = 'button';
+            reset.className = 'focus-breadcrumb-reset';
+            reset.textContent = '× Reset to root';
+            reset.onclick = () => focusOnRole('');
+            bar.appendChild(reset);
+
+            return bar;
+        }
+
+        // Build a non-blocking warning banner shown when the focused role was filtered
+        // out by the active field/tag filters — chart falls back to the unfocused set.
+        function buildFocusFallbackWarning() {
+            const focused = roles.find(r => r.roleId === focusRoleId);
+            const name = focused ? (focused.roleTitle || focused.roleId) : focusRoleId;
+            const bar = document.createElement('div');
+            bar.className = 'focus-warning';
+            const msg = document.createElement('span');
+            msg.textContent = 'The focused role "' + (name || '?') + '" is excluded by the current filters. Showing the full filtered chart instead.';
+            bar.appendChild(msg);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = 'Clear focus';
+            btn.onclick = () => focusOnRole('');
+            bar.appendChild(btn);
+            return bar;
         }
 
         // DOM-built (no innerHTML) — safe for arbitrary tag/value strings.
@@ -1929,6 +2210,22 @@
                 + '<button class="btn-primary btn-small" onclick="applyReparent(\'' + escapeHtml(roleId) + '\')">Apply</button>'
                 + '</div>';
 
+            // Prepend a "Focus" action above the Move section. Built via DOM so the
+            // captured roleId doesn't need to round-trip through an HTML attribute.
+            const focusRow = document.createElement('div');
+            focusRow.className = 'reparent-focus-row';
+            const focusBtn = document.createElement('button');
+            focusBtn.type = 'button';
+            focusBtn.className = 'btn-secondary btn-small';
+            focusBtn.textContent = focusRoleId === roleId ? '✓ Focused on this role' : 'Focus chart from this role';
+            focusBtn.disabled = focusRoleId === roleId;
+            focusBtn.onclick = function() {
+                focusOnRole(roleId);
+                closeReparentPanel();
+            };
+            focusRow.appendChild(focusBtn);
+            panel.insertBefore(focusRow, panel.firstChild);
+
             document.body.appendChild(panel);
 
             // Position near click
@@ -2015,6 +2312,14 @@
             legendDiv.id = 'legend';
             container.appendChild(legendDiv);
 
+            // Clear previous focus chrome (breadcrumb / warning) and re-insert based on
+            // the post-filter result below. They live on the design surface, above the
+            // chart container itself, so they don't fight the chart's pan/zoom layer.
+            const surface = document.getElementById('design-surface');
+            if (surface) {
+                surface.querySelectorAll('.focus-breadcrumb, .focus-warning').forEach(n => n.remove());
+            }
+
             // Wheel zoom — wired once on the container; survives re-renders since container itself isn't replaced
             if (!container.dataset.zoomWired) {
                 container.dataset.zoomWired = '1';
@@ -2029,6 +2334,18 @@
             }
 
             const filtered = getFilteredRoles();
+
+            // Mount focus chrome above #chart-container, after getFilteredRoles() has
+            // had a chance to set focusFellBack.
+            if (surface) {
+                if (focusRoleId && focusFellBack) {
+                    surface.insertBefore(buildFocusFallbackWarning(), container);
+                } else if (focusRoleId) {
+                    const bc = buildFocusBreadcrumb();
+                    if (bc) surface.insertBefore(bc, container);
+                }
+            }
+
             if (!filtered.length) {
                 container.appendChild(emptyMsg('No roles to display. Add data in the Table tab.'));
                 updateSummaryPanel(filtered);
@@ -2216,6 +2533,16 @@
         function renderPivotTable() {
             const filtered = getFilteredRoles();
             const container = document.getElementById('pivot-table-container');
+            const pivotSurface = document.getElementById('pivot-surface');
+            if (pivotSurface) {
+                pivotSurface.querySelectorAll('.focus-breadcrumb, .focus-warning').forEach(n => n.remove());
+                if (focusRoleId && focusFellBack) {
+                    pivotSurface.insertBefore(buildFocusFallbackWarning(), container);
+                } else if (focusRoleId) {
+                    const bc = buildFocusBreadcrumb();
+                    if (bc) pivotSurface.insertBefore(bc, container);
+                }
+            }
             if (!filtered.length) {
                 container.innerHTML = '<p style="padding:40px;color:#888">No data. Import or add rows in the Table tab.</p>';
                 updateSummaryPanel(filtered);
@@ -2615,6 +2942,7 @@
         // --- Render ---
         function render() {
             renderTable();
+            syncFocusRoleSelect();
             if (activeTab === 'chart') renderChart();
             if (activeTab === 'pivot') renderPivotTable();
             updateSaveButtonState();
