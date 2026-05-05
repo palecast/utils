@@ -50,21 +50,58 @@
         }
 
         header h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+        header .info-wrap { position: relative; display: inline-flex; align-items: center; }
         header .info-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             width: 18px;
             height: 18px;
+            padding: 0;
             border-radius: 50%;
             background: rgba(250,248,245,0.15);
             color: rgba(250,248,245,0.85);
+            border: none;
+            font-family: inherit;
             font-size: 0.7rem;
             font-weight: 600;
-            cursor: help;
+            cursor: pointer;
             user-select: none;
         }
         header .info-icon:hover { background: rgba(250,248,245,0.25); color: #FAF8F5; }
+        header .info-icon:focus-visible { outline: 2px solid rgba(250,248,245,0.6); outline-offset: 2px; }
+        header .info-popover {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 200;
+            background: #FAF8F5;
+            color: #3A2F28;
+            border: 1px solid rgba(74,93,71,0.18);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            font-weight: 400;
+            line-height: 1.4;
+            box-shadow: 0 6px 20px rgba(58,47,40,0.18);
+            width: max-content;
+            max-width: 320px;
+            white-space: normal;
+        }
+        header .info-popover.open { display: block; }
+        header .info-popover::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 6px;
+            width: 10px;
+            height: 10px;
+            background: #FAF8F5;
+            border-top: 1px solid rgba(74,93,71,0.18);
+            border-left: 1px solid rgba(74,93,71,0.18);
+            transform: rotate(45deg);
+        }
         header a.disclaimer-link { color: rgba(250,248,245,0.65); font-size: 0.75rem; text-decoration: none; }
         header a.disclaimer-link:hover { color: #FAF8F5; }
         header .header-filename {
@@ -998,9 +1035,16 @@
         <header>
             <div class="header-left">
                 <h1>&#127970; Org Chart Designer</h1>
-                <span class="info-icon" tabindex="0" role="img"
-                      aria-label="All data handling happens locally in your browser — nothing is ever sent to a server."
-                      title="All data handling happens locally in your browser — nothing is ever sent to a server.">i</span>
+                <span class="info-wrap">
+                    <button type="button" class="info-icon" id="header-info-btn"
+                            aria-haspopup="dialog" aria-expanded="false"
+                            aria-controls="header-info-popover"
+                            aria-label="About data handling"
+                            onclick="toggleInfoPopover(event)">i</button>
+                    <div class="info-popover" id="header-info-popover" role="dialog" aria-label="Privacy">
+                        All data handling happens locally in your browser — nothing is ever sent to a server.
+                    </div>
+                </span>
             </div>
             <div class="header-center">
                 <span class="header-filename" id="filename-indicator">(no file)</span>
@@ -2872,6 +2916,33 @@
             panel.classList.toggle('collapsed');
             icon.innerHTML = panel.classList.contains('collapsed') ? '&#9650;' : '&#9660;';
         }
+
+        function toggleInfoPopover(e) {
+            if (e) e.stopPropagation();
+            const pop = document.getElementById('header-info-popover');
+            const btn = document.getElementById('header-info-btn');
+            const isOpen = pop.classList.toggle('open');
+            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+        document.addEventListener('click', function(e) {
+            const pop = document.getElementById('header-info-popover');
+            if (!pop || !pop.classList.contains('open')) return;
+            const wrap = pop.parentElement;
+            if (wrap && !wrap.contains(e.target)) {
+                pop.classList.remove('open');
+                document.getElementById('header-info-btn').setAttribute('aria-expanded', 'false');
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            const pop = document.getElementById('header-info-popover');
+            if (pop && pop.classList.contains('open')) {
+                pop.classList.remove('open');
+                const btn = document.getElementById('header-info-btn');
+                btn.setAttribute('aria-expanded', 'false');
+                btn.focus();
+            }
+        });
 
         // Walk every .control-section-label, wrap its plain-text content in a centered
         // title span, append a chevron, and wire a click toggle. Idempotent — safe to
