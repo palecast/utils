@@ -757,10 +757,11 @@ function renderConditions(data, weather) {
     const badge = document.getElementById('safetyBadge');
     badge.textContent = sl.label; badge.className = 'safety-badge ' + sl.cls;
     document.getElementById('vWH').textContent = fmt(c.wave_height);
-    setDir('aWD','cWD','vWD', c.wave_direction);
+    // Wave/swell/wind directions from Open-Meteo are "coming from"; flip 180° so the arrow points the way the wave/wind is moving (matches Windy/Surfline/MSW convention).
+    setDir('aWD','cWD','vWD', c.wave_direction, 180);
     document.getElementById('vWP').textContent = fmt(c.wave_period, 0);
     document.getElementById('vSH').textContent = fmt(c.swell_wave_height);
-    setDir('aSD','cSD','vSD', c.swell_wave_direction);
+    setDir('aSD','cSD','vSD', c.swell_wave_direction, 180);
     document.getElementById('vSP').textContent = fmt(c.swell_wave_period, 0);
     document.getElementById('vSST').textContent = fmt(c.sea_surface_temperature);
     document.getElementById('mSST').className   = 'metric-card tinted ' + tempClass(c.sea_surface_temperature);
@@ -769,9 +770,8 @@ function renderConditions(data, weather) {
     document.getElementById('sstHint').textContent = sst != null ? (sst < 15 ? 'Wetsuit recommended' : sst < 20 ? 'Cool — spring suit' : sst < 26 ? 'Comfortable' : 'Warm waters') : '';
     document.getElementById('vCS').textContent  = fmt(c.ocean_current_velocity);
     if (u.ocean_current_velocity) document.getElementById('uCS').textContent = u.ocean_current_velocity;
-    // Ocean current direction is "flowing toward" (opposite convention to wind/wave/swell which are "coming from").
-    // Offset arrow by 180° so it visually points at the source, matching the other arrows in the UI.
-    setDir('aCD','cCD','vCD', c.ocean_current_direction, 180);
+    // Ocean current direction is already "flowing toward" — no offset needed; arrow points the way the current is moving.
+    setDir('aCD','cCD','vCD', c.ocean_current_direction);
 
     // Weather data
     const wc = weather?.current || {};
@@ -784,7 +784,7 @@ function renderConditions(data, weather) {
     document.getElementById('vPrecip').textContent = fmt(wc.precipitation, 1);
     document.getElementById('vWind').textContent = fmt(wc.wind_speed_10m, 0);
     if (wc.wind_direction_10m != null) {
-        document.getElementById('aWind').style.transform = 'rotate(' + wc.wind_direction_10m + 'deg)';
+        document.getElementById('aWind').style.transform = 'rotate(' + ((wc.wind_direction_10m + 180) % 360) + 'deg)';
     }
     document.getElementById('vWindGust').textContent = wc.wind_gusts_10m != null ? 'Gusts ' + fmt(wc.wind_gusts_10m, 0) + ' km/h' : '';
 
@@ -942,7 +942,7 @@ function renderForecast(data, weather) {
 
         if (dir != null) {
             const arr = el('div', 'f-arrow', '↑');
-            arr.style.transform = 'rotate(' + dir + 'deg)';
+            arr.style.transform = 'rotate(' + ((dir + 180) % 360) + 'deg)';
             day.appendChild(arr);
         }
         if (sw != null) day.appendChild(el('div', 'f-swell', sw.toFixed(1) + 'm sw'));
@@ -971,7 +971,7 @@ function renderForecast(data, weather) {
                 const windRow = el('div', 'f-wind-row');
                 if (wdir != null) {
                     const warr = el('span', 'f-warr', '↑');
-                    warr.style.transform = 'rotate(' + wdir + 'deg)';
+                    warr.style.transform = 'rotate(' + ((wdir + 180) % 360) + 'deg)';
                     windRow.appendChild(warr);
                 }
                 windRow.appendChild(document.createTextNode(Math.round(wspd) + ' km/h'));
@@ -1029,7 +1029,7 @@ function renderHourly(data, weather) {
         const dirCell = el('span');
         if (wd != null) {
             const arr = el('span', 'h-darr', '↑');
-            arr.style.transform = 'rotate(' + wd + 'deg)';
+            arr.style.transform = 'rotate(' + ((wd + 180) % 360) + 'deg)';
             dirCell.appendChild(arr);
         } else {
             dirCell.className = 'h-nil'; dirCell.textContent = '--';
@@ -1049,7 +1049,7 @@ function renderHourly(data, weather) {
         if (wSpd != null) {
             if (wDir != null) {
                 const warr = el('span', 'h-darr', '↑');
-                warr.style.transform = 'rotate(' + wDir + 'deg)';
+                warr.style.transform = 'rotate(' + ((wDir + 180) % 360) + 'deg)';
                 warr.style.fontSize = '0.78rem';
                 windCell.appendChild(warr);
             }
