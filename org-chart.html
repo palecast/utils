@@ -27,7 +27,6 @@
         header {
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 16px;
             background: #4A5D47;
             color: #FAF8F5;
@@ -35,17 +34,61 @@
             flex-shrink: 0;
         }
 
-        header h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
-        header a.disclaimer-link { color: rgba(250,248,245,0.7); font-size: 0.75rem; text-decoration: none; }
-        header a.disclaimer-link:hover { color: #FAF8F5; }
-        header .privacy-note { margin: 0.25rem 0 0; font-size: 0.7rem; color: rgba(250,248,245,0.6); font-weight: 400; }
-
-        .panel {
-            background: white;
-            padding: 16px 20px;
-            border-bottom: 1px solid rgba(74,93,71,0.12);
+        header .header-left, header .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             flex-shrink: 0;
         }
+        header .header-center {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 12px;
+        }
+
+        header h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+        header .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(250,248,245,0.15);
+            color: rgba(250,248,245,0.85);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: help;
+            user-select: none;
+        }
+        header .info-icon:hover { background: rgba(250,248,245,0.25); color: #FAF8F5; }
+        header a.disclaimer-link { color: rgba(250,248,245,0.65); font-size: 0.75rem; text-decoration: none; }
+        header a.disclaimer-link:hover { color: #FAF8F5; }
+        header .header-filename {
+            font-size: 0.85rem;
+            font-style: italic;
+            color: rgba(250,248,245,0.65);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        header .header-filename.has-file { font-style: normal; font-weight: 500; color: #FAF8F5; }
+        header button.btn-header {
+            background: transparent;
+            color: #FAF8F5;
+            border: 1px solid rgba(250,248,245,0.35);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        header button.btn-header:hover { background: rgba(250,248,245,0.1); border-color: rgba(250,248,245,0.6); }
+        header button.btn-header:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; }
+        header button.btn-header:disabled:hover { background: transparent; border-color: rgba(250,248,245,0.35); }
 
         .panel-main {
             flex: 1;
@@ -155,19 +198,6 @@
             font-size: 0.85rem;
             cursor: pointer;
         }
-
-        /* File handling toolbar */
-        .filename-indicator {
-            font-size: 0.85rem;
-            color: #6B5F54;
-            font-style: italic;
-            padding: 0 4px;
-            white-space: nowrap;
-            max-width: 280px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .filename-indicator.has-file { font-style: normal; font-weight: 500; color: #3A2F28; }
 
         button:disabled { opacity: 0.45; cursor: not-allowed; }
         button:disabled:hover { background: #4A5D47; }
@@ -433,6 +463,21 @@
         #tab-chart.active { display: flex; gap: 0; flex: 1; min-height: 0; padding: 0; }
         #tab-pivot.active { display: flex; gap: 0; flex: 1; min-height: 0; padding: 0; }
 
+        .table-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .table-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         /* Status badges */
         .status-filled { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
         .status-vacant { background: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
@@ -636,35 +681,68 @@
             flex-shrink: 0;
             background: #F2F0EB;
             border-right: 1px solid rgba(74,93,71,0.12);
-            transition: width 0.2s ease, padding 0.2s ease;
+            transition: width 0.2s ease;
             overflow: hidden;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
-        .chart-sidebar.collapsed { width: 0; padding: 0; border-right: none; }
-        .sidebar-content { padding: 12px; width: 240px; }
+        .chart-sidebar.collapsed { width: 32px; }
+        .chart-sidebar.collapsed .sidebar-content { display: none; }
+        .chart-sidebar.collapsed .sidebar-collapsed-strip { display: flex; }
+        .sidebar-content {
+            padding: 12px;
+            width: 240px;
+            flex: 1;
+            overflow-y: auto;
+        }
 
-        .sidebar-toggle {
-            position: absolute;
-            right: -16px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 25;
-            width: 16px;
-            height: 48px;
-            background: #F2F0EB;
-            border: 1px solid rgba(74,93,71,0.12);
-            border-left: none;
-            border-radius: 0 6px 6px 0;
-            cursor: pointer;
+        .sidebar-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 0.6rem;
-            color: #6B5F54;
-            padding: 0;
+            justify-content: flex-end;
+            margin-bottom: 4px;
         }
-        .sidebar-toggle:hover { background: #E8E5DF; color: #3A2F28; }
-        .chart-sidebar.collapsed .sidebar-toggle { right: -16px; }
+        .sidebar-toggle-btn {
+            background: transparent;
+            color: #6B5F54;
+            border: 1px solid rgba(74,93,71,0.18);
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .sidebar-toggle-btn:hover { background: #E8E5DF; color: #3A2F28; }
+
+        .sidebar-collapsed-strip {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 12px;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            background: #F2F0EB;
+            color: #6B5F54;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: none;
+            user-select: none;
+        }
+        .sidebar-collapsed-strip:hover { background: #E8E5DF; color: #3A2F28; }
+        .sidebar-collapsed-strip .strip-arrow { font-size: 0.95rem; margin-bottom: 8px; }
+        .sidebar-collapsed-strip .strip-label {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.7rem;
+            color: #6B5F54;
+            white-space: nowrap;
+        }
 
         .design-surface {
             flex: 1;
@@ -779,7 +857,9 @@
             color: #6B5F54;
             line-height: 1;
             margin-right: -2px;
+            transition: transform 0.15s ease;
         }
+        .control-section.collapsed .control-section-label .control-section-toggle { transform: rotate(-90deg); }
 
         .control-section-body {
             display: flex;
@@ -857,21 +937,26 @@
         }
 
         @media (max-width: 768px) {
+            header { flex-wrap: wrap; gap: 8px; }
             header h1 { font-size: 1.1rem; }
-            .controls { flex-direction: column; align-items: flex-start; }
-            .panel { padding: 12px; }
+            header .header-center { order: 3; flex-basis: 100%; padding: 0; }
             #tab-chart.active { flex-direction: column; }
             .chart-sidebar { width: 100%; border-right: none; border-bottom: 1px solid rgba(74,93,71,0.12); }
-            .chart-sidebar.collapsed { width: 100%; height: 0; border-bottom: none; }
+            .chart-sidebar.collapsed { width: 100%; height: auto; }
             .sidebar-content { width: 100%; }
-            .sidebar-toggle { display: none; }
+            .sidebar-collapsed-strip .strip-label {
+                writing-mode: horizontal-tb;
+                transform: none;
+            }
+            .sidebar-collapsed-strip { flex-direction: row; padding: 8px; gap: 6px; }
+            .sidebar-collapsed-strip .strip-arrow { margin-bottom: 0; }
             #tab-pivot.active { flex-direction: column; }
             .summary-content { flex-direction: column; gap: 8px; }
         }
 
         @media print {
             body { height: auto; overflow: visible; background: white; }
-            header, .panel, .chart-sidebar, .sidebar-toggle, .summary-panel,
+            header, .chart-sidebar, .table-toolbar, .summary-panel,
             .reparent-panel, .tab-bar, .pivot-container { display: none !important; }
             .container, .panel-main, .design-surface { display: block !important; overflow: visible !important; height: auto !important; }
             #chart-container {
@@ -911,25 +996,23 @@
 <body>
     <div class="container">
         <header>
-            <h1>&#127970; Org Chart Designer</h1>
-            <p class="privacy-note">All data handling happens locally in your browser — nothing is ever sent to a server.</p>
-            <a class="disclaimer-link" href="/disclaimer">Disclaimer</a>
-        </header>
-
-        <div class="panel">
-            <div class="controls">
-                <div class="control-group">
-                    <button class="btn-primary" onclick="openFile()">Open</button>
-                    <button class="btn-primary" id="btn-save" onclick="saveFile()" disabled>Save</button>
-                    <button class="btn-primary" onclick="saveFileAs()">Save As&hellip;</button>
-                    <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
-                    <span class="filename-indicator" id="filename-indicator">(no file)</span>
-                </div>
-                <div class="control-group">
-                    <button class="btn-secondary" onclick="loadTestData()">Load test data</button>
-                </div>
+            <div class="header-left">
+                <h1>&#127970; Org Chart Designer</h1>
+                <span class="info-icon" tabindex="0" role="img"
+                      aria-label="All data handling happens locally in your browser — nothing is ever sent to a server."
+                      title="All data handling happens locally in your browser — nothing is ever sent to a server.">i</span>
             </div>
-        </div>
+            <div class="header-center">
+                <span class="header-filename" id="filename-indicator">(no file)</span>
+            </div>
+            <div class="header-right">
+                <button class="btn-header" onclick="openFile()">Open</button>
+                <button class="btn-header" id="btn-save" onclick="saveFile()" disabled>Save</button>
+                <button class="btn-header" onclick="saveFileAs()">Save As&hellip;</button>
+                <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
+                <a class="disclaimer-link" href="/disclaimer">Disclaimer</a>
+            </div>
+        </header>
 
         <div class="warning-banner" id="warning-banner"></div>
 
@@ -944,17 +1027,28 @@
         <div class="panel-main">
 
             <div class="tab-content active" id="tab-table">
-                <div style="margin-bottom: 12px;">
+                <div class="table-toolbar">
                     <button class="btn-primary btn-small" onclick="addRole()">+ Add Row</button>
+                    <div class="table-toolbar-right">
+                        <button class="btn-secondary btn-small" onclick="loadTestData()">Load test data</button>
+                        <button class="btn-secondary btn-small" onclick="exportCSV()">Export CSV</button>
+                        <button class="btn-secondary btn-small" onclick="exportExcel()">Export Excel</button>
+                    </div>
                 </div>
                 <div id="tabulator-grid" tabindex="0" style="outline:none;"></div>
             </div>
 
             <div class="tab-content" id="tab-chart">
                 <div class="chart-sidebar" id="chart-sidebar">
-                    <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebar-toggle-btn">&#9664;</button>
+                    <button class="sidebar-collapsed-strip" type="button" onclick="toggleSidebar()" aria-label="Show controls">
+                        <span class="strip-arrow">&raquo;</span>
+                        <span class="strip-label">Show controls</span>
+                    </button>
                     <div class="sidebar-content">
-                        <div class="control-section">
+                        <div class="sidebar-header">
+                            <button class="sidebar-toggle-btn" type="button" onclick="toggleSidebar()" id="sidebar-toggle-btn">&laquo; Hide controls</button>
+                        </div>
+                        <div class="control-section" data-section="view">
                             <div class="control-section-label">View</div>
                             <div class="control-section-body">
                                 <div class="depth-row">
@@ -971,7 +1065,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="control-section">
+                        <div class="control-section" data-section="data">
                             <div class="control-section-label">Data</div>
                             <div class="control-section-body">
                                 <div class="control-group">
@@ -1049,7 +1143,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="control-section">
+                        <div class="control-section" data-section="export">
                             <div class="control-section-label">Export</div>
                             <div class="control-section-body">
                                 <button class="btn-secondary btn-small" onclick="printChart()">&#128424; Print</button>
@@ -1072,9 +1166,15 @@
 
             <div class="tab-content" id="tab-pivot">
                 <div class="chart-sidebar" id="pivot-sidebar">
-                    <button class="sidebar-toggle" onclick="togglePivotSidebar()" id="pivot-sidebar-toggle-btn">&#9664;</button>
+                    <button class="sidebar-collapsed-strip" type="button" onclick="togglePivotSidebar()" aria-label="Show controls">
+                        <span class="strip-arrow">&raquo;</span>
+                        <span class="strip-label">Show controls</span>
+                    </button>
                     <div class="sidebar-content">
-                        <div class="control-section">
+                        <div class="sidebar-header">
+                            <button class="sidebar-toggle-btn" type="button" onclick="togglePivotSidebar()" id="pivot-sidebar-toggle-btn">&laquo; Hide controls</button>
+                        </div>
+                        <div class="control-section" data-section="dimensions">
                             <div class="control-section-label">Dimensions</div>
                             <div class="control-section-body">
                                 <div class="control-group">
@@ -1102,7 +1202,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="control-section">
+                        <div class="control-section" data-section="value">
                             <div class="control-section-label">Value</div>
                             <div class="control-section-body">
                                 <div class="control-group">
@@ -1114,7 +1214,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="control-section">
+                        <div class="control-section" data-section="filter">
                             <div class="control-section-label">Filter</div>
                             <div class="control-section-body">
                                 <div class="control-group">
@@ -2719,11 +2819,51 @@
         }
 
         // --- Sidebar, Summary, Minimap ---
+        const UI_STATE_KEY = 'orgChartUiState';
+        const UI_STATE_VERSION = 1;
+        const SECTION_KEYS = ['view', 'data', 'export', 'dimensions', 'value', 'filter'];
+
+        function readUiState() {
+            try {
+                const raw = localStorage.getItem(UI_STATE_KEY);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed || parsed.v !== UI_STATE_VERSION) return null;
+                return parsed;
+            } catch (e) { return null; }
+        }
+
+        function saveUiState() {
+            const state = {
+                v: UI_STATE_VERSION,
+                sidebarCollapsed: document.getElementById('chart-sidebar').classList.contains('collapsed'),
+                pivotSidebarCollapsed: document.getElementById('pivot-sidebar').classList.contains('collapsed'),
+                sectionsCollapsed: {}
+            };
+            SECTION_KEYS.forEach(function(key) {
+                const el = document.querySelector('.control-section[data-section="' + key + '"]');
+                state.sectionsCollapsed[key] = !!(el && el.classList.contains('collapsed'));
+            });
+            try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+        }
+
+        function restoreUiState() {
+            const state = readUiState();
+            if (!state) return;
+            if (state.sidebarCollapsed) document.getElementById('chart-sidebar').classList.add('collapsed');
+            if (state.pivotSidebarCollapsed) document.getElementById('pivot-sidebar').classList.add('collapsed');
+            const sc = state.sectionsCollapsed || {};
+            SECTION_KEYS.forEach(function(key) {
+                if (!sc[key]) return;
+                const el = document.querySelector('.control-section[data-section="' + key + '"]');
+                if (el) el.classList.add('collapsed');
+            });
+        }
+
         function toggleSidebar() {
             const sidebar = document.getElementById('chart-sidebar');
-            const btn = document.getElementById('sidebar-toggle-btn');
             sidebar.classList.toggle('collapsed');
-            btn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+            saveUiState();
         }
 
         function toggleSummary() {
@@ -2739,13 +2879,15 @@
         function enhanceControlSections() {
             document.querySelectorAll('.control-section-label').forEach(label => {
                 if (label.querySelector('.control-section-title')) return;
+                const section = label.closest('.control-section');
+                const collapsed = !!(section && section.classList.contains('collapsed'));
                 const title = document.createElement('span');
                 title.className = 'control-section-title';
                 while (label.firstChild) title.appendChild(label.firstChild);
                 label.appendChild(title);
                 const chev = document.createElement('span');
                 chev.className = 'control-section-toggle';
-                chev.textContent = '▾';
+                chev.textContent = collapsed ? '▸' : '▾';
                 label.appendChild(chev);
                 label.addEventListener('click', () => toggleControlSection(label));
             });
@@ -2757,6 +2899,7 @@
             section.classList.toggle('collapsed');
             const chev = labelEl.querySelector('.control-section-toggle');
             if (chev) chev.textContent = section.classList.contains('collapsed') ? '▸' : '▾';
+            saveUiState();
         }
 
         function updateSummaryPanel(filtered) {
@@ -2828,9 +2971,8 @@
         // --- Pivot tab ---
         function togglePivotSidebar() {
             const sidebar = document.getElementById('pivot-sidebar');
-            const btn = document.getElementById('pivot-sidebar-toggle-btn');
             sidebar.classList.toggle('collapsed');
-            btn.innerHTML = sidebar.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+            saveUiState();
         }
 
         function onPivotFieldChange(which) {
@@ -3355,6 +3497,7 @@
         }
 
         // --- Init ---
+        restoreUiState();
         renderFieldsDropdown();
         enhanceControlSections();
         render();
