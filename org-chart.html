@@ -269,8 +269,10 @@
             line-height: 1.4;
         }
 
-        /* Save As fallback dialog */
-        #saveas-dialog {
+        /* Modal dialogs (Save As, Rename, Confirm) — share the same look */
+        #saveas-dialog,
+        #rename-dialog,
+        #confirm-dialog {
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 12px;
             padding: 20px 24px;
@@ -279,12 +281,20 @@
             color: #3A2F28;
             font-family: inherit;
             min-width: 320px;
+            max-width: 460px;
         }
-        #saveas-dialog::backdrop { background: rgba(58,47,40,0.35); }
-        #saveas-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
-        #saveas-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
-        #saveas-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
-        #saveas-dialog input[type="text"] {
+        #saveas-dialog::backdrop,
+        #rename-dialog::backdrop,
+        #confirm-dialog::backdrop { background: rgba(58,47,40,0.35); }
+        #saveas-dialog h3,
+        #rename-dialog h3,
+        #confirm-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+        #saveas-dialog .saveas-row,
+        #rename-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+        #saveas-dialog label,
+        #rename-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
+        #saveas-dialog input[type="text"],
+        #rename-dialog input[type="text"] {
             padding: 8px 10px;
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 6px;
@@ -301,7 +311,10 @@
         }
         #saveas-dialog fieldset legend { padding: 0 4px; font-size: 0.75rem; color: #6B5F54; font-weight: 600; }
         #saveas-dialog fieldset label { font-weight: 400; display: flex; align-items: center; gap: 4px; cursor: pointer; }
-        #saveas-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
+        #saveas-dialog menu,
+        #rename-dialog menu,
+        #confirm-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
+        #confirm-dialog p { margin: 0 0 4px; font-size: 0.9rem; color: #3A2F28; line-height: 1.5; }
 
         /* Warning banner */
         .warning-banner {
@@ -604,19 +617,38 @@
         .orgchart .node .toggleBtn:hover::before { background-color: #4A5D47 !important; }
         .orgchart .node .edge::before { border-color: rgba(74,93,71,0.6) !important; }
 
-        .reparent-panel {
+        /* Drag-and-drop reparenting visual states */
+        .orgchart .node[draggable="true"] { cursor: grab; }
+        .orgchart .node.dragging { opacity: 0.5; cursor: grabbing; }
+        .orgchart .node.drop-target {
+            outline: 3px solid #4A5D47;
+            outline-offset: 2px;
+            transition: outline-color 0.1s;
+        }
+        .orgchart .node.no-drop { opacity: 0.35; cursor: not-allowed; }
+        body.dnd-active { cursor: grabbing; }
+
+        /* Right-click context menu on chart nodes */
+        .chart-context-menu {
             position: fixed; z-index: 1000; background: white; border-radius: 8px;
-            box-shadow: 0 8px 30px rgba(58,47,40,0.12); padding: 16px; min-width: 240px;
+            box-shadow: 0 8px 30px rgba(58,47,40,0.18);
+            padding: 6px; min-width: 200px;
+            font-size: 0.85rem; color: #3A2F28;
+            border: 1px solid rgba(74,93,71,0.12);
         }
-        .reparent-panel h4 { margin: 0 0 8px; font-size: 0.9rem; color: #333; }
-        .reparent-panel select { width: 100%; padding: 6px 8px; border: 1px solid rgba(74,93,71,0.12); border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px; }
-        .reparent-panel .reparent-btns { display: flex; gap: 8px; justify-content: flex-end; }
-        .reparent-panel .reparent-focus-row {
-            margin-bottom: 12px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(74,93,71,0.12);
+        .chart-context-menu .menu-item {
+            padding: 8px 14px; border-radius: 4px; cursor: pointer; user-select: none;
+            display: flex; align-items: center; justify-content: space-between;
         }
-        .reparent-panel .reparent-focus-row button { width: 100%; }
+        .chart-context-menu .menu-item:hover { background: #FAF8F5; }
+        .chart-context-menu .menu-item.danger { color: #c0392b; }
+        .chart-context-menu .menu-item.danger:hover { background: rgba(192,57,43,0.06); }
+        .chart-context-menu .menu-item .menu-shortcut { font-size: 0.75rem; color: #9a8f84; margin-left: 16px; }
+        .chart-context-menu .menu-sep { height: 1px; background: rgba(74,93,71,0.12); margin: 4px 0; }
+        .chart-context-menu .menu-header {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+            color: #6B5F54; padding: 6px 14px 4px; font-weight: 600;
+        }
 
         /* Legend (floating overlay on chart) */
         .chart-legend {
@@ -994,7 +1026,7 @@
         @media print {
             body { height: auto; overflow: visible; background: white; }
             header, .chart-sidebar, .table-toolbar, .summary-panel,
-            .reparent-panel, .tab-bar, .pivot-container { display: none !important; }
+            .chart-context-menu, .tab-bar, .pivot-container { display: none !important; }
             .container, .panel-main, .design-surface { display: block !important; overflow: visible !important; height: auto !important; }
             #chart-container {
                 width: auto !important; height: auto !important;
@@ -1361,6 +1393,29 @@
         </form>
     </dialog>
 
+    <dialog id="rename-dialog">
+        <form method="dialog" onsubmit="renameConfirm(); return false;">
+            <h3>Rename role</h3>
+            <div class="saveas-row">
+                <label for="rename-input">New title</label>
+                <input id="rename-input" type="text" autocomplete="off">
+            </div>
+            <menu>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('rename-dialog').close('cancel')">Cancel</button>
+                <button type="submit" class="btn-primary">Save</button>
+            </menu>
+        </form>
+    </dialog>
+
+    <dialog id="confirm-dialog">
+        <h3 id="confirm-title">Confirm</h3>
+        <p id="confirm-message"></p>
+        <menu>
+            <button type="button" class="btn-secondary" onclick="document.getElementById('confirm-dialog').close('cancel')">Cancel</button>
+            <button type="button" class="btn-primary" id="confirm-ok-btn">Confirm</button>
+        </menu>
+    </dialog>
+
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css">
@@ -1408,6 +1463,42 @@
         let isEditing = false;
         let chartLayout = 'top-hybrid';
 
+        // --- Undo (in-memory, structural mutations only) ---
+        const UNDO_LIMIT = 20;
+        let undoStack = []; // [{ roles, focusRoleId, label }, …] newest last
+        function snapshotRoles() {
+            return roles.map(r => ({ ...r, tags: Array.isArray(r.tags) ? r.tags.slice() : [] }));
+        }
+        function pushUndo(label) {
+            undoStack.push({ roles: snapshotRoles(), focusRoleId, label });
+            if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+        }
+        function undo() {
+            const snap = undoStack.pop();
+            if (!snap) return;
+            roles = snap.roles;
+            focusRoleId = snap.focusRoleId;
+            validateRoles();
+            render();
+            markDirty();
+        }
+
+        // --- Drag-and-drop reparenting state ---
+        let dragState = null; // { roleId, descendants:Set<string> }
+        function getDescendantIds(roleId) {
+            const out = new Set();
+            const walk = (id) => {
+                roles.forEach(r => {
+                    if (r.managerRoleId === id && !out.has(r.roleId)) {
+                        out.add(r.roleId);
+                        walk(r.roleId);
+                    }
+                });
+            };
+            walk(roleId);
+            return out;
+        }
+
         const LAYOUT_PRESETS = {
             'top-hybrid': { direction: 't2b', hybrid: true,  label: 'Top-down Hybrid' },
             'top':        { direction: 't2b', hybrid: false, label: 'Top-down' },
@@ -1448,6 +1539,7 @@
 
         // --- CRUD ---
         function addRole() {
+            pushUndo('Add role');
             roles.push({
                 roleId: generateRoleId(),
                 roleTitle: '',
@@ -1470,6 +1562,7 @@
         function deleteRole(roleId) {
             const role = roles.find(r => r.roleId === roleId);
             if (!role) return;
+            pushUndo('Delete role');
             const parentManager = role.managerRoleId;
             roles.forEach(r => {
                 if (r.managerRoleId === roleId) r.managerRoleId = parentManager;
@@ -1482,6 +1575,14 @@
         function updateRoleField(roleId, field, value) {
             const role = roles.find(r => r.roleId === roleId);
             if (!role) return;
+
+            // Snapshot before structural / identity changes only — per-keystroke
+            // edits to other fields would flood the undo stack and crowd out the
+            // changes the user actually wants to recover.
+            const STRUCTURAL_FIELDS = new Set(['roleId', 'managerRoleId', 'roleTitle']);
+            if (STRUCTURAL_FIELDS.has(field) && role[field] !== value) {
+                pushUndo('Edit ' + field);
+            }
 
             if (field === 'roleId') {
                 const oldId = role.roleId;
@@ -1745,6 +1846,7 @@
             const idx = roles.findIndex(r => r.roleId === roleId);
             if (idx < 0) return;
             const parent = roles[idx];
+            pushUndo('Add child');
             roles.splice(idx + 1, 0, {
                 roleId: generateRoleId(),
                 roleTitle: '',
@@ -1754,6 +1856,33 @@
                 department: parent.department || '',
                 costToCompany: 0,
                 location: parent.location || '',
+                incumbentGender: '',
+                employmentType: 'Permanent',
+                workingPattern: 'Full-time',
+                comments: '',
+                tags: []
+            });
+            render();
+            markDirty();
+        }
+
+        // Add a new role at the same level as the given role. Inherits department
+        // and location from the right-clicked role itself (the "sibling"), not the
+        // parent — matches the "one more like this" mental model from the chart.
+        function addSiblingById(roleId) {
+            const idx = roles.findIndex(r => r.roleId === roleId);
+            if (idx < 0) return;
+            const sib = roles[idx];
+            pushUndo('Add sibling');
+            roles.splice(idx + 1, 0, {
+                roleId: generateRoleId(),
+                roleTitle: '',
+                status: 'planned',
+                incumbentName: '',
+                managerRoleId: sib.managerRoleId,
+                department: sib.department || '',
+                costToCompany: 0,
+                location: sib.location || '',
                 incumbentGender: '',
                 employmentType: 'Permanent',
                 workingPattern: 'Full-time',
@@ -2624,76 +2753,247 @@
             if (_activeFloating) positionFloatingDropdown(_activeFloating.dd, _activeFloating.btn);
         }, true);
 
-        // --- Reparent UI ---
-        function showReparentPanel(roleId, event) {
-            closeReparentPanel();
+        // --- Chart node interactions: right-click menu, drag-and-drop reparent ---
+
+        // Generic confirm dialog — reused for delete and large-move warning.
+        function openConfirmDialog(opts, onConfirm) {
+            const dlg = document.getElementById('confirm-dialog');
+            document.getElementById('confirm-title').textContent = opts.title || 'Confirm';
+            document.getElementById('confirm-message').textContent = opts.message || '';
+            const ok = document.getElementById('confirm-ok-btn');
+            ok.textContent = opts.confirmLabel || 'Confirm';
+            ok.className = opts.danger ? 'btn-danger' : 'btn-primary';
+            ok.onclick = () => { dlg.close('ok'); if (onConfirm) onConfirm(); };
+            dlg.showModal();
+        }
+
+        function openRenameDialog(roleId) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) return;
+            const dlg = document.getElementById('rename-dialog');
+            const input = document.getElementById('rename-input');
+            input.value = role.roleTitle || '';
+            dlg.dataset.roleId = roleId;
+            dlg.showModal();
+            setTimeout(() => input.select(), 0);
+        }
+
+        function renameConfirm() {
+            const dlg = document.getElementById('rename-dialog');
+            const roleId = dlg.dataset.roleId;
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) { dlg.close('cancel'); return; }
+            const newTitle = document.getElementById('rename-input').value;
+            if (newTitle !== role.roleTitle) {
+                pushUndo('Rename role');
+                role.roleTitle = newTitle;
+                validateRoles();
+                renderTable();
+                if (activeTab === 'chart') renderChart();
+                markDirty();
+            }
+            dlg.close('save');
+        }
+
+        function openDeleteConfirm(roleId) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) return;
+            const childCount = roles.filter(r => r.managerRoleId === roleId).length;
+            const label = role.roleTitle ? `"${role.roleTitle}"` : role.roleId;
+            const msg = childCount
+                ? `Delete ${label}? Its ${childCount} direct report(s) will move up to the grandparent.`
+                : `Delete ${label}?`;
+            openConfirmDialog(
+                { title: 'Delete role', message: msg, confirmLabel: 'Delete', danger: true },
+                () => deleteRole(roleId)
+            );
+        }
+
+        // Switch to the Table tab and bring the given roleId's row into view.
+        function selectAndScrollToRow(roleId) {
+            switchTab('table');
+            if (!tabulatorGrid) return;
+            try { tabulatorGrid.deselectRow(); } catch (_) {}
+            try { tabulatorGrid.selectRow(roleId); } catch (_) {}
+            const p = tabulatorGrid.scrollToRow(roleId, 'center', false);
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+
+        // --- Right-click context menu ---
+        function closeChartContextMenu() {
+            const m = document.getElementById('chart-context-menu');
+            if (m) m.remove();
+        }
+
+        function showChartContextMenu(roleId, event) {
+            closeChartContextMenu();
             const role = roles.find(r => r.roleId === roleId);
             if (!role || roleId === '_root') return;
 
-            const panel = document.createElement('div');
-            panel.className = 'reparent-panel';
-            panel.id = 'reparent-panel';
+            const menu = document.createElement('div');
+            menu.className = 'chart-context-menu';
+            menu.id = 'chart-context-menu';
 
-            let optionsHtml = '<option value="">(None - Root)</option>';
-            roles.forEach(r => {
-                if (r.roleId === roleId) return;
-                const sel = r.roleId === role.managerRoleId ? ' selected' : '';
-                optionsHtml += '<option value="' + escapeHtml(r.roleId) + '"' + sel + '>' + escapeHtml(r.roleId + (r.roleTitle ? ' - ' + r.roleTitle : '')) + '</option>';
+            const header = document.createElement('div');
+            header.className = 'menu-header';
+            header.textContent = role.roleTitle || role.roleId;
+            menu.appendChild(header);
+
+            const addItem = (label, handler, opts = {}) => {
+                const it = document.createElement('div');
+                it.className = 'menu-item' + (opts.danger ? ' danger' : '');
+                const txt = document.createElement('span');
+                txt.textContent = label;
+                it.appendChild(txt);
+                it.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeChartContextMenu();
+                    handler();
+                });
+                menu.appendChild(it);
+            };
+            const addSep = () => {
+                const s = document.createElement('div');
+                s.className = 'menu-sep';
+                menu.appendChild(s);
+            };
+
+            addItem('Add child', () => addDirectReportById(roleId));
+            addItem('Add sibling', () => addSiblingById(roleId));
+            addItem('Rename…', () => openRenameDialog(roleId));
+            addSep();
+            addItem('Jump to table', () => selectAndScrollToRow(roleId));
+            addSep();
+            addItem('Delete…', () => openDeleteConfirm(roleId), { danger: true });
+
+            document.body.appendChild(menu);
+
+            // Position near cursor; clamp to viewport so we never spill off-screen.
+            const rect = menu.getBoundingClientRect();
+            const x = Math.min(event.clientX || 200, window.innerWidth - rect.width - 8);
+            const y = Math.min(event.clientY || 200, window.innerHeight - rect.height - 8);
+            menu.style.left = Math.max(8, x) + 'px';
+            menu.style.top = Math.max(8, y) + 'px';
+
+            // Defer outside-click wiring to the next tick so the same event that
+            // opened the menu doesn't immediately close it (the bug that broke the
+            // old reparent panel).
+            setTimeout(() => {
+                document.addEventListener('mousedown', _menuOutsideHandler, { capture: true });
+                document.addEventListener('contextmenu', _menuOutsideHandler, { capture: true });
+            }, 0);
+        }
+        function _menuOutsideHandler(e) {
+            const m = document.getElementById('chart-context-menu');
+            if (m && !m.contains(e.target)) {
+                closeChartContextMenu();
+                document.removeEventListener('mousedown', _menuOutsideHandler, { capture: true });
+                document.removeEventListener('contextmenu', _menuOutsideHandler, { capture: true });
+            }
+        }
+
+        // --- Wire each chart node: contextmenu + HTML5 drag-and-drop ---
+        function wireChartNode($node, data) {
+            const el = $node[0];
+            if (!data || !data.roleId) return;
+            el.dataset.roleId = data.roleId;
+
+            // Right-click → context menu (skip synthetic root)
+            $node.on('contextmenu', function(e) {
+                if (data.roleId === '_root') return;
+                e.preventDefault();
+                showChartContextMenu(data.roleId, e);
             });
 
-            panel.innerHTML = '<h4>Move: ' + escapeHtml(role.roleTitle || role.roleId) + '</h4>'
-                + '<select id="reparent-select">' + optionsHtml + '</select>'
-                + '<div class="reparent-btns">'
-                + '<button class="btn-secondary btn-small" onclick="closeReparentPanel()">Cancel</button>'
-                + '<button class="btn-primary btn-small" onclick="applyReparent(\'' + escapeHtml(roleId) + '\')">Apply</button>'
-                + '</div>';
+            if (data.roleId === '_root') return;
 
-            // Prepend a "Focus" action above the Move section. Built via DOM so the
-            // captured roleId doesn't need to round-trip through an HTML attribute.
-            const focusRow = document.createElement('div');
-            focusRow.className = 'reparent-focus-row';
-            const focusBtn = document.createElement('button');
-            focusBtn.type = 'button';
-            focusBtn.className = 'btn-secondary btn-small';
-            focusBtn.textContent = focusRoleId === roleId ? '✓ Focused on this role' : 'Focus chart from this role';
-            focusBtn.disabled = focusRoleId === roleId;
-            focusBtn.onclick = function() {
-                focusOnRole(roleId);
-                closeReparentPanel();
-            };
-            focusRow.appendChild(focusBtn);
-            panel.insertBefore(focusRow, panel.firstChild);
+            el.draggable = true;
 
-            document.body.appendChild(panel);
+            el.addEventListener('dragstart', function(e) {
+                // Skip drags initiated on the collapse toggle / edges so those keep working.
+                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge')) {
+                    e.preventDefault();
+                    return;
+                }
+                dragState = {
+                    roleId: data.roleId,
+                    descendants: getDescendantIds(data.roleId)
+                };
+                try {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', data.roleId);
+                } catch (_) {}
+                el.classList.add('dragging');
+                document.body.classList.add('dnd-active');
+                // Mark cycle-creating targets (self + descendants) so the user gets
+                // clear visual feedback that those drops will be rejected.
+                document.querySelectorAll('#chart-container .node').forEach(n => {
+                    const id = n.dataset.roleId;
+                    if (!id) return;
+                    if (id === data.roleId || dragState.descendants.has(id)) n.classList.add('no-drop');
+                });
+            });
 
-            // Position near click
-            const x = Math.min(event.pageX || 200, window.innerWidth - 280);
-            const y = Math.min(event.pageY || 200, window.innerHeight - 200);
-            panel.style.left = x + 'px';
-            panel.style.top = y + 'px';
+            el.addEventListener('dragover', function(e) {
+                if (!dragState) return;
+                if (data.roleId === dragState.roleId || dragState.descendants.has(data.roleId)) {
+                    e.dataTransfer.dropEffect = 'none';
+                    return;
+                }
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                el.classList.add('drop-target');
+            });
+
+            el.addEventListener('dragleave', function(e) {
+                // Only clear when leaving the node itself (children fire dragleave too)
+                if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+                el.classList.remove('drop-target');
+            });
+
+            el.addEventListener('drop', function(e) {
+                e.preventDefault();
+                el.classList.remove('drop-target');
+                if (!dragState) return;
+                const sourceId = dragState.roleId;
+                const targetId = data.roleId;
+                const subtreeSize = dragState.descendants.size;
+                if (sourceId === targetId || dragState.descendants.has(targetId)) return;
+                const source = roles.find(r => r.roleId === sourceId);
+                if (!source) return;
+                if (source.managerRoleId === targetId) return; // already there — no-op
+
+                const target = roles.find(r => r.roleId === targetId);
+                const apply = () => {
+                    pushUndo('Move role');
+                    source.managerRoleId = targetId;
+                    validateRoles();
+                    renderTable();
+                    renderChart();
+                    markDirty();
+                };
+                if (subtreeSize > 0) {
+                    const sLabel = source.roleTitle ? `"${source.roleTitle}"` : source.roleId;
+                    const tLabel = target && target.roleTitle ? `"${target.roleTitle}"` : (target ? target.roleId : 'target');
+                    openConfirmDialog({
+                        title: 'Move role',
+                        message: `Move ${sLabel} and its ${subtreeSize} report(s) under ${tLabel}?`,
+                        confirmLabel: 'Move'
+                    }, apply);
+                } else {
+                    apply();
+                }
+            });
+
+            el.addEventListener('dragend', function() {
+                el.classList.remove('dragging');
+                document.body.classList.remove('dnd-active');
+                document.querySelectorAll('#chart-container .node').forEach(n => {
+                    n.classList.remove('no-drop', 'drop-target');
+                });
+                dragState = null;
+            });
         }
-
-        function closeReparentPanel() {
-            const existing = document.getElementById('reparent-panel');
-            if (existing) existing.remove();
-        }
-
-        function applyReparent(roleId) {
-            const sel = document.getElementById('reparent-select');
-            if (!sel) return;
-            updateRoleField(roleId, 'managerRoleId', sel.value);
-            renderTable();
-            closeReparentPanel();
-            renderChart();
-        }
-
-        // Close reparent panel on outside click
-        document.addEventListener('click', function(e) {
-            const panel = document.getElementById('reparent-panel');
-            if (panel && !panel.contains(e.target)) {
-                closeReparentPanel();
-            }
-        });
 
         // --- Chart zoom (tame trackpad wheel + ± / 100% controls) ---
         const ZOOM_MIN = 0.25;
@@ -2812,12 +3112,7 @@
                 nodeContent: 'roleTitle',
                 nodeTemplate: function(data) { return buildNodeContentHtml(data); },
                 createNode: function($node, data) {
-                    $node.on('click', function(e) {
-                        if ($(e.target).closest('.edge, .toggleBtn, .topEdge, .rightEdge, .bottomEdge, .leftEdge').length) return;
-                        if (data.roleId && data.roleId !== '_root') {
-                            showReparentPanel(data.roleId, e);
-                        }
-                    });
+                    wireChartNode($node, data);
                 }
             });
 
@@ -2942,6 +3237,20 @@
                 btn.setAttribute('aria-expanded', 'false');
                 btn.focus();
             }
+            closeChartContextMenu();
+        });
+
+        // Cmd/Ctrl+Z — undo our structural mutation stack. Skip when the user is
+        // typing in a Tabulator cell or any other input, so native field undo
+        // (and Tabulator's own behaviour) keep working untouched.
+        window.addEventListener('keydown', function(e) {
+            if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+            if (e.key !== 'z' && e.key !== 'Z') return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            if (!undoStack.length) return;
+            e.preventDefault();
+            undo();
         });
 
         // Walk every .control-section-label, wrap its plain-text content in a centered
