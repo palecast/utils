@@ -1139,6 +1139,11 @@
                                     <span id="depth-display">All</span>
                                     <button class="btn-secondary" onclick="changeDepth(1)">+</button>
                                 </div>
+                                <div class="depth-row">
+                                    <label>History:</label>
+                                    <button class="btn-secondary" id="undo-btn" onclick="undo()" title="Undo (&#8984;Z / Ctrl+Z)" disabled>&#8617;</button>
+                                    <button class="btn-secondary" id="redo-btn" onclick="redo()" title="Redo (&#8984;&#8679;Z / Ctrl+Shift+Z)" disabled>&#8618;</button>
+                                </div>
                             </div>
                         </div>
                         <div class="control-section" data-section="data">
@@ -1463,24 +1468,52 @@
         let isEditing = false;
         let chartLayout = 'top-hybrid';
 
-        // --- Undo (in-memory, structural mutations only) ---
+        // --- Undo / Redo (in-memory, structural mutations only) ---
         const UNDO_LIMIT = 20;
         let undoStack = []; // [{ roles, focusRoleId, label }, …] newest last
+        let redoStack = [];
         function snapshotRoles() {
             return roles.map(r => ({ ...r, tags: Array.isArray(r.tags) ? r.tags.slice() : [] }));
         }
+        function snapshotState(label) {
+            return { roles: snapshotRoles(), focusRoleId, label };
+        }
         function pushUndo(label) {
-            undoStack.push({ roles: snapshotRoles(), focusRoleId, label });
+            undoStack.push(snapshotState(label));
             if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+            // Any new mutation invalidates the redo branch.
+            redoStack = [];
+            updateUndoRedoButtonState();
         }
         function undo() {
             const snap = undoStack.pop();
             if (!snap) return;
+            redoStack.push(snapshotState(snap.label));
+            if (redoStack.length > UNDO_LIMIT) redoStack.shift();
             roles = snap.roles;
             focusRoleId = snap.focusRoleId;
             validateRoles();
             render();
             markDirty();
+            updateUndoRedoButtonState();
+        }
+        function redo() {
+            const snap = redoStack.pop();
+            if (!snap) return;
+            undoStack.push(snapshotState(snap.label));
+            if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+            roles = snap.roles;
+            focusRoleId = snap.focusRoleId;
+            validateRoles();
+            render();
+            markDirty();
+            updateUndoRedoButtonState();
+        }
+        function updateUndoRedoButtonState() {
+            const u = document.getElementById('undo-btn');
+            const r = document.getElementById('redo-btn');
+            if (u) u.disabled = undoStack.length === 0;
+            if (r) r.disabled = redoStack.length === 0;
         }
 
         // --- Drag-and-drop reparenting state ---
@@ -3240,17 +3273,23 @@
             closeChartContextMenu();
         });
 
-        // Cmd/Ctrl+Z — undo our structural mutation stack. Skip when the user is
+        // Cmd/Ctrl+Z (undo) and Cmd/Ctrl+Shift+Z (redo). Skip when the user is
         // typing in a Tabulator cell or any other input, so native field undo
         // (and Tabulator's own behaviour) keep working untouched.
         window.addEventListener('keydown', function(e) {
-            if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+            if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
             if (e.key !== 'z' && e.key !== 'Z') return;
             const t = e.target;
             if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-            if (!undoStack.length) return;
-            e.preventDefault();
-            undo();
+            if (e.shiftKey) {
+                if (!redoStack.length) return;
+                e.preventDefault();
+                redo();
+            } else {
+                if (!undoStack.length) return;
+                e.preventDefault();
+                undo();
+            }
         });
 
         // Walk every .control-section-label, wrap its plain-text content in a centered
