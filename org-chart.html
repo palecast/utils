@@ -717,10 +717,13 @@
             border-top: 1px solid rgba(74,93,71,0.45) !important;
             border-left: none !important;
         }
-        /* Left column stub extends to the right (into the gap, toward the spine). */
-        .orgchart ul.nodes.vertical.two-col > .hierarchy.tc-left::before { right: -28px; }
+        /* Left column stub extends to the right (into the gap, toward the spine).
+           `left: auto` is required to override dabeng's `.nodes.vertical .hierarchy::before
+           { left: -6px }`; without it the over-constrained box pins to the card's
+           left edge and `right: -28px` is ignored. */
+        .orgchart ul.nodes.vertical.two-col > .hierarchy.tc-left::before { left: auto; right: -28px; }
         /* Right column stub extends to the left (into the gap, from the spine). */
-        .orgchart ul.nodes.vertical.two-col > .hierarchy.tc-right::before { left: -28px; }
+        .orgchart ul.nodes.vertical.two-col > .hierarchy.tc-right::before { left: -28px; right: auto; }
         .orgchart .hierarchy:not(.couple) > .node:has(+ .nodes)::after,
         .orgchart > ul > li > ul li > .node:not(.outsider)::before,
         .orgchart .couple:has(> .nodes) > .node:first-child::after { background-color: rgba(74,93,71,0.45) !important; }
