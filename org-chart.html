@@ -268,11 +268,34 @@
             font-weight: 500;
             line-height: 1.4;
         }
+        /* Dotted-line manager pills — visually distinct from tags via dashed border
+           and an arrow glyph, so they read as "secondary reporting" at a glance. */
+        .node-dotted-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-top: 4px;
+        }
+        .node-dotted-tag {
+            display: inline-block;
+            background: rgba(74,93,71,0.04);
+            color: #4A5D47;
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border: 1px dashed rgba(74,93,71,0.55);
+            border-radius: 8px;
+            font-weight: 500;
+            line-height: 1.4;
+            cursor: pointer;
+            user-select: none;
+        }
+        .node-dotted-tag:hover { background: rgba(74,93,71,0.12); }
 
         /* Modal dialogs (Save As, Rename, Confirm) — share the same look */
         #saveas-dialog,
         #rename-dialog,
-        #confirm-dialog {
+        #confirm-dialog,
+        #dotted-picker-dialog {
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 12px;
             padding: 20px 24px;
@@ -285,10 +308,47 @@
         }
         #saveas-dialog::backdrop,
         #rename-dialog::backdrop,
-        #confirm-dialog::backdrop { background: rgba(58,47,40,0.35); }
+        #confirm-dialog::backdrop,
+        #dotted-picker-dialog::backdrop { background: rgba(58,47,40,0.35); }
         #saveas-dialog h3,
         #rename-dialog h3,
-        #confirm-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+        #confirm-dialog h3,
+        #dotted-picker-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+        #dotted-picker-dialog { width: min(420px, 92vw); }
+        #dotted-picker-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+        #dotted-picker-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
+        #dotted-picker-dialog input[type="text"] {
+            padding: 8px 10px;
+            border: 1px solid rgba(74,93,71,0.25);
+            border-radius: 6px;
+            font: inherit;
+            color: #3A2F28;
+            background: white;
+        }
+        .dotted-picker-list {
+            max-height: 240px;
+            overflow-y: auto;
+            border: 1px solid rgba(74,93,71,0.18);
+            border-radius: 6px;
+            background: white;
+        }
+        .dotted-picker-list .dp-item {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            color: #3A2F28;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(74,93,71,0.06);
+        }
+        .dotted-picker-list .dp-item:last-child { border-bottom: none; }
+        .dotted-picker-list .dp-item:hover { background: #FAF8F5; }
+        .dotted-picker-list .dp-item.selected { background: rgba(74,93,71,0.12); }
+        .dotted-picker-list .dp-item .dp-id {
+            color: #6B5F54;
+            font-size: 0.75rem;
+            margin-left: 6px;
+        }
+        .dotted-picker-list .dp-empty { padding: 14px; color: #6B5F54; font-size: 0.85rem; text-align: center; }
+        #dotted-picker-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
         #saveas-dialog .saveas-row,
         #rename-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
         #saveas-dialog label,
@@ -602,12 +662,65 @@
             background-color: rgba(74,93,71,0.10) !important;
             transition: 0.25s;
         }
+        /* Make .orgchart a positioned ancestor so the dotted-overlay SVG can anchor
+           to it via position:absolute even before any transform is applied (transforms
+           also create a containing block, but pre-pan/pre-zoom the transform is 'none'). */
+        #chart-container .orgchart { position: relative; }
+
         /* Tint all connector lines/links from default red to sage */
         .orgchart .hierarchy::before,
         .orgchart .hierarchy.spouse:not(.couple)::after,
         .orgchart .couple::after,
         .orgchart .nodes.vertical .hierarchy::before,
         .orgchart .nodes.vertical .hierarchy::after { border-color: rgba(74,93,71,0.45) !important; }
+
+        /* 2-column vertical layout for parents with > TWO_COL_THRESHOLD leaf reports.
+           Children fill column-major (top of left col, then top of right col), so
+           the visual reading order matches a single tall vertical column would. */
+        .orgchart ul.nodes.vertical.two-col {
+            display: grid;
+            grid-template-columns: auto auto;
+            grid-template-rows: repeat(var(--two-col-rows, 1), auto);
+            grid-auto-flow: column;
+            column-gap: 56px;
+            row-gap: 8px;
+            padding-top: 12px;
+            position: relative;
+        }
+        /* Suppress Dabeng's vertical-mode pseudo-element connectors inside two-col so
+           we can draw clean replacements that route to the centre spine. */
+        .orgchart ul.nodes.vertical.two-col > .hierarchy::before,
+        .orgchart ul.nodes.vertical.two-col > .hierarchy::after { content: none !important; border: none !important; }
+        /* Spine — single vertical line down the middle, between the two columns. */
+        .orgchart ul.nodes.vertical.two-col::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 12px;
+            left: 50%;
+            width: 0;
+            border-left: 1px solid rgba(74,93,71,0.45);
+            transform: translateX(-0.5px);
+        }
+        /* Horizontal stub from spine into each child card. The stub extends OUTWARD
+           from the cell edge into the column-gap (column-gap: 56px → stub: 28px to
+           reach the spine sitting at the gap centre). */
+        .orgchart ul.nodes.vertical.two-col > .hierarchy {
+            position: relative;
+        }
+        .orgchart ul.nodes.vertical.two-col > .hierarchy::before {
+            content: '' !important;
+            position: absolute;
+            top: 50%;
+            height: 0;
+            width: 28px;
+            border-top: 1px solid rgba(74,93,71,0.45) !important;
+            border-left: none !important;
+        }
+        /* Left column stub extends to the right (into the gap, toward the spine). */
+        .orgchart ul.nodes.vertical.two-col > .hierarchy.tc-left::before { right: -28px; }
+        /* Right column stub extends to the left (into the gap, from the spine). */
+        .orgchart ul.nodes.vertical.two-col > .hierarchy.tc-right::before { left: -28px; }
         .orgchart .hierarchy:not(.couple) > .node:has(+ .nodes)::after,
         .orgchart > ul > li > ul li > .node:not(.outsider)::before,
         .orgchart .couple:has(> .nodes) > .node:first-child::after { background-color: rgba(74,93,71,0.45) !important; }
@@ -1144,6 +1257,9 @@
                                     <button class="btn-secondary" id="undo-btn" onclick="undo()" title="Undo (&#8984;Z / Ctrl+Z)" disabled>&#8617;</button>
                                     <button class="btn-secondary" id="redo-btn" onclick="redo()" title="Redo (&#8984;&#8679;Z / Ctrl+Shift+Z)" disabled>&#8618;</button>
                                 </div>
+                                <div class="depth-row">
+                                    <label><input type="checkbox" id="dotted-overlay-toggle" onchange="toggleDottedOverlay(this.checked)"> Show dotted lines</label>
+                                </div>
                             </div>
                         </div>
                         <div class="control-section" data-section="data">
@@ -1421,6 +1537,21 @@
         </menu>
     </dialog>
 
+    <dialog id="dotted-picker-dialog">
+        <form method="dialog" onsubmit="dottedPickerConfirm(); return false;">
+            <h3 id="dotted-picker-title">Add dotted manager</h3>
+            <div class="saveas-row">
+                <label for="dotted-picker-input">Pick a role</label>
+                <input id="dotted-picker-input" type="text" placeholder="Search by title or ID…" autocomplete="off">
+            </div>
+            <div class="dotted-picker-list" id="dotted-picker-list"></div>
+            <menu>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('dotted-picker-dialog').close('cancel')">Cancel</button>
+                <button type="submit" class="btn-primary" id="dotted-picker-ok">OK</button>
+            </menu>
+        </form>
+    </dialog>
+
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css">
@@ -1462,7 +1593,8 @@
         // restrict to that role and its descendants. Stacks with field/tag filters.
         let focusRoleId = '';
         let focusFellBack = false; // set by getFilteredRoles when focus target was filtered out
-        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPendingStart: false, hcPlanned: false, hcOnHold: false, hcSunsetting: false, hcRemoved: false, hcEarmarked: false, costFilled: false, costVacant: false, costPendingStart: false, costPlanned: false, costOnHold: false, costSunsetting: false, costRemoved: false, costEarmarked: false };
+        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, dottedLine: true, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPendingStart: false, hcPlanned: false, hcOnHold: false, hcSunsetting: false, hcRemoved: false, hcEarmarked: false, costFilled: false, costVacant: false, costPendingStart: false, costPlanned: false, costOnHold: false, costSunsetting: false, costRemoved: false, costEarmarked: false };
+        let showDottedOverlay = false;
         let chartInstance = null;
         let tabulatorGrid = null;
         let isEditing = false;
@@ -1473,7 +1605,11 @@
         let undoStack = []; // [{ roles, focusRoleId, label }, …] newest last
         let redoStack = [];
         function snapshotRoles() {
-            return roles.map(r => ({ ...r, tags: Array.isArray(r.tags) ? r.tags.slice() : [] }));
+            return roles.map(r => ({
+                ...r,
+                tags: Array.isArray(r.tags) ? r.tags.slice() : [],
+                dottedManagerIds: Array.isArray(r.dottedManagerIds) ? r.dottedManagerIds.slice() : []
+            }));
         }
         function snapshotState(label) {
             return { roles: snapshotRoles(), focusRoleId, label };
@@ -1586,7 +1722,8 @@
                 employmentType: 'Permanent',
                 workingPattern: 'Full-time',
                 comments: '',
-                tags: []
+                tags: [],
+                dottedManagerIds: []
             });
             render();
             markDirty();
@@ -1599,6 +1736,9 @@
             const parentManager = role.managerRoleId;
             roles.forEach(r => {
                 if (r.managerRoleId === roleId) r.managerRoleId = parentManager;
+                if (Array.isArray(r.dottedManagerIds) && r.dottedManagerIds.includes(roleId)) {
+                    r.dottedManagerIds = r.dottedManagerIds.filter(id => id !== roleId);
+                }
             });
             roles = roles.filter(r => r.roleId !== roleId);
             render();
@@ -1622,6 +1762,9 @@
                 role.roleId = value;
                 roles.forEach(r => {
                     if (r.managerRoleId === oldId) r.managerRoleId = value;
+                    if (Array.isArray(r.dottedManagerIds)) {
+                        r.dottedManagerIds = r.dottedManagerIds.map(id => id === oldId ? value : id);
+                    }
                 });
             } else if (field === 'costToCompany') {
                 role[field] = parseFloat(value) || 0;
@@ -1662,6 +1805,25 @@
                     current = roles.find(r => r.roleId === current.managerRoleId);
                 }
             }
+
+            // Scrub invalid dotted-line ids: empty/self/missing/primary-manager/descendant.
+            // Descendant rule prevents a dotted line that points down into one's own subtree
+            // (which would create a circular dotted graph and is rarely meaningful).
+            const idSet = new Set(ids.filter(Boolean));
+            roles.forEach(r => {
+                if (!Array.isArray(r.dottedManagerIds) || !r.dottedManagerIds.length) return;
+                const descendants = getDescendantIds(r.roleId);
+                const seen = new Set();
+                r.dottedManagerIds = r.dottedManagerIds.filter(id => {
+                    if (!id || id === r.roleId) return false;
+                    if (id === r.managerRoleId) return false;
+                    if (!idSet.has(id)) return false;
+                    if (descendants.has(id)) return false;
+                    if (seen.has(id)) return false;
+                    seen.add(id);
+                    return true;
+                });
+            });
 
             const banner = document.getElementById('warning-banner');
             if (warnings.length) {
@@ -1752,6 +1914,48 @@
                             }
                         },
                         {
+                            title: 'Dotted Managers', field: 'dottedManagerIds', width: 180,
+                            // Free-text editor accepts `;`-separated role IDs; ids are scrubbed
+                            // by validateRoles() on commit, so typos / cycles get dropped silently.
+                            editor: function(cell, onRendered, success, cancel) {
+                                const input = document.createElement('input');
+                                input.type = 'text';
+                                input.style.cssText = 'width:100%;padding:4px;box-sizing:border-box;';
+                                input.placeholder = 'e.g. R3;R8';
+                                input.value = dottedIdsToString(cell.getValue());
+                                onRendered(function() { input.focus(); input.select(); });
+                                input.addEventListener('blur', function() { success(parseDottedIdsString(input.value)); });
+                                input.addEventListener('keydown', function(e) {
+                                    if (e.key === 'Enter') success(parseDottedIdsString(input.value));
+                                    if (e.key === 'Escape') cancel();
+                                });
+                                return input;
+                            },
+                            headerFilter: 'input', headerFilterPlaceholder: 'Filter…',
+                            // Display as comma-separated role titles ("VP Eng, CFO"), falling back
+                            // to the raw id when a referenced role is missing.
+                            formatter: function(cell) {
+                                const ids = Array.isArray(cell.getValue()) ? cell.getValue() : parseDottedIdsString(cell.getValue());
+                                if (!ids.length) return '<span style="color:#9a8f84">—</span>';
+                                return ids.map(id => {
+                                    const m = roles.find(r => r.roleId === id);
+                                    return escapeHtml(m ? (m.roleTitle || m.roleId) : id);
+                                }).join(', ');
+                            },
+                            mutator: function(val) { return Array.isArray(val) ? val : parseDottedIdsString(val); },
+                            headerFilterFunc: function(term, cellVal) {
+                                if (!term) return true;
+                                const arr = Array.isArray(cellVal) ? cellVal : parseDottedIdsString(cellVal);
+                                const t = String(term).toLowerCase();
+                                return arr.some(id => {
+                                    const m = roles.find(r => r.roleId === id);
+                                    const label = m ? (m.roleTitle || m.roleId) : id;
+                                    return String(label).toLowerCase().includes(t)
+                                        || String(id).toLowerCase().includes(t);
+                                });
+                            }
+                        },
+                        {
                             title: '', field: '_actions', width: 120, headerSort: false, editable: false,
                             formatter: function() {
                                 return '<button class="row-action-btn" data-action="addChild" title="Add Direct Report">+child</button>'
@@ -1781,7 +1985,7 @@
                     const newValue = cell.getValue();
                     const roleId = field === 'roleId' ? cell.getOldValue() : rowData.roleId;
                     updateRoleField(roleId, field, newValue);
-                    if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle') {
+                    if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle' || field === 'dottedManagerIds') {
                         tabulatorGrid.replaceData(roles.slice());
                     }
                     if (field === 'tags') {
@@ -1893,7 +2097,8 @@
                 employmentType: 'Permanent',
                 workingPattern: 'Full-time',
                 comments: '',
-                tags: []
+                tags: [],
+                dottedManagerIds: []
             });
             render();
             markDirty();
@@ -1920,7 +2125,8 @@
                 employmentType: 'Permanent',
                 workingPattern: 'Full-time',
                 comments: '',
-                tags: []
+                tags: [],
+                dottedManagerIds: []
             });
             render();
             markDirty();
@@ -1930,7 +2136,12 @@
             const idx = roles.findIndex(r => r.roleId === roleId);
             if (idx < 0) return;
             const src = roles[idx];
-            roles.splice(idx + 1, 0, { ...src, roleId: generateRoleId(), tags: (src.tags || []).slice() });
+            roles.splice(idx + 1, 0, {
+                ...src,
+                roleId: generateRoleId(),
+                tags: (src.tags || []).slice(),
+                dottedManagerIds: Array.isArray(src.dottedManagerIds) ? src.dottedManagerIds.slice() : []
+            });
             render();
             markDirty();
         }
@@ -2457,8 +2668,8 @@
 
         // --- Field visibility ---
         function renderFieldsDropdown() {
-            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern', cost: 'Cost', comments: 'Comments', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPendingStart: 'HC Pending Start', hcPlanned: 'HC Planned', hcOnHold: 'HC On Hold', hcSunsetting: 'HC Sunsetting', hcRemoved: 'HC Removed', hcEarmarked: 'HC Earmarked', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPendingStart: 'Cost Pending Start', costPlanned: 'Cost Planned', costOnHold: 'Cost On Hold', costSunsetting: 'Cost Sunsetting', costRemoved: 'Cost Removed', costEarmarked: 'Cost Earmarked' };
-            const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'employmentType', 'workingPattern', 'cost', 'comments'];
+            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern', cost: 'Cost', comments: 'Comments', dottedLine: 'Dotted Line Pills', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPendingStart: 'HC Pending Start', hcPlanned: 'HC Planned', hcOnHold: 'HC On Hold', hcSunsetting: 'HC Sunsetting', hcRemoved: 'HC Removed', hcEarmarked: 'HC Earmarked', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPendingStart: 'Cost Pending Start', costPlanned: 'Cost Planned', costOnHold: 'Cost On Hold', costSunsetting: 'Cost Sunsetting', costRemoved: 'Cost Removed', costEarmarked: 'Cost Earmarked' };
+            const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'employmentType', 'workingPattern', 'cost', 'comments', 'dottedLine'];
             const computedFields = ['headcount', 'cumulativeCost', 'hcFilled', 'hcVacant', 'hcPendingStart', 'hcPlanned', 'hcOnHold', 'hcSunsetting', 'hcRemoved', 'hcEarmarked', 'costFilled', 'costVacant', 'costPendingStart', 'costPlanned', 'costOnHold', 'costSunsetting', 'costRemoved', 'costEarmarked'];
             const dropdown = document.getElementById('fields-dropdown');
             let html = '';
@@ -2584,6 +2795,7 @@
                     workingPattern: r.workingPattern,
                     comments: r.comments,
                     tags: Array.isArray(r.tags) ? r.tags.slice() : [],
+                    dottedManagerIds: Array.isArray(r.dottedManagerIds) ? r.dottedManagerIds.slice() : [],
                     cumulativeHeadcount: cumul.cumulativeHeadcount || 0,
                     cumulativeCost: cumul.cumulativeCost || 0
                 };
@@ -2608,21 +2820,44 @@
             return root;
         }
 
-        // A parent renders its children vertically when none of those children have
-        // visible grandchildren under the current depth limit. A child counts as a
-        // "visual leaf" if it has no real children OR if its own children fall
-        // beyond maxLevel. Pass maxLevel = 0 to mean "no limit" (treat real leaves only).
-        function applyLeafParentHybrid(node, currentLevel, maxLevel) {
+        // Threshold above which a leaf-parent flips to a 2-column vertical layout.
+        // Below this, single-column hybrid (or default branching) keeps the visual
+        // simpler; above this, a 2-column grid keeps total height in check.
+        const TWO_COL_THRESHOLD = 6;
+
+        // Mark layout flags on a parent's children:
+        //   - `hybrid` (Dabeng): renders children stacked vertically in one column
+        //   - `twoCol` (ours):   post-render CSS turns that column into a 2-col grid
+        //
+        // A child counts as a "visual leaf" if it has no real children OR if its own
+        // children fall beyond maxLevel. Pass maxLevel = 0 to mean "no limit".
+        //
+        // Behaviour by preset:
+        //   - preset.hybrid (Top-down Hybrid): set hybrid for any all-leaves parent;
+        //     additionally set twoCol when count > TWO_COL_THRESHOLD.
+        //   - other presets: set hybrid+twoCol only when all-leaves AND count > THRESHOLD;
+        //     leave smaller all-leaf groups in the preset's default (horizontal) layout.
+        function applyLeafParentLayoutFlags(node, currentLevel, maxLevel, preset) {
             if (!node.children || !node.children.length) return;
             currentLevel = currentLevel || 1;
             delete node.hybrid;
+            delete node.twoCol;
             const allVisualLeaves = node.children.every(function(c) {
                 if (!c.children || !c.children.length) return true;
                 if (maxLevel && (currentLevel + 1) >= maxLevel) return true;
                 return false;
             });
-            if (allVisualLeaves) node.hybrid = true;
-            node.children.forEach(function(c) { applyLeafParentHybrid(c, currentLevel + 1, maxLevel); });
+            if (allVisualLeaves) {
+                const wide = node.children.length > TWO_COL_THRESHOLD;
+                if (preset && preset.hybrid) {
+                    node.hybrid = true;
+                    if (wide) node.twoCol = true;
+                } else if (wide) {
+                    node.hybrid = true;
+                    node.twoCol = true;
+                }
+            }
+            node.children.forEach(function(c) { applyLeafParentLayoutFlags(c, currentLevel + 1, maxLevel, preset); });
         }
 
         function computeNodeHeight() {
@@ -2701,6 +2936,16 @@
                 html += '<div class="node-tags">';
                 role.tags.forEach(t => {
                     html += '<span class="node-tag">#' + escapeHtml(String(t)) + '</span>';
+                });
+                html += '</div>';
+            }
+
+            if (chartFields.dottedLine && Array.isArray(role.dottedManagerIds) && role.dottedManagerIds.length) {
+                html += '<div class="node-dotted-tags" title="Dotted-line managers — click to jump">';
+                role.dottedManagerIds.forEach(id => {
+                    const m = roles.find(r => r.roleId === id);
+                    const label = m ? (m.roleTitle || m.roleId) : id;
+                    html += '<span class="node-dotted-tag" data-dotted-target="' + escapeHtml(id) + '">&rdsh; ' + escapeHtml(label) + '</span>';
                 });
                 html += '</div>';
             }
@@ -2811,6 +3056,136 @@
             setTimeout(() => input.select(), 0);
         }
 
+        // Generic role-picker. `options` is [{id, label}]. Resolves with the picked id
+        // (or no-op if cancelled). Used by the dotted-line add/remove commands.
+        let _dottedPickerState = null;
+        function openDottedPicker(opts) {
+            const dlg = document.getElementById('dotted-picker-dialog');
+            const input = document.getElementById('dotted-picker-input');
+            const titleEl = document.getElementById('dotted-picker-title');
+            titleEl.textContent = opts.title || 'Pick a role';
+            document.getElementById('dotted-picker-ok').textContent = opts.confirmLabel || 'OK';
+            input.value = '';
+            _dottedPickerState = {
+                options: opts.options || [],
+                selectedId: null,
+                onPick: opts.onPick || function() {}
+            };
+            renderDottedPickerList('');
+            input.oninput = function() { renderDottedPickerList(input.value); };
+            input.onkeydown = function(e) {
+                if (e.key === 'Escape') { dlg.close('cancel'); }
+            };
+            dlg.showModal();
+            setTimeout(() => input.focus(), 0);
+        }
+
+        function renderDottedPickerList(filterTerm) {
+            const list = document.getElementById('dotted-picker-list');
+            const term = String(filterTerm || '').toLowerCase().trim();
+            const matches = _dottedPickerState.options.filter(o => {
+                if (!term) return true;
+                return (o.label || '').toLowerCase().includes(term)
+                    || (o.id || '').toLowerCase().includes(term);
+            });
+            // Wipe and rebuild via DOM APIs (no innerHTML — values come from user data).
+            while (list.firstChild) list.removeChild(list.firstChild);
+            if (!matches.length) {
+                const empty = document.createElement('div');
+                empty.className = 'dp-empty';
+                empty.textContent = 'No matching roles.';
+                list.appendChild(empty);
+                _dottedPickerState.selectedId = null;
+                return;
+            }
+            if (!matches.some(m => m.id === _dottedPickerState.selectedId)) {
+                _dottedPickerState.selectedId = matches[0].id;
+            }
+            matches.forEach(o => {
+                const it = document.createElement('div');
+                it.className = 'dp-item' + (o.id === _dottedPickerState.selectedId ? ' selected' : '');
+                it.dataset.id = o.id;
+                it.appendChild(document.createTextNode(o.label));
+                const idSpan = document.createElement('span');
+                idSpan.className = 'dp-id';
+                idSpan.textContent = o.id;
+                it.appendChild(idSpan);
+                it.addEventListener('click', function() {
+                    _dottedPickerState.selectedId = it.dataset.id;
+                    list.querySelectorAll('.dp-item.selected').forEach(s => s.classList.remove('selected'));
+                    it.classList.add('selected');
+                });
+                it.addEventListener('dblclick', function() {
+                    _dottedPickerState.selectedId = it.dataset.id;
+                    dottedPickerConfirm();
+                });
+                list.appendChild(it);
+            });
+        }
+
+        function dottedPickerConfirm() {
+            const dlg = document.getElementById('dotted-picker-dialog');
+            const id = _dottedPickerState && _dottedPickerState.selectedId;
+            if (!id) { dlg.close('cancel'); return; }
+            const cb = _dottedPickerState.onPick;
+            dlg.close('ok');
+            try { cb(id); } catch (e) { console.error(e); }
+        }
+
+        function addDottedManagerById(roleId) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) return;
+            const descendants = getDescendantIds(roleId);
+            const existing = new Set(role.dottedManagerIds || []);
+            const options = roles
+                .filter(r => r.roleId !== roleId
+                          && r.roleId !== role.managerRoleId
+                          && !descendants.has(r.roleId)
+                          && !existing.has(r.roleId))
+                .map(r => ({ id: r.roleId, label: r.roleTitle || r.roleId }));
+            if (!options.length) {
+                openConfirmDialog(
+                    { title: 'Add dotted manager', message: 'No eligible roles to link as a dotted manager.', confirmLabel: 'OK' },
+                    function() {}
+                );
+                return;
+            }
+            openDottedPicker({
+                title: 'Add dotted manager',
+                confirmLabel: 'Add',
+                options: options,
+                onPick: function(pickedId) {
+                    pushUndo('Add dotted line');
+                    if (!Array.isArray(role.dottedManagerIds)) role.dottedManagerIds = [];
+                    role.dottedManagerIds.push(pickedId);
+                    validateRoles();
+                    render();
+                    markDirty();
+                }
+            });
+        }
+
+        function removeDottedManagerById(roleId) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role || !Array.isArray(role.dottedManagerIds) || !role.dottedManagerIds.length) return;
+            const options = role.dottedManagerIds.map(id => {
+                const m = roles.find(r => r.roleId === id);
+                return { id: id, label: m ? (m.roleTitle || m.roleId) : id };
+            });
+            openDottedPicker({
+                title: 'Remove dotted manager',
+                confirmLabel: 'Remove',
+                options: options,
+                onPick: function(pickedId) {
+                    pushUndo('Remove dotted line');
+                    role.dottedManagerIds = role.dottedManagerIds.filter(id => id !== pickedId);
+                    validateRoles();
+                    render();
+                    markDirty();
+                }
+            });
+        }
+
         function renameConfirm() {
             const dlg = document.getElementById('rename-dialog');
             const roleId = dlg.dataset.roleId;
@@ -2895,6 +3270,11 @@
             addItem('Add sibling', () => addSiblingById(roleId));
             addItem('Rename…', () => openRenameDialog(roleId));
             addSep();
+            addItem('Add dotted manager…', () => addDottedManagerById(roleId));
+            if (Array.isArray(role.dottedManagerIds) && role.dottedManagerIds.length) {
+                addItem('Remove dotted manager…', () => removeDottedManagerById(roleId));
+            }
+            addSep();
             addItem('Jump to table', () => selectAndScrollToRow(roleId));
             addSep();
             addItem('Delete…', () => openDeleteConfirm(roleId), { danger: true });
@@ -2938,13 +3318,24 @@
                 showChartContextMenu(data.roleId, e);
             });
 
+            // Click on a dotted-line pill → jump to that role's table row.
+            // stopPropagation prevents the click from bubbling into selection/etc.
+            el.addEventListener('click', function(e) {
+                const pill = e.target.closest && e.target.closest('.node-dotted-tag');
+                if (!pill) return;
+                const targetId = pill.dataset.dottedTarget;
+                if (!targetId) return;
+                e.stopPropagation();
+                selectAndScrollToRow(targetId);
+            });
+
             if (data.roleId === '_root') return;
 
             el.draggable = true;
 
             el.addEventListener('dragstart', function(e) {
-                // Skip drags initiated on the collapse toggle / edges so those keep working.
-                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge')) {
+                // Skip drags initiated on the collapse toggle / edges / pills so those keep working.
+                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag')) {
                     e.preventDefault();
                     return;
                 }
@@ -3074,6 +3465,124 @@
             if (plus)  plus.disabled  = s >= ZOOM_MAX - 1e-6;
         }
 
+        // --- Dotted-line overlay ---
+        // Mounted as a child of `.orgchart` so it inherits the same pan/zoom transform.
+        // We draw at untransformed local coordinates (computed by undoing the active
+        // scale on getBoundingClientRect deltas), so the lines stay aligned without
+        // a per-pan redraw.
+        function toggleDottedOverlay(checked) {
+            showDottedOverlay = !!checked;
+            redrawDottedOverlay();
+        }
+
+        function isElementHidden(el) {
+            // A node counts as hidden if it (or any ancestor up to .orgchart) is in a
+            // collapsed `.hidden` container. Walks the offset/parent chain rather than
+            // checking computed style — depth-collapse only sets the .hidden class.
+            let cur = el;
+            while (cur && !cur.classList.contains('orgchart')) {
+                if (cur.classList && cur.classList.contains('hidden')) return true;
+                cur = cur.parentElement;
+            }
+            return false;
+        }
+
+        function getNodeLocalRect(nodeEl, ocRect, scale) {
+            const r = nodeEl.getBoundingClientRect();
+            return {
+                x: (r.left - ocRect.left) / scale,
+                y: (r.top  - ocRect.top)  / scale,
+                w: r.width  / scale,
+                h: r.height / scale
+            };
+        }
+
+        function redrawDottedOverlay() {
+            const oc = getOrgchartEl();
+            // Always remove any prior overlay so toggling off cleans up.
+            if (oc) {
+                oc.querySelectorAll(':scope > svg.dotted-overlay').forEach(s => s.remove());
+            }
+            if (!showDottedOverlay || !oc) return;
+
+            // Collect (fromEl, toEl) pairs from currently-rendered nodes.
+            const nodeEls = oc.querySelectorAll('.node[data-role-id]');
+            const byId = {};
+            nodeEls.forEach(n => { byId[n.dataset.roleId] = n; });
+
+            const pairs = [];
+            roles.forEach(r => {
+                if (!Array.isArray(r.dottedManagerIds) || !r.dottedManagerIds.length) return;
+                const reportEl = byId[r.roleId];
+                if (!reportEl || isElementHidden(reportEl)) return;
+                r.dottedManagerIds.forEach(mid => {
+                    const fromEl = byId[mid];
+                    if (!fromEl || isElementHidden(fromEl)) return;
+                    pairs.push({ from: fromEl, to: reportEl });
+                });
+            });
+
+            if (!pairs.length) return;
+
+            const ocRect = oc.getBoundingClientRect();
+            const scale = readMatrix(oc).a || 1;
+            const SVG_NS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(SVG_NS, 'svg');
+            svg.setAttribute('class', 'dotted-overlay');
+            // overflow:visible lets paths extend beyond width/height (curves can dip
+            // outside the immediate node bounding box).
+            svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:5';
+
+            pairs.forEach(p => {
+                const fr = getNodeLocalRect(p.from, ocRect, scale);
+                const tr = getNodeLocalRect(p.to,   ocRect, scale);
+                // Pick anchor edges based on which axis has the most separation:
+                //   - vertical separation dominant: anchor top/bottom (vertical curve)
+                //   - horizontal separation dominant (siblings on same row): anchor
+                //     left/right edges (horizontal curve) — looks cleaner for peers
+                const fcx = fr.x + fr.w / 2, fcy = fr.y + fr.h / 2;
+                const tcx = tr.x + tr.w / 2, tcy = tr.y + tr.h / 2;
+                const dxAbs = Math.abs(tcx - fcx);
+                const dyAbs = Math.abs(tcy - fcy);
+                let fx, fy, tx, ty, c1x, c1y, c2x, c2y;
+                if (dyAbs >= dxAbs) {
+                    // vertical curve: bottom of upper card → top of lower card
+                    if (fcy <= tcy) {
+                        fx = fcx; fy = fr.y + fr.h;
+                        tx = tcx; ty = tr.y;
+                    } else {
+                        fx = fcx; fy = fr.y;
+                        tx = tcx; ty = tr.y + tr.h;
+                    }
+                    const handle = Math.max(40, Math.abs(ty - fy) * 0.4);
+                    c1x = fx; c1y = fy + (ty >= fy ? handle : -handle);
+                    c2x = tx; c2y = ty - (ty >= fy ? handle : -handle);
+                } else {
+                    // horizontal curve: right of left card → left of right card
+                    if (fcx <= tcx) {
+                        fx = fr.x + fr.w; fy = fcy;
+                        tx = tr.x;        ty = tcy;
+                    } else {
+                        fx = fr.x; fy = fcy;
+                        tx = tr.x + tr.w; ty = tcy;
+                    }
+                    const handle = Math.max(40, Math.abs(tx - fx) * 0.4);
+                    c1x = fx + (tx >= fx ? handle : -handle); c1y = fy;
+                    c2x = tx - (tx >= fx ? handle : -handle); c2y = ty;
+                }
+                const path = document.createElementNS(SVG_NS, 'path');
+                path.setAttribute('d', 'M ' + fx + ' ' + fy + ' C ' + c1x + ' ' + c1y + ', ' + c2x + ' ' + c2y + ', ' + tx + ' ' + ty);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', '#4A5D47');
+                path.setAttribute('stroke-width', '1.5');
+                path.setAttribute('stroke-dasharray', '6 4');
+                path.setAttribute('opacity', '0.7');
+                svg.appendChild(path);
+            });
+
+            oc.appendChild(svg);
+        }
+
         // --- Chart rendering ---
         function renderChart() {
             const container = document.getElementById('chart-container');
@@ -3102,6 +3611,14 @@
                     const rect = container.getBoundingClientRect();
                     setZoom(s + dir * ZOOM_WHEEL_STEP, e.clientX - rect.left, e.clientY - rect.top);
                 }, { passive: false });
+                // Dabeng's expand/collapse toggle button doesn't emit an event, so we
+                // hook delegated clicks and re-run the overlay after the slide animation.
+                container.addEventListener('click', function(e) {
+                    if (!showDottedOverlay) return;
+                    if (!e.target.closest) return;
+                    if (!e.target.closest('.toggleBtn')) return;
+                    setTimeout(redrawDottedOverlay, 380);
+                });
             }
 
             const filtered = getFilteredRoles();
@@ -3134,7 +3651,8 @@
             const hasVirtualRoot = tree.roleId === '_root';
             const maxLevel = maxDepth === 0 ? 0 : maxDepth + (hasVirtualRoot ? 1 : 0);
 
-            if (preset.hybrid) applyLeafParentHybrid(tree, 1, maxLevel);
+            // Always run: the function decides per-preset whether to set hybrid/twoCol.
+            applyLeafParentLayoutFlags(tree, 1, maxLevel, preset);
 
             chartInstance = $('#chart-container').orgchart({
                 data: tree,
@@ -3149,11 +3667,59 @@
                 }
             });
 
+            applyTwoColMarkers(container, tree);
+
             if (maxLevel > 0) applyDepthLimit(container, maxLevel);
 
             renderLegend();
             updateZoomBadge();
             updateSummaryPanel(filtered);
+            redrawDottedOverlay();
+        }
+
+        // Walk the rendered DOM and add a `.two-col` class (plus a --rows custom
+        // property) to each `<ul.nodes.vertical>` whose parent node was flagged
+        // twoCol in the data tree. CSS picks this up to lay out children in a
+        // 2-column grid with custom connectors.
+        function applyTwoColMarkers(container, tree) {
+            const flagged = {};
+            (function walk(n) {
+                if (!n) return;
+                if (n.twoCol) flagged[n.roleId] = n.children ? n.children.length : 0;
+                (n.children || []).forEach(walk);
+            })(tree);
+            if (!Object.keys(flagged).length) return;
+            // For each flagged parent, locate its <li[data-role-id]> and the <ul.nodes.vertical>
+            // child it owns; tag that ul.
+            Object.keys(flagged).forEach(function(roleId) {
+                const count = flagged[roleId];
+                const nodeEl = container.querySelector('.node[data-role-id="' + cssEscape(roleId) + '"]');
+                if (!nodeEl) return;
+                const li = nodeEl.closest('li.hierarchy');
+                if (!li) return;
+                const ul = li.querySelector(':scope > ul.nodes');
+                if (!ul) return;
+                ul.classList.add('two-col');
+                const rows = Math.ceil(count / 2);
+                ul.style.setProperty('--two-col-rows', String(rows));
+                // Tag each <li.hierarchy> with tc-left or tc-right so column-specific
+                // connector stubs can target by class (CSS can't use var() in :nth-child).
+                const kids = ul.querySelectorAll(':scope > li.hierarchy');
+                kids.forEach(function(li, i) {
+                    li.classList.remove('tc-left', 'tc-right');
+                    li.classList.add(i < rows ? 'tc-left' : 'tc-right');
+                });
+            });
+        }
+
+        // Minimal CSS.escape polyfill — role IDs are typically alphanumeric so the
+        // built-in CSS.escape covers them, but fall back to a manual escape for
+        // older browsers that lack it.
+        function cssEscape(s) {
+            if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(s);
+            return String(s).replace(/[^a-zA-Z0-9_-]/g, function(c) {
+                return '\\' + c;
+            });
         }
 
         // Manually apply collapse classes at a given depth. dabeng v5's built-in
@@ -3492,7 +4058,12 @@
             'employmenttype': 'employmentType', 'employment type': 'employmentType', 'employment_type': 'employmentType', 'emp type': 'employmentType', 'contract type': 'employmentType',
             'workingpattern': 'workingPattern', 'working pattern': 'workingPattern', 'working_pattern': 'workingPattern', 'work pattern': 'workingPattern', 'fte': 'workingPattern',
             'comments': 'comments', 'notes': 'comments', 'comment': 'comments',
-            'tags': 'tags', 'tag': 'tags', 'keywords': 'tags', 'labels': 'tags'
+            'tags': 'tags', 'tag': 'tags', 'keywords': 'tags', 'labels': 'tags',
+            'dottedmanagerids': 'dottedManagerIds', 'dotted manager ids': 'dottedManagerIds',
+            'dotted_manager_ids': 'dottedManagerIds', 'dotted line': 'dottedManagerIds',
+            'dotted lines': 'dottedManagerIds', 'dotted manager': 'dottedManagerIds',
+            'dotted managers': 'dottedManagerIds', 'secondary manager': 'dottedManagerIds',
+            'secondary managers': 'dottedManagerIds'
         };
 
         function mapHeaders(rawHeaders) {
@@ -3521,7 +4092,8 @@
                     roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
                     managerRoleId: '', department: '', costToCompany: 0,
                     location: '', incumbentGender: '', employmentType: 'Permanent',
-                    workingPattern: 'Full-time', comments: '', tags: []
+                    workingPattern: 'Full-time', comments: '', tags: [],
+                    dottedManagerIds: []
                 };
                 Object.entries(row).forEach(([col, val]) => {
                     const field = headerMap[col];
@@ -3533,6 +4105,8 @@
                             role[field] = ['filled','vacant','pending start','planned','on hold','sunsetting','removed','earmarked'].includes(s) ? s : 'planned';
                         } else if (field === 'tags') {
                             role[field] = parseTagString(val);
+                        } else if (field === 'dottedManagerIds') {
+                            role[field] = parseDottedIdsString(val);
                         } else {
                             role[field] = String(val);
                         }
@@ -3763,8 +4337,8 @@
         }
 
         // --- Export / serialisation helpers ---
-        const EXPORT_HEADERS = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments','Tags'];
-        const EXPORT_FIELDS  = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments','tags'];
+        const EXPORT_HEADERS = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments','Tags','Dotted Manager IDs'];
+        const EXPORT_FIELDS  = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments','tags','dottedManagerIds'];
 
         function parseTagString(val) {
             if (Array.isArray(val)) return val.map(t => String(t).trim()).filter(Boolean);
@@ -3775,8 +4349,21 @@
             return Array.isArray(tags) ? tags.join(', ') : String(tags || '');
         }
 
+        // Dotted-manager IDs serialise as `;`-separated to avoid CSV `,` collisions
+        // when a role has multiple dotted managers. Imports also accept `,` so legacy
+        // hand-edited spreadsheets work.
+        function parseDottedIdsString(val) {
+            if (Array.isArray(val)) return val.map(t => String(t).trim()).filter(Boolean);
+            return String(val || '').split(/[;,]/).map(t => t.trim()).filter(Boolean);
+        }
+
+        function dottedIdsToString(ids) {
+            return Array.isArray(ids) ? ids.join(';') : String(ids || '');
+        }
+
         function fieldToCellValue(role, field) {
             if (field === 'tags') return tagsToString(role.tags);
+            if (field === 'dottedManagerIds') return dottedIdsToString(role.dottedManagerIds);
             return role[field] !== undefined && role[field] !== null ? role[field] : '';
         }
 
