@@ -1245,9 +1245,10 @@
                             <div class="control-section-body">
                                 <div class="depth-row">
                                     <label>Zoom:</label>
-                                    <button class="btn-secondary" id="zoom-out" title="Zoom out (&minus;10%)">&minus;</button>
-                                    <span id="zoom-pct" class="zoom-pct" title="Reset to 100%">100%</span>
-                                    <button class="btn-secondary" id="zoom-in" title="Zoom in (+10%)">+</button>
+                                    <button class="btn-secondary" id="zoom-out" title="Zoom out (&minus;10%)  [&minus;]">&minus;</button>
+                                    <span id="zoom-pct" class="zoom-pct" title="Reset to 100%  [0]">100%</span>
+                                    <button class="btn-secondary" id="zoom-in" title="Zoom in (+10%)  [+]">+</button>
+                                    <button class="btn-secondary" id="zoom-fit" title="Fit to view  [1]" aria-label="Fit to view">&#10530;</button>
                                 </div>
                                 <div class="depth-row">
                                     <label>Depth:</label>
@@ -3468,6 +3469,47 @@
             if (plus)  plus.disabled  = s >= ZOOM_MAX - 1e-6;
         }
 
+        // Scale + recenter the chart to fit entirely within #chart-container.
+        // Uses the existing transform/zoom plumbing so the zoom badge and min/max
+        // clamping stay consistent with the +/- controls and wheel zoom.
+        function fitChartToView() {
+            const oc = getOrgchartEl();
+            const container = document.getElementById('chart-container');
+            if (!oc || !container) return;
+
+            // Clear the transform so offsetWidth/Height reflect the natural
+            // (unscaled) layout box of the .orgchart.
+            const prevTransform = oc.style.transform;
+            oc.style.transform = '';
+            const naturalW = oc.offsetWidth;
+            const naturalH = oc.offsetHeight;
+
+            const containerW = container.clientWidth;
+            const containerH = container.clientHeight;
+            if (naturalW <= 0 || naturalH <= 0 || containerW <= 0 || containerH <= 0) {
+                oc.style.transform = prevTransform;
+                return;
+            }
+
+            const margin = 0.95;
+            const fitScale = Math.min(containerW / naturalW, containerH / naturalH) * margin;
+            const newScale = clampZoom(fitScale);
+
+            // Default transform-origin (50% 50%) keeps the scaled visual
+            // centered within the natural layout box when e=f=0.
+            const m = new DOMMatrix();
+            m.a = newScale;
+            m.d = newScale;
+            oc.style.transform = m.toString();
+
+            // Center the container's viewport on the layout box's center, so
+            // the whole scaled chart sits in view.
+            container.scrollLeft = Math.max(0, (naturalW - containerW) / 2);
+            container.scrollTop  = Math.max(0, (naturalH - containerH) / 2);
+
+            updateZoomBadge();
+        }
+
         // --- Dotted-line overlay ---
         // Mounted as a child of `.orgchart` so it inherits the same pan/zoom transform.
         // We draw at untransformed local coordinates (computed by undoing the active
@@ -3859,6 +3901,34 @@
                 e.preventDefault();
                 undo();
             }
+        });
+
+        // Chart-tab zoom hotkeys: +/= zoom in, -/_ zoom out, 0 reset, 1 fit.
+        // Scoped to the Chart tab and skipped while typing in any input so the
+        // keys reach the field as normal characters.
+        window.addEventListener('keydown', function(e) {
+            if (activeTab !== 'chart') return;
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+
+            let handled = false;
+            if (e.key === '+' || e.key === '=') {
+                const s = readMatrix(getOrgchartEl()).a || 1;
+                setZoom(s + ZOOM_BTN_STEP);
+                handled = true;
+            } else if (e.key === '-' || e.key === '_') {
+                const s = readMatrix(getOrgchartEl()).a || 1;
+                setZoom(s - ZOOM_BTN_STEP);
+                handled = true;
+            } else if (e.key === '0') {
+                setZoom(1);
+                handled = true;
+            } else if (e.key === '1') {
+                fitChartToView();
+                handled = true;
+            }
+            if (handled) e.preventDefault();
         });
 
         // Walk every .control-section-label, wrap its plain-text content in a centered
@@ -4523,6 +4593,7 @@
             setZoom(s + ZOOM_BTN_STEP);
         });
         document.getElementById('zoom-pct').addEventListener('click', function() { setZoom(1); });
+        document.getElementById('zoom-fit').addEventListener('click', fitChartToView);
     </script>
 </body>
 </html>
