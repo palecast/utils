@@ -770,8 +770,7 @@
         .chart-legend {
             position: absolute;
             bottom: 12px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 12px;
             max-width: calc(100% - 24px);
             background: rgba(255, 255, 255, 0.95);
             border: 1px solid rgba(74,93,71,0.12);
@@ -788,7 +787,10 @@
             max-height: 40%;
             overflow-y: auto;
             font-size: 0.8rem;
+            cursor: grab;
+            user-select: none;
         }
+        .chart-legend.dragging { cursor: grabbing; box-shadow: 0 6px 18px rgba(58,47,40,0.18); }
         .chart-legend:empty { display: none; }
         .chart-legend .legend-title {
             font-weight: 700;
@@ -2655,7 +2657,54 @@
         function onColorFieldChange() {
             colorField = document.getElementById('color-field').value;
             buildColorMap();
+            resetLegendPosition();
             if (activeTab === 'chart') renderChart();
+        }
+
+        // Clear any dragged-in inline offsets so the legend snaps back to its
+        // default lower-left corner (defined in CSS).
+        function resetLegendPosition() {
+            const el = document.getElementById('legend');
+            if (!el) return;
+            el.style.left = '';
+            el.style.top = '';
+            el.style.right = '';
+            el.style.bottom = '';
+        }
+
+        // Make the floating legend draggable within the chart area. Attaches once.
+        function setupLegendDrag(el) {
+            if (!el || el.dataset.dragReady) return;
+            el.dataset.dragReady = '1';
+            let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+            el.addEventListener('mousedown', (e) => {
+                const parent = el.offsetParent;
+                if (!parent) return;
+                const rect = el.getBoundingClientRect();
+                const pRect = parent.getBoundingClientRect();
+                origLeft = rect.left - pRect.left;
+                origTop = rect.top - pRect.top;
+                // Pin via top/left and release bottom/right so dragging is absolute.
+                el.style.left = origLeft + 'px';
+                el.style.top = origTop + 'px';
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
+                startX = e.clientX;
+                startY = e.clientY;
+                dragging = true;
+                el.classList.add('dragging');
+                e.preventDefault();
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!dragging) return;
+                el.style.left = (origLeft + e.clientX - startX) + 'px';
+                el.style.top = (origTop + e.clientY - startY) + 'px';
+            });
+            document.addEventListener('mouseup', () => {
+                if (!dragging) return;
+                dragging = false;
+                el.classList.remove('dragging');
+            });
         }
 
         function buildColorMap() {
@@ -2679,6 +2728,7 @@
 
         function renderLegend() {
             const el = document.getElementById('legend');
+            setupLegendDrag(el);
             if (!colorField) { el.innerHTML = ''; return; }
             const fieldLabels = { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' };
             let html = '<div class="legend-title">' + escapeHtml(fieldLabels[colorField] || colorField) + '</div>';
