@@ -769,18 +769,23 @@
         /* Legend (floating overlay on chart) */
         .chart-legend {
             position: absolute;
-            top: 12px;
-            right: 12px;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: calc(100% - 24px);
             background: rgba(255, 255, 255, 0.95);
             border: 1px solid rgba(74,93,71,0.12);
             border-radius: 8px;
-            padding: 10px 14px;
+            padding: 8px 14px;
             box-shadow: 0 2px 8px rgba(58,47,40,0.08);
             z-index: 10;
             display: flex;
-            flex-direction: column;
-            gap: 6px;
-            max-height: 300px;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px 14px;
+            max-height: 40%;
             overflow-y: auto;
             font-size: 0.8rem;
         }
@@ -791,7 +796,8 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: #6B5F54;
-            margin-bottom: 2px;
+            margin-bottom: 0;
+            margin-right: 2px;
         }
 
         .legend-item {
@@ -1163,6 +1169,9 @@
             }
             .chart-legend {
                 position: static !important;
+                left: auto !important;
+                transform: none !important;
+                max-width: none !important;
                 max-height: none !important;
                 overflow: visible !important;
                 margin-top: 16px;
@@ -1359,9 +1368,8 @@
                     </div>
                 </div>
                 <div class="design-surface" id="design-surface">
-                    <div id="chart-container">
-                        <div class="chart-legend" id="legend"></div>
-                    </div>
+                    <div id="chart-container"></div>
+                    <div class="chart-legend" id="legend"></div>
                 </div>
             </div>
 
@@ -1694,7 +1702,17 @@
         ];
 
         const STATUS_COLORS = { filled: '#27ae60', vacant: '#e74c3c', 'pending start': '#17a2b8', planned: '#f39c12', 'on hold': '#e67e22', sunsetting: '#9b59b6', removed: '#95a5a6', earmarked: '#3498db' };
-        const PALETTE = ['#27ae60','#e74c3c','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#2c3e50','#d35400','#c0392b'];
+        const PALETTE = ['#4e79a7','#f28e2b','#59a14f','#e15759','#b07aa1','#76b7b2','#edc948','#ff9da7','#9c755f','#bab0ac','#1f9e89','#7b3294'];
+
+        // Distinct color per category index. Curated palette first, then evenly-spaced
+        // golden-angle hues so categories beyond the palette never collide.
+        function getCategoryColor(i) {
+            if (i < PALETTE.length) return PALETTE[i];
+            const hue = (i * 137.508) % 360;
+            const sat = 60 + ((i % 2) * 12);
+            const light = 52 + ((i % 3) * 6);
+            return 'hsl(' + hue.toFixed(1) + ',' + sat + '%,' + light + '%)';
+        }
 
         function escapeHtml(str) {
             return String(str)
@@ -2649,7 +2667,7 @@
             }
             const vals = getUniqueValues(colorField);
             vals.forEach((v, i) => {
-                colorMap[v] = PALETTE[i % PALETTE.length];
+                colorMap[v] = getCategoryColor(i);
             });
         }
 
