@@ -817,10 +817,11 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
-        /* Legend strip used only inside the off-screen PNG export wrapper */
+        /* Legend strip used only inside the off-screen PNG export wrapper —
+           mirrors the on-screen floating legend: a centered horizontal strip. */
         .chart-export-legend {
             margin-top: 16px;
-            padding: 12px 16px;
+            padding: 10px 16px;
             background: #FFFFFF;
             border: 1px solid rgba(74,93,71,0.12);
             border-radius: 8px;
@@ -828,8 +829,11 @@
             color: #3A2F28;
             font-size: 0.85rem;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px 16px;
         }
         .chart-export-legend .legend-title {
             font-weight: 700;
@@ -837,11 +841,7 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: #6B5F54;
-        }
-        .chart-export-legend .legend-items {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px 16px;
+            margin-right: 2px;
         }
         .chart-export-legend .legend-item {
             display: inline-flex;
@@ -1172,11 +1172,15 @@
             .chart-legend {
                 position: static !important;
                 left: auto !important;
+                bottom: auto !important;
+                top: auto !important;
+                right: auto !important;
                 transform: none !important;
                 max-width: none !important;
                 max-height: none !important;
                 overflow: visible !important;
                 margin-top: 16px;
+                justify-content: center;
                 box-shadow: none;
                 page-break-inside: avoid;
             }
@@ -1603,6 +1607,10 @@
         let colorField = '';
         let colorMap = {};
         let maxDepth = 0; // 0 = show all
+        // roleIds the user collapsed via a node toggle; reapplied after every re-render so
+        // manual collapses survive drag-drop / layout / color changes. Cleared by the Depth
+        // buttons, filter changes, and changing the show-from (focus) node.
+        let manuallyCollapsed = new Set();
         // Subtree focus — '' means whole chart (root). Otherwise a roleId; chart/pivot/summary
         // restrict to that role and its descendants. Stacks with field/tag filters.
         let focusRoleId = '';
@@ -2299,6 +2307,7 @@
         }
 
         function onFilterFieldChange(idx, scope) {
+            manuallyCollapsed.clear(); // filtering resets manual collapses
             const id = 'filter-field-' + idx + (scope === 'pivot' ? '-pivot' : '');
             filters[idx].field = document.getElementById(id).value;
             filters[idx].values = new Set();
@@ -2462,6 +2471,7 @@
         }
 
         function focusOnRole(roleId) {
+            manuallyCollapsed.clear(); // changing the show-from node resets manual collapses
             focusRoleId = roleId || '';
             syncFocusRolePicker();
             if (activeTab === 'chart') renderChart();
@@ -2618,6 +2628,7 @@
         }
 
         function toggleFilterValue(idx, val, checked) {
+            manuallyCollapsed.clear(); // filtering resets manual collapses
             if (checked) filters[idx].values.add(val);
             else filters[idx].values.delete(val);
             syncFilterUI();
@@ -2626,6 +2637,7 @@
         }
 
         function toggleTagFilterValue(tag, checked) {
+            manuallyCollapsed.clear(); // filtering resets manual collapses
             if (checked) tagFilter.add(tag);
             else tagFilter.delete(tag);
             syncFilterUI();
@@ -2661,15 +2673,30 @@
             if (activeTab === 'chart') renderChart();
         }
 
-        // Clear any dragged-in inline offsets so the legend snaps back to its
-        // default lower-left corner (defined in CSS).
+        // Snap the legend back to its default lower-left position, dropping any
+        // dragged-in offset so it once again tracks the Summary panel.
         function resetLegendPosition() {
             const el = document.getElementById('legend');
             if (!el) return;
-            el.style.left = '';
-            el.style.top = '';
-            el.style.right = '';
-            el.style.bottom = '';
+            delete el.dataset.userMoved;
+            positionLegendDefault();
+        }
+
+        // Park the legend in the lower-left corner, lifted above the fixed Summary
+        // panel (which overlays the bottom of the design surface) when it is showing.
+        // Skips repositioning once the user has dragged the legend somewhere of their own.
+        function positionLegendDefault() {
+            const el = document.getElementById('legend');
+            if (!el || el.dataset.userMoved === '1') return;
+            let offset = 12;
+            const summary = document.getElementById('summary-panel');
+            if (summary && summary.classList.contains('visible')) {
+                offset += summary.getBoundingClientRect().height;
+            }
+            el.style.left = '12px';
+            el.style.right = 'auto';
+            el.style.top = 'auto';
+            el.style.bottom = offset + 'px';
         }
 
         // Make the floating legend draggable within the chart area. Attaches once.
@@ -2692,6 +2719,7 @@
                 startX = e.clientX;
                 startY = e.clientY;
                 dragging = true;
+                el.dataset.userMoved = '1'; // pin to the user's chosen spot across re-renders
                 el.classList.add('dragging');
                 e.preventDefault();
             });
@@ -2772,6 +2800,7 @@
 
         // --- Depth controls ---
         function changeDepth(delta) {
+            manuallyCollapsed.clear(); // the Depth control takes over expansion
             const filtered = getFilteredRoles();
             const tree = buildTree(filtered);
             const actualMax = tree ? getMaxTreeDepth(tree) : 1;
@@ -3098,6 +3127,7 @@
         // don't bubble, but capture fires on the way down).
         window.addEventListener('resize', () => {
             if (_activeFloating) positionFloatingDropdown(_activeFloating.dd, _activeFloating.btn);
+            positionLegendDefault();
         });
         window.addEventListener('scroll', () => {
             if (_activeFloating) positionFloatingDropdown(_activeFloating.dd, _activeFloating.btn);
@@ -3700,10 +3730,8 @@
         function renderChart() {
             const container = document.getElementById('chart-container');
             while (container.firstChild) container.removeChild(container.firstChild);
-            const legendDiv = document.createElement('div');
-            legendDiv.className = 'chart-legend';
-            legendDiv.id = 'legend';
-            container.appendChild(legendDiv);
+            // The legend lives in #design-surface (a stable layer right of the sidebar and
+            // outside the chart's scroll/pan area) — do NOT recreate it inside #chart-container.
 
             // Clear previous focus chrome (breadcrumb / warning) and re-insert based on
             // the post-filter result below. They live on the design surface, above the
@@ -3725,12 +3753,22 @@
                     setZoom(s + dir * ZOOM_WHEEL_STEP, e.clientX - rect.left, e.clientY - rect.top);
                 }, { passive: false });
                 // Dabeng's expand/collapse toggle button doesn't emit an event, so we
-                // hook delegated clicks and re-run the overlay after the slide animation.
+                // hook delegated clicks to (a) record the manual collapse state by roleId
+                // and (b) re-run the dotted overlay after the slide animation.
                 container.addEventListener('click', function(e) {
-                    if (!showDottedOverlay) return;
                     if (!e.target.closest) return;
-                    if (!e.target.closest('.toggleBtn')) return;
-                    setTimeout(redrawDottedOverlay, 380);
+                    const btn = e.target.closest('.toggleBtn');
+                    if (!btn) return;
+                    const hierarchy = btn.closest('li.hierarchy');
+                    const node = hierarchy && hierarchy.querySelector(':scope > .node');
+                    const roleId = node && node.dataset.roleId;
+                    setTimeout(function() {
+                        if (roleId) {
+                            if (hierarchy.classList.contains('isChildrenCollapsed')) manuallyCollapsed.add(roleId);
+                            else manuallyCollapsed.delete(roleId);
+                        }
+                        if (showDottedOverlay) redrawDottedOverlay();
+                    }, 380);
                 });
             }
 
@@ -3783,10 +3821,12 @@
             applyTwoColMarkers(container, tree);
 
             if (maxLevel > 0) applyDepthLimit(container, maxLevel);
+            reapplyManualCollapse(container);
 
             renderLegend();
             updateZoomBadge();
             updateSummaryPanel(filtered);
+            positionLegendDefault(); // after updateSummaryPanel so the Summary height is final
             redrawDottedOverlay();
         }
 
@@ -3845,16 +3885,35 @@
             roots.forEach(function(r) { collapseAtDepth(r, 1, maxLevel); });
         }
 
+        // Collapse a single node's children — mirrors what dabeng's hideChildren() does
+        // on a manual toggle. Shared by depth-limiting and manual-collapse reapplication.
+        function collapseHierarchyNode(hierarchy) {
+            const childUl = hierarchy.querySelector(':scope > ul.nodes');
+            if (!childUl) return;
+            hierarchy.classList.add('isChildrenCollapsed');
+            childUl.classList.add('hidden');
+            childUl.querySelectorAll('.node').forEach(function(n) { n.classList.add('slide-up'); });
+            if (!childUl.classList.contains('vertical')) {
+                childUl.querySelectorAll('.hierarchy').forEach(function(h) { h.classList.add('isCollapsedDescendant'); });
+            }
+        }
+
+        // Re-collapse, after a fresh render, every node the user had manually collapsed.
+        // Nodes that no longer exist (removed/filtered) are simply skipped.
+        function reapplyManualCollapse(container) {
+            if (!manuallyCollapsed.size) return;
+            manuallyCollapsed.forEach(function(roleId) {
+                const node = container.querySelector('.node[data-role-id="' + cssEscape(roleId) + '"]');
+                const h = node && node.closest('li.hierarchy');
+                if (h) collapseHierarchyNode(h);
+            });
+        }
+
         function collapseAtDepth(hierarchy, level, maxLevel) {
             const childUl = hierarchy.querySelector(':scope > ul.nodes');
             if (!childUl) return;
             if (level >= maxLevel) {
-                hierarchy.classList.add('isChildrenCollapsed');
-                childUl.classList.add('hidden');
-                childUl.querySelectorAll('.node').forEach(function(n) { n.classList.add('slide-up'); });
-                if (!childUl.classList.contains('vertical')) {
-                    childUl.querySelectorAll('.hierarchy').forEach(function(h) { h.classList.add('isCollapsedDescendant'); });
-                }
+                collapseHierarchyNode(hierarchy);
                 return;
             }
             childUl.querySelectorAll(':scope > li.hierarchy').forEach(function(child) {
@@ -3922,6 +3981,7 @@
             const icon = document.getElementById('summary-toggle-icon');
             panel.classList.toggle('collapsed');
             icon.innerHTML = panel.classList.contains('collapsed') ? '&#9650;' : '&#9660;';
+            positionLegendDefault(); // Summary height changed — keep the legend above it
         }
 
         function toggleInfoPopover(e) {
@@ -4615,8 +4675,6 @@
             title.className = 'legend-title';
             title.textContent = fieldLabels[colorField] || colorField;
             root.appendChild(title);
-            const items = document.createElement('div');
-            items.className = 'legend-items';
             Object.entries(colorMap).forEach(function(entry) {
                 const label = entry[0], color = entry[1];
                 const item = document.createElement('div');
@@ -4628,9 +4686,8 @@
                 tx.textContent = label || '(empty)';
                 item.appendChild(sw);
                 item.appendChild(tx);
-                items.appendChild(item);
+                root.appendChild(item);
             });
-            root.appendChild(items);
             return root;
         }
 
