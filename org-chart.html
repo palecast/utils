@@ -3752,18 +3752,22 @@
                     const rect = container.getBoundingClientRect();
                     setZoom(s + dir * ZOOM_WHEEL_STEP, e.clientX - rect.left, e.clientY - rect.top);
                 }, { passive: false });
-                // Dabeng's expand/collapse toggle button doesn't emit an event, so we
-                // hook delegated clicks to (a) record the manual collapse state by roleId
-                // and (b) re-run the dotted overlay after the slide animation.
+                // Dabeng's expand/collapse controls don't emit an event, so we hook
+                // delegated clicks to (a) record the manual collapse state by roleId
+                // and (b) re-run the dotted overlay after the slide animation. The
+                // children-collapse control is the .toggleBtn in vertical/hybrid layouts
+                // and a directional edge (e.g. .bottomEdge in the default top layout) in
+                // the others — both route through dabeng's hide/showChildren, which toggle
+                // .isChildrenCollapsed on the clicked node's own .hierarchy.
                 container.addEventListener('click', function(e) {
                     if (!e.target.closest) return;
-                    const btn = e.target.closest('.toggleBtn');
-                    if (!btn) return;
-                    const hierarchy = btn.closest('li.hierarchy');
-                    const node = hierarchy && hierarchy.querySelector(':scope > .node');
+                    const ctrl = e.target.closest('.toggleBtn, .bottomEdge, .topEdge, .leftEdge, .rightEdge');
+                    if (!ctrl) return;
+                    const node = ctrl.closest('.node');
+                    const hierarchy = node && node.closest('li.hierarchy');
                     const roleId = node && node.dataset.roleId;
                     setTimeout(function() {
-                        if (roleId) {
+                        if (roleId && hierarchy) {
                             if (hierarchy.classList.contains('isChildrenCollapsed')) manuallyCollapsed.add(roleId);
                             else manuallyCollapsed.delete(roleId);
                         }
