@@ -292,10 +292,13 @@
         .node-dotted-tag:hover { background: rgba(74,93,71,0.12); }
 
         /* Modal dialogs (Save As, Rename, Confirm) — share the same look */
+        /* Restore UA centering lost to the global `* { margin: 0 }` reset. */
+        dialog { margin: auto; }
         #saveas-dialog,
         #rename-dialog,
         #confirm-dialog,
-        #dotted-picker-dialog {
+        #dotted-picker-dialog,
+        #role-editor-dialog {
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 12px;
             padding: 20px 24px;
@@ -309,11 +312,13 @@
         #saveas-dialog::backdrop,
         #rename-dialog::backdrop,
         #confirm-dialog::backdrop,
-        #dotted-picker-dialog::backdrop { background: rgba(58,47,40,0.35); }
+        #dotted-picker-dialog::backdrop,
+        #role-editor-dialog::backdrop { background: rgba(58,47,40,0.35); }
         #saveas-dialog h3,
         #rename-dialog h3,
         #confirm-dialog h3,
-        #dotted-picker-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+        #dotted-picker-dialog h3,
+        #role-editor-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
         #dotted-picker-dialog { width: min(420px, 92vw); }
         #dotted-picker-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
         #dotted-picker-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
@@ -375,6 +380,54 @@
         #rename-dialog menu,
         #confirm-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
         #confirm-dialog p { margin: 0 0 4px; font-size: 0.9rem; color: #3A2F28; line-height: 1.5; }
+
+        /* Role editor form dialog */
+        #role-editor-dialog {
+            width: min(620px, 94vw);
+            max-width: 640px;
+        }
+        .re-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 16px;
+        }
+        .re-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .re-field.full { grid-column: 1 / -1; }
+        .re-field label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
+        .re-field input,
+        .re-field select,
+        .re-field textarea {
+            padding: 8px 10px;
+            border: 1px solid rgba(74,93,71,0.25);
+            border-radius: 6px;
+            font: inherit;
+            font-size: 0.85rem;
+            color: #3A2F28;
+            background: white;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .re-field textarea { resize: vertical; }
+        .re-manager-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            width: 100%;
+            text-align: left;
+        }
+        .re-manager-btn #re-manager-label {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .re-error { color: #a33d2e; font-size: 0.8rem; margin-top: 10px; }
+        #role-editor-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
+        @media (max-width: 768px) {
+            .re-grid { grid-template-columns: 1fr; }
+        }
 
         /* Warning banner */
         .warning-banner {
@@ -540,6 +593,43 @@
             text-align: left;
         }
         .focus-tree-row.current .focus-tree-label { cursor: default; }
+
+        /* Hierarchical role picker popup (Manager cell editor + role form dialog).
+           Fixed-positioned so it escapes the table's overflow clipping and works
+           inside the <dialog> top layer. Rows reuse the focus-tree classes. */
+        .role-tree-popup {
+            position: fixed;
+            z-index: 10001; /* above Tabulator edit popups */
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 6px;
+            background: white;
+            border: 1px solid rgba(74,93,71,0.18);
+            border-radius: 8px;
+            box-shadow: 0 12px 40px rgba(58,47,40,0.18);
+        }
+        .role-tree-popup input[type="text"] {
+            padding: 6px 8px;
+            border: 1px solid rgba(74,93,71,0.25);
+            border-radius: 6px;
+            font: inherit;
+            font-size: 0.8rem;
+            color: #3A2F28;
+            background: white;
+        }
+        .role-tree-popup .role-tree-scroll {
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .role-tree-popup .rt-empty { padding: 10px; color: #6B5F54; font-size: 0.8rem; text-align: center; }
+        .role-tree-popup .focus-tree-label { cursor: pointer; }
+        .role-tree-popup .focus-tree-label .rt-id {
+            color: inherit;
+            opacity: 0.65;
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
 
         /* Tabs */
         .tab-bar {
@@ -1555,6 +1645,103 @@
         </menu>
     </dialog>
 
+    <dialog id="role-editor-dialog">
+        <form method="dialog" onsubmit="roleEditorSave(); return false;">
+            <h3 id="role-editor-title">Edit role</h3>
+            <div class="re-grid">
+                <div class="re-field">
+                    <label for="re-roleId">Role ID</label>
+                    <input id="re-roleId" type="text" autocomplete="off">
+                </div>
+                <div class="re-field">
+                    <label for="re-roleTitle">Title</label>
+                    <input id="re-roleTitle" type="text" autocomplete="off">
+                </div>
+                <div class="re-field">
+                    <label for="re-status">Status</label>
+                    <select id="re-status">
+                        <option value="filled">Filled</option>
+                        <option value="vacant">Vacant</option>
+                        <option value="pending start">Pending Start</option>
+                        <option value="planned">Planned</option>
+                        <option value="on hold">On Hold</option>
+                        <option value="sunsetting">Sunsetting</option>
+                        <option value="removed">Removed</option>
+                        <option value="earmarked">Earmarked</option>
+                    </select>
+                </div>
+                <div class="re-field">
+                    <label for="re-incumbentName">Incumbent</label>
+                    <input id="re-incumbentName" type="text" autocomplete="off">
+                </div>
+                <div class="re-field">
+                    <label for="re-manager-btn">Manager</label>
+                    <button type="button" class="btn-secondary re-manager-btn" id="re-manager-btn" onclick="roleEditorPickManager()">
+                        <span id="re-manager-label">(None - Root)</span>
+                        <span class="focus-picker-chev">&#9662;</span>
+                    </button>
+                </div>
+                <div class="re-field">
+                    <label for="re-department">Department</label>
+                    <input id="re-department" type="text" autocomplete="off">
+                </div>
+                <div class="re-field">
+                    <label for="re-costToCompany">Cost to Company</label>
+                    <input id="re-costToCompany" type="number" min="0" step="any">
+                </div>
+                <div class="re-field">
+                    <label for="re-location">Location</label>
+                    <input id="re-location" type="text" autocomplete="off">
+                </div>
+                <div class="re-field">
+                    <label for="re-incumbentGender">Gender</label>
+                    <select id="re-incumbentGender">
+                        <option value="">-</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="re-field">
+                    <label for="re-employmentType">Employment Type</label>
+                    <select id="re-employmentType">
+                        <option value="Permanent">Permanent</option>
+                        <option value="Intern">Intern</option>
+                        <option value="Secondment">Secondment</option>
+                        <option value="Fixed-term">Fixed-term</option>
+                        <option value="Contractor">Contractor</option>
+                        <option value="Temporary/Agency">Temporary/Agency</option>
+                        <option value="Apprentice/Graduate">Apprentice/Graduate</option>
+                    </select>
+                </div>
+                <div class="re-field">
+                    <label for="re-workingPattern">Working Pattern</label>
+                    <select id="re-workingPattern">
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                    </select>
+                </div>
+                <div class="re-field">
+                    <label for="re-tags">Tags</label>
+                    <input id="re-tags" type="text" placeholder="tag1 tag2, tag3" autocomplete="off">
+                </div>
+                <div class="re-field">
+                    <label for="re-dottedManagerIds">Dotted Manager IDs</label>
+                    <input id="re-dottedManagerIds" type="text" placeholder="e.g. R3;R8" autocomplete="off">
+                </div>
+                <div class="re-field full">
+                    <label for="re-comments">Comments</label>
+                    <textarea id="re-comments" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="re-error" id="re-error" hidden></div>
+            <menu>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('role-editor-dialog').close('cancel')">Cancel</button>
+                <button type="submit" class="btn-primary">Save</button>
+            </menu>
+        </form>
+    </dialog>
+
     <dialog id="dotted-picker-dialog">
         <form method="dialog" onsubmit="dottedPickerConfirm(); return false;">
             <h3 id="dotted-picker-title">Add dotted manager</h3>
@@ -1777,18 +1964,10 @@
             markDirty();
         }
 
-        function updateRoleField(roleId, field, value) {
-            const role = roles.find(r => r.roleId === roleId);
-            if (!role) return;
-
-            // Snapshot before structural / identity changes only — per-keystroke
-            // edits to other fields would flood the undo stack and crowd out the
-            // changes the user actually wants to recover.
-            const STRUCTURAL_FIELDS = new Set(['roleId', 'managerRoleId', 'roleTitle']);
-            if (STRUCTURAL_FIELDS.has(field) && role[field] !== value) {
-                pushUndo('Edit ' + field);
-            }
-
+        // Applies one field to a role object: roleId rename propagation (manager +
+        // dotted refs), cost coercion, department inheritance. No undo snapshot,
+        // no validation, no rendering — callers own those.
+        function applyRoleField(role, field, value) {
             if (field === 'roleId') {
                 const oldId = role.roleId;
                 role.roleId = value;
@@ -1808,8 +1987,26 @@
                 const manager = roles.find(r => r.roleId === value);
                 if (manager && manager.department && !role.department) {
                     role.department = manager.department;
-                    renderTable();
                 }
+            }
+        }
+
+        function updateRoleField(roleId, field, value) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) return;
+
+            // Snapshot before structural / identity changes only — per-keystroke
+            // edits to other fields would flood the undo stack and crowd out the
+            // changes the user actually wants to recover.
+            const STRUCTURAL_FIELDS = new Set(['roleId', 'managerRoleId', 'roleTitle']);
+            if (STRUCTURAL_FIELDS.has(field) && role[field] !== value) {
+                pushUndo('Edit ' + field);
+            }
+
+            const deptBefore = role.department;
+            applyRoleField(role, field, value);
+            if (field === 'managerRoleId' && role.department !== deptBefore) {
+                renderTable(); // department was inherited from the new manager
             }
 
             validateRoles();
@@ -1866,6 +2063,39 @@
             }
         }
 
+        // --- Manager cell editor: hierarchical role-tree popup ---
+        // Module-scope close handle so cellEdited/cellEditCancelled can force-clean
+        // the popup when Tabulator ends the edit itself (replaceData, keyboard nav).
+        let _managerEditorClose = null;
+
+        function managerTreeEditor(cell, onRendered, success, cancel) {
+            const rowRoleId = cell.getRow().getData().roleId;
+            // In-cell anchor with NO blur handler: focusing the popup's search input
+            // blurs this element, and that must not cancel the edit.
+            const anchor = document.createElement('div');
+            anchor.tabIndex = 0;
+            anchor.textContent = cell.getValue() || '(root)';
+            anchor.style.cssText = 'width:100%;padding:4px;box-sizing:border-box;cursor:pointer;';
+            anchor.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    if (_managerEditorClose) { _managerEditorClose(); _managerEditorClose = null; }
+                    cancel();
+                }
+            });
+
+            onRendered(function() {
+                _managerEditorClose = openRoleTreePopup(cell.getElement(), {
+                    currentId: cell.getValue() || '',
+                    excludeSubtreeOf: rowRoleId,
+                    rootLabel: '(None - Root)'
+                }, {
+                    onPick: function(id) { _managerEditorClose = null; success(id); },
+                    onCancel: function() { _managerEditorClose = null; cancel(); }
+                });
+            });
+            return anchor;
+        }
+
         // --- Table rendering ---
         function renderTable() {
             if (!tabulatorGrid) {
@@ -1886,15 +2116,7 @@
                         },
                         { title: 'Incumbent', field: 'incumbentName', editor: 'input', headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
                         {
-                            title: 'Manager', field: 'managerRoleId', editor: 'list',
-                            editorParams: function(cell) {
-                                const roleId = cell.getRow().getData().roleId;
-                                const opts = [{ label: '(None - Root)', value: '' }];
-                                roles.forEach(r => {
-                                    if (r.roleId !== roleId) opts.push({ label: r.roleId + (r.roleTitle ? ' - ' + r.roleTitle : ''), value: r.roleId });
-                                });
-                                return { values: opts };
-                            },
+                            title: 'Manager', field: 'managerRoleId', editor: managerTreeEditor,
                             width: 120,
                             headerFilter: 'input', headerFilterPlaceholder: 'Filter...'
                         },
@@ -1926,6 +2148,7 @@
                                 const input = document.createElement('input');
                                 input.type = 'text';
                                 input.style.cssText = 'width:100%;padding:4px;box-sizing:border-box;';
+                                input.placeholder = 'tag1 tag2, tag3';
                                 input.value = tagsToString(cell.getValue());
                                 onRendered(function() { input.focus(); input.select(); });
                                 input.addEventListener('blur', function() { success(parseTagString(input.value)); });
@@ -1988,9 +2211,10 @@
                             }
                         },
                         {
-                            title: '', field: '_actions', width: 120, headerSort: false, editable: false,
+                            title: '', field: '_actions', width: 150, headerSort: false, editable: false,
                             formatter: function() {
-                                return '<button class="row-action-btn" data-action="addChild" title="Add Direct Report">+child</button>'
+                                return '<button class="row-action-btn" data-action="edit" title="Edit details">&#9998;</button>'
+                                    + '<button class="row-action-btn" data-action="addChild" title="Add Direct Report">+child</button>'
                                     + '<button class="row-action-btn" data-action="duplicate" title="Duplicate">&#10697;</button>'
                                     + '<button class="row-action-btn" data-action="delete" title="Delete">&#10005;</button>';
                             },
@@ -1998,7 +2222,8 @@
                                 const action = e.target.dataset.action;
                                 if (!action) return;
                                 const roleId = cell.getRow().getData().roleId;
-                                if (action === 'addChild') addDirectReportById(roleId);
+                                if (action === 'edit') openRoleEditor(roleId);
+                                else if (action === 'addChild') addDirectReportById(roleId);
                                 else if (action === 'duplicate') duplicateRowById(roleId);
                                 else if (action === 'delete') deleteRole(roleId);
                             }
@@ -2007,15 +2232,28 @@
                 });
 
                 tabulatorGrid.on('cellEditing', function() { isEditing = true; });
-                tabulatorGrid.on('cellEditCancelled', function() { isEditing = false; });
+                tabulatorGrid.on('cellEditCancelled', function() {
+                    isEditing = false;
+                    // Safety net: never leave a manager popup orphaned when Tabulator
+                    // cancels the edit itself (replaceData, keyboard nav, etc.).
+                    if (_managerEditorClose) { _managerEditorClose(); _managerEditorClose = null; }
+                });
                 // Tabulator v6 ignores the top-level `cellEdited` callback option — wire it via .on().
                 tabulatorGrid.on('cellEdited', function(cell) {
                     isEditing = false;
+                    if (_managerEditorClose) { _managerEditorClose(); _managerEditorClose = null; }
                     const field = cell.getField();
                     if (field === '_actions') return;
                     const rowData = cell.getRow().getData();
                     const newValue = cell.getValue();
-                    const roleId = field === 'roleId' ? cell.getOldValue() : rowData.roleId;
+                    const oldValue = cell.getOldValue();
+                    const roleId = field === 'roleId' ? oldValue : rowData.roleId;
+                    // Tabulator writes newValue into the shared role object BEFORE this
+                    // event fires, which defeats updateRoleField's change detection (no
+                    // undo snapshot) and roleId rename propagation. Restore the previous
+                    // value so updateRoleField runs against the true before-state.
+                    const edited = roles.find(r => r.roleId === rowData.roleId);
+                    if (edited) edited[field] = oldValue;
                     updateRoleField(roleId, field, newValue);
                     if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle' || field === 'dottedManagerIds') {
                         tabulatorGrid.replaceData(roles.slice());
@@ -2032,6 +2270,14 @@
                     document.querySelectorAll('.tabulator-cell.tabulator-cell-active').forEach(el => el.classList.remove('tabulator-cell-active'));
                     cell.getElement().classList.add('tabulator-cell-active');
                     cell.getRow().select();
+                });
+                // Open the form editor on row double-click — only when no inline cell
+                // editor is open, so double-click text selection inside editors still works.
+                // (Most cells open editors on first click, so the ✎ button is the primary trigger.)
+                tabulatorGrid.on('rowDblClick', function(e, row) {
+                    if (isEditing) return;
+                    if (e.target.closest && e.target.closest('.row-action-btn')) return;
+                    openRoleEditor(row.getData().roleId);
                 });
 
                 // Excel-like keyboard navigation
@@ -2494,6 +2740,217 @@
                 mgrId = mgr.managerRoleId;
             }
             return out;
+        }
+
+        // --- Shared hierarchical role picker (Manager cell editor + role form dialog) ---
+        // Like the focus tree, but shows every role (leaves included), can prune a
+        // subtree for cycle prevention, and supports a flat search mode.
+        // opts: { currentId, excludeSubtreeOf, rootLabel, expanded:Set, searchTerm, onPick, onToggle }
+        function buildRoleTree(container, opts) {
+            while (container.firstChild) container.removeChild(container.firstChild);
+            const tree = document.createElement('div');
+            tree.className = 'focus-tree';
+
+            // Excluded role + its whole subtree: every node in it would create a cycle.
+            const skip = new Set();
+            if (opts.excludeSubtreeOf) {
+                getDescendantIds(opts.excludeSubtreeOf).forEach(id => skip.add(id));
+                skip.add(opts.excludeSubtreeOf);
+            }
+
+            const rowLabel = r => (r.incumbentName ? r.incumbentName + ' — ' : '') + (r.roleTitle || r.roleId);
+
+            const term = String(opts.searchTerm || '').trim().toLowerCase();
+            if (term) {
+                const matches = roles.filter(r => !skip.has(r.roleId)
+                    && (String(r.roleTitle || '').toLowerCase().includes(term)
+                        || String(r.roleId || '').toLowerCase().includes(term)
+                        || String(r.incumbentName || '').toLowerCase().includes(term)));
+                if (!matches.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'rt-empty';
+                    empty.textContent = 'No matching roles.';
+                    tree.appendChild(empty);
+                }
+                matches.forEach(r => tree.appendChild(buildRoleTreeRow({
+                    roleId: r.roleId, label: rowLabel(r), depth: 0,
+                    hasChildren: false, isCurrent: r.roleId === opts.currentId, opts: opts
+                })));
+                container.appendChild(tree);
+                return;
+            }
+
+            if (opts.rootLabel != null) {
+                tree.appendChild(buildRoleTreeRow({
+                    roleId: '', label: opts.rootLabel, depth: 0,
+                    hasChildren: false, isCurrent: !opts.currentId, opts: opts
+                }));
+            }
+
+            const childrenById = {};
+            roles.forEach(r => {
+                if (!r.managerRoleId || skip.has(r.roleId)) return;
+                (childrenById[r.managerRoleId] = childrenById[r.managerRoleId] || []).push(r);
+            });
+            const inRoles = new Set(roles.map(r => r.roleId));
+            const roots = roles.filter(r => !skip.has(r.roleId) && (!r.managerRoleId || !inRoles.has(r.managerRoleId)));
+            const sortByLabel = arr => arr.slice().sort((a, b) =>
+                String(a.roleTitle || a.roleId).localeCompare(String(b.roleTitle || b.roleId)));
+
+            function walk(role, depth) {
+                const kids = childrenById[role.roleId] || [];
+                tree.appendChild(buildRoleTreeRow({
+                    roleId: role.roleId, label: rowLabel(role), depth: depth,
+                    hasChildren: kids.length > 0, isCurrent: role.roleId === opts.currentId, opts: opts
+                }));
+                if (!opts.expanded.has(role.roleId)) return;
+                sortByLabel(kids).forEach(c => walk(c, depth + 1));
+            }
+            sortByLabel(roots).forEach(r => walk(r, opts.rootLabel != null ? 1 : 0));
+
+            container.appendChild(tree);
+        }
+
+        function buildRoleTreeRow(o) {
+            const row = document.createElement('div');
+            row.className = 'focus-tree-row' + (o.isCurrent ? ' current' : '');
+            row.style.paddingLeft = (2 + o.depth * 10) + 'px';
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'focus-tree-toggle' + (o.hasChildren ? '' : ' spacer');
+            if (o.hasChildren) {
+                const open = o.opts.expanded.has(o.roleId);
+                toggle.textContent = open ? '▾' : '▸';
+                toggle.title = open ? 'Collapse' : 'Expand';
+                toggle.addEventListener('click', e => {
+                    e.stopPropagation();
+                    if (open) o.opts.expanded.delete(o.roleId);
+                    else o.opts.expanded.add(o.roleId);
+                    o.opts.onToggle();
+                });
+            }
+            row.appendChild(toggle);
+
+            const label = document.createElement('span');
+            label.className = 'focus-tree-label';
+            label.textContent = o.label;
+            if (o.roleId) {
+                const idSpan = document.createElement('span');
+                idSpan.className = 'rt-id';
+                idSpan.textContent = o.roleId;
+                label.appendChild(idSpan);
+            }
+            // Picking the current value again is a harmless commit, so every row is clickable.
+            label.addEventListener('click', () => o.opts.onPick(o.roleId));
+            row.appendChild(label);
+            return row;
+        }
+
+        // Floating role picker anchored to anchorEl. Returns close() (idempotent).
+        // hooks: { container, onPick(roleId), onCancel } — pass the <dialog> element
+        // as container when opening from a modal (body content is inert there).
+        function openRoleTreePopup(anchorEl, pickerOpts, hooks) {
+            hooks = hooks || {};
+            const containerEl = hooks.container || document.body;
+
+            const popup = document.createElement('div');
+            popup.className = 'role-tree-popup';
+
+            const search = document.createElement('input');
+            search.type = 'text';
+            search.placeholder = 'Search by title, ID or name…';
+            popup.appendChild(search);
+
+            const scroll = document.createElement('div');
+            scroll.className = 'role-tree-scroll';
+            popup.appendChild(scroll);
+
+            // Auto-expand the path to the current value so it's visible immediately.
+            const expanded = new Set();
+            if (pickerOpts.currentId) {
+                getFocusAncestors(pickerOpts.currentId).forEach(a => expanded.add(a.roleId));
+                expanded.add(pickerOpts.currentId);
+            }
+
+            let closed = false;
+            function close() {
+                if (closed) return;
+                closed = true;
+                document.removeEventListener('mousedown', onOutside, true);
+                document.removeEventListener('scroll', onScroll, true);
+                window.removeEventListener('resize', onResize);
+                if (popup.parentNode) popup.parentNode.removeChild(popup);
+            }
+            function pick(id) { close(); if (hooks.onPick) hooks.onPick(id); }
+            function cancel() { close(); if (hooks.onCancel) hooks.onCancel(); }
+
+            function rerender() {
+                buildRoleTree(scroll, {
+                    currentId: pickerOpts.currentId || '',
+                    excludeSubtreeOf: pickerOpts.excludeSubtreeOf || null,
+                    rootLabel: pickerOpts.rootLabel != null ? pickerOpts.rootLabel : null,
+                    expanded: expanded,
+                    searchTerm: search.value,
+                    onPick: pick,
+                    onToggle: rerender
+                });
+            }
+
+            search.addEventListener('input', rerender);
+            popup.addEventListener('keydown', e => {
+                if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    cancel();
+                } else if (e.key === 'Enter' && e.target === search) {
+                    e.preventDefault();
+                    const first = scroll.querySelector('.focus-tree-label');
+                    if (first) first.click();
+                }
+            });
+
+            function onOutside(e) {
+                if (!popup.contains(e.target) && !(anchorEl && anchorEl.contains(e.target))) cancel();
+            }
+            function onScroll(e) {
+                if (popup.contains(e.target)) return; // scrolling the tree itself is fine
+                cancel();
+            }
+            function onResize() { cancel(); }
+
+            rerender();
+            containerEl.appendChild(popup);
+
+            // Position below the anchor, clamped to the viewport; flip above when
+            // there's clearly more room up top.
+            const rect = anchorEl.getBoundingClientRect();
+            popup.style.minWidth = Math.max(rect.width, 260) + 'px';
+            popup.style.maxWidth = 'min(420px, 94vw)';
+            const spaceBelow = window.innerHeight - rect.bottom - 8;
+            const spaceAbove = rect.top - 8;
+            const openBelow = spaceBelow >= 220 || spaceBelow >= spaceAbove;
+            popup.style.maxHeight = Math.max(120, Math.min(320, openBelow ? spaceBelow : spaceAbove)) + 'px';
+            const pw = popup.getBoundingClientRect().width;
+            popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - pw - 8)) + 'px';
+            if (openBelow) {
+                popup.style.top = (rect.bottom + 2) + 'px';
+            } else {
+                const ph = popup.getBoundingClientRect().height;
+                popup.style.top = Math.max(8, rect.top - ph - 2) + 'px';
+            }
+
+            // Defer outside-click wiring so the opening click doesn't self-close
+            // (same pattern as the chart context menu).
+            setTimeout(() => {
+                if (closed) return;
+                document.addEventListener('mousedown', onOutside, true);
+                document.addEventListener('scroll', onScroll, true);
+                window.addEventListener('resize', onResize);
+                search.focus();
+            }, 0);
+
+            return close;
         }
 
         // Build the focus breadcrumb element (or null if no focus). Each ancestor segment
@@ -3147,6 +3604,133 @@
             dlg.showModal();
         }
 
+        // --- Role editor form dialog ---
+        let _roleEditorState = null; // { originalRoleId, managerRoleId, closePicker }
+
+        function roleEditorManagerLabel(id) {
+            if (!id) return '(None - Root)';
+            const m = roles.find(r => r.roleId === id);
+            return m ? ((m.roleTitle || m.roleId) + ' (' + m.roleId + ')') : id;
+        }
+
+        function openRoleEditor(roleId) {
+            const role = roles.find(r => r.roleId === roleId);
+            if (!role) return;
+            const dlg = document.getElementById('role-editor-dialog');
+
+            _roleEditorState = { originalRoleId: roleId, managerRoleId: role.managerRoleId || '', closePicker: null };
+
+            document.getElementById('role-editor-title').textContent = 'Edit role — ' + (role.roleTitle || role.roleId);
+            const set = (id, v) => { document.getElementById(id).value = v == null ? '' : v; };
+            set('re-roleId', role.roleId);
+            set('re-roleTitle', role.roleTitle);
+            set('re-status', role.status || 'planned');
+            set('re-incumbentName', role.incumbentName);
+            set('re-department', role.department);
+            set('re-costToCompany', role.costToCompany != null ? role.costToCompany : 0);
+            set('re-location', role.location);
+            set('re-incumbentGender', role.incumbentGender || '');
+            set('re-employmentType', role.employmentType || 'Permanent');
+            set('re-workingPattern', role.workingPattern || 'Full-time');
+            set('re-comments', role.comments);
+            set('re-tags', tagsToString(role.tags));
+            set('re-dottedManagerIds', dottedIdsToString(role.dottedManagerIds));
+            document.getElementById('re-manager-label').textContent = roleEditorManagerLabel(_roleEditorState.managerRoleId);
+
+            const errEl = document.getElementById('re-error');
+            errEl.hidden = true;
+            errEl.textContent = '';
+
+            // Close a stray manager picker whenever the dialog closes (Esc/Cancel/Save).
+            dlg.onclose = function() {
+                if (_roleEditorState && _roleEditorState.closePicker) _roleEditorState.closePicker();
+                _roleEditorState = null;
+            };
+
+            dlg.showModal();
+        }
+
+        function roleEditorPickManager() {
+            const st = _roleEditorState;
+            if (!st) return;
+            if (st.closePicker) { st.closePicker(); st.closePicker = null; return; } // toggle closed
+            const dlg = document.getElementById('role-editor-dialog');
+            const btn = document.getElementById('re-manager-btn');
+            st.closePicker = openRoleTreePopup(btn, {
+                currentId: st.managerRoleId,
+                excludeSubtreeOf: st.originalRoleId,
+                rootLabel: '(None - Root)'
+            }, {
+                container: dlg, // body content is inert under showModal()
+                onPick: function(id) {
+                    st.closePicker = null;
+                    st.managerRoleId = id;
+                    document.getElementById('re-manager-label').textContent = roleEditorManagerLabel(id);
+                },
+                onCancel: function() { st.closePicker = null; }
+            });
+        }
+
+        function roleEditorSave() {
+            const dlg = document.getElementById('role-editor-dialog');
+            const st = _roleEditorState;
+            const role = st && roles.find(r => r.roleId === st.originalRoleId);
+            if (!role) { dlg.close('cancel'); return; }
+
+            const errEl = document.getElementById('re-error');
+            const showError = msg => { errEl.textContent = msg; errEl.hidden = false; };
+            const val = id => document.getElementById(id).value;
+
+            const newId = val('re-roleId').trim();
+            if (!newId) { showError('Role ID is required.'); return; }
+            if (roles.some(r => r !== role && r.roleId === newId)) {
+                showError('Another role already uses Role ID "' + newId + '".');
+                return;
+            }
+
+            const newVals = {
+                roleId: newId,
+                roleTitle: val('re-roleTitle').trim(),
+                status: val('re-status'),
+                incumbentName: val('re-incumbentName').trim(),
+                managerRoleId: st.managerRoleId || '',
+                department: val('re-department').trim(),
+                costToCompany: parseFloat(val('re-costToCompany')) || 0,
+                location: val('re-location').trim(),
+                incumbentGender: val('re-incumbentGender'),
+                employmentType: val('re-employmentType'),
+                workingPattern: val('re-workingPattern'),
+                comments: val('re-comments'),
+                tags: parseTagString(val('re-tags')),
+                dottedManagerIds: parseDottedIdsString(val('re-dottedManagerIds'))
+            };
+
+            const changed = Object.keys(newVals).filter(f => {
+                const a = role[f], b = newVals[f];
+                if (Array.isArray(b)) {
+                    const cur = Array.isArray(a) ? a : [];
+                    return cur.join(' ') !== b.join(' ');
+                }
+                return String(a == null ? '' : a) !== String(b);
+            });
+            if (!changed.length) { dlg.close('ok'); return; }
+
+            // One undo snapshot for the whole form save.
+            pushUndo('Edit role details');
+            // roleId first so reference propagation runs before other fields land.
+            changed.sort((a, b) => (a === 'roleId' ? -1 : b === 'roleId' ? 1 : 0));
+            changed.forEach(f => applyRoleField(role, f, newVals[f]));
+
+            validateRoles();
+            // Prune tag-filter entries that no longer exist (same as grid cellEdited).
+            const live = new Set(getAllTags());
+            [...tagFilter].forEach(t => { if (!live.has(t)) tagFilter.delete(t); });
+            syncFilterUI();
+            render();
+            markDirty();
+            dlg.close('ok');
+        }
+
         function openRenameDialog(roleId) {
             const role = roles.find(r => r.roleId === roleId);
             if (!role) return;
@@ -3368,6 +3952,7 @@
                 menu.appendChild(s);
             };
 
+            addItem('Edit details…', () => openRoleEditor(roleId));
             addItem('Add child', () => addDirectReportById(roleId));
             addItem('Add sibling', () => addSiblingById(roleId));
             addItem('Rename…', () => openRenameDialog(roleId));
@@ -3432,6 +4017,14 @@
             });
 
             if (data.roleId === '_root') return;
+
+            // Double-click → form editor; same guard list as dragstart so collapse
+            // toggles, edges and dotted pills keep their own behavior.
+            el.addEventListener('dblclick', function(e) {
+                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag')) return;
+                e.stopPropagation();
+                openRoleEditor(data.roleId);
+            });
 
             el.draggable = true;
 
@@ -4545,9 +5138,10 @@
         const EXPORT_HEADERS = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments','Tags','Dotted Manager IDs'];
         const EXPORT_FIELDS  = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments','tags','dottedManagerIds'];
 
+        // Tags are whole words: any run of whitespace and/or commas separates them.
         function parseTagString(val) {
             if (Array.isArray(val)) return val.map(t => String(t).trim()).filter(Boolean);
-            return String(val || '').split(',').map(t => t.trim()).filter(Boolean);
+            return String(val || '').split(/[\s,]+/).map(t => t.trim()).filter(Boolean);
         }
 
         function tagsToString(tags) {
@@ -4599,19 +5193,32 @@
             return new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         }
 
-        function exportCSV() {
+        // Rows the active tab currently shows. Table: rows passing Tabulator header
+        // filters (in displayed order), mapped back to canonical role objects.
+        // Chart/Pivot: getFilteredRoles() copies — managerRoleId already rewritten to
+        // the nearest visible ancestor and the focus root detached, so the export
+        // re-imports as exactly the visible tree. Save / Save As always write all roles.
+        function getExportRoles() {
+            if (activeTab === 'table' && tabulatorGrid) {
+                const byId = new Map(roles.map(r => [r.roleId, r]));
+                return tabulatorGrid.getData('active').map(d => byId.get(d.roleId)).filter(Boolean);
+            }
+            return getFilteredRoles();
+        }
+
+        function exportFiltered(toBlob, ext) {
             if (!roles.length) { alert('No data to export.'); return; }
-            const url = URL.createObjectURL(rolesToCsvBlob(roles));
-            triggerDownload(url, 'org-chart.csv');
+            const rs = getExportRoles();
+            if (!rs.length) { alert('No rows match the current filters.'); return; }
+            const name = (rs.length < roles.length ? 'org-chart-filtered.' : 'org-chart.') + ext;
+            const url = URL.createObjectURL(toBlob(rs));
+            triggerDownload(url, name);
             URL.revokeObjectURL(url);
         }
 
-        function exportExcel() {
-            if (!roles.length) { alert('No data to export.'); return; }
-            const url = URL.createObjectURL(rolesToXlsxBlob(roles));
-            triggerDownload(url, 'org-chart.xlsx');
-            URL.revokeObjectURL(url);
-        }
+        function exportCSV() { exportFiltered(rolesToCsvBlob, 'csv'); }
+
+        function exportExcel() { exportFiltered(rolesToXlsxBlob, 'xlsx'); }
 
         // --- Render ---
         function render() {
