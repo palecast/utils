@@ -299,6 +299,7 @@
         #confirm-dialog,
         #dotted-picker-dialog,
         #compare-dialog,
+        #export-fields-dialog,
         #role-editor-dialog {
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 12px;
@@ -315,13 +316,29 @@
         #confirm-dialog::backdrop,
         #dotted-picker-dialog::backdrop,
         #compare-dialog::backdrop,
+        #export-fields-dialog::backdrop,
         #role-editor-dialog::backdrop { background: rgba(58,47,40,0.35); }
         #saveas-dialog h3,
         #rename-dialog h3,
         #confirm-dialog h3,
         #dotted-picker-dialog h3,
         #compare-dialog h3,
+        #export-fields-dialog h3,
         #role-editor-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+
+        /* Export field-picker dialog */
+        #export-fields-dialog { max-width: 480px; }
+        .export-fields-hint { font-size: 0.8rem; color: #6B5F54; margin-bottom: 10px; }
+        .export-fields-actions { display: flex; gap: 12px; margin-bottom: 8px; }
+        .export-fields-actions button {
+            background: none; border: none; padding: 0; font: inherit;
+            font-size: 0.78rem; color: #4A5D47; cursor: pointer; text-decoration: underline;
+        }
+        .export-fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+        .export-fields-grid label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #3A2F28; cursor: pointer; }
+        .export-fields-grid label:has(input:disabled) { color: #6B5F54; cursor: default; }
+        .export-fields-grid input[type="checkbox"] { accent-color: #4A5D47; }
+        #export-fields-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
 
         /* Compare (scenario diff) dialog */
         #compare-dialog { width: min(720px, 94vw); max-width: 720px; max-height: 85vh; overflow: auto; }
@@ -1776,6 +1793,22 @@
             <menu>
                 <button type="button" class="btn-secondary" onclick="document.getElementById('saveas-dialog').close('cancel')">Cancel</button>
                 <button type="submit" class="btn-primary" value="save">Save</button>
+            </menu>
+        </form>
+    </dialog>
+
+    <dialog id="export-fields-dialog">
+        <form method="dialog" onsubmit="exportFieldsConfirm(); return false;">
+            <h3 id="export-fields-title">Export — choose fields</h3>
+            <p class="export-fields-hint">Choose the columns to include. Role ID is always included.</p>
+            <div class="export-fields-actions">
+                <button type="button" onclick="setAllExportFields(true)">Select all</button>
+                <button type="button" onclick="setAllExportFields(false)">Clear</button>
+            </div>
+            <div class="export-fields-grid" id="export-fields-grid"></div>
+            <menu>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('export-fields-dialog').close('cancel')">Cancel</button>
+                <button type="submit" class="btn-primary">Export</button>
             </menu>
         </form>
     </dialog>
@@ -5834,15 +5867,19 @@
             }).join(',')).join('\n') + '\n';
         }
 
-        function rolesToCsvBlob(rs) {
-            const aoa = [EXPORT_HEADERS, ...rs.map(r => EXPORT_FIELDS.map(f => fieldToCellValue(r, f)))];
+        function headerForField(f) {
+            return EXPORT_HEADERS[EXPORT_FIELDS.indexOf(f)];
+        }
+
+        function rolesToCsvBlob(rs, fields = EXPORT_FIELDS) {
+            const aoa = [fields.map(headerForField), ...rs.map(r => fields.map(f => fieldToCellValue(r, f)))];
             return new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' });
         }
 
-        function rolesToXlsxBlob(rs) {
+        function rolesToXlsxBlob(rs, fields = EXPORT_FIELDS) {
             const data = rs.map(r => {
                 const row = {};
-                EXPORT_FIELDS.forEach((f, i) => row[EXPORT_HEADERS[i]] = fieldToCellValue(r, f));
+                fields.forEach(f => row[headerForField(f)] = fieldToCellValue(r, f));
                 return row;
             });
             const ws = XLSX.utils.json_to_sheet(data);
@@ -5856,7 +5893,8 @@
         // filters (in displayed order), mapped back to canonical role objects.
         // Chart/Pivot: getFilteredRoles() copies — managerRoleId already rewritten to
         // the nearest visible ancestor and the focus root detached, so the export
-        // re-imports as exactly the visible tree. Save / Save As always write all roles.
+        // re-imports as exactly the visible tree. Save / Save As always write all
+        // roles and all fields.
         function getExportRoles() {
             if (activeTab === 'table' && tabulatorGrid) {
                 const byId = new Map(roles.map(r => [r.roleId, r]));
@@ -5875,9 +5913,54 @@
             URL.revokeObjectURL(url);
         }
 
-        function exportCSV() { exportFiltered(rolesToCsvBlob, 'csv'); }
+        // Export CSV/Excel let the user pick the columns. Cost to Company is
+        // deliberately unticked by default so salary data only leaves the tool by
+        // explicit choice; Role ID is always included so the file re-imports.
+        // Save / Save As bypass this and always write every field.
+        let exportSelectedFields = new Set(EXPORT_FIELDS.filter(f => f !== 'costToCompany'));
+        let pendingExportFormat = 'csv';
 
-        function exportExcel() { exportFiltered(rolesToXlsxBlob, 'xlsx'); }
+        function openExportFieldsDialog(fmt) {
+            if (!roles.length) { alert('No data to export.'); return; }
+            pendingExportFormat = fmt;
+            document.getElementById('export-fields-title').textContent =
+                'Export ' + (fmt === 'csv' ? 'CSV' : 'Excel') + ' — choose fields';
+            const grid = document.getElementById('export-fields-grid');
+            grid.innerHTML = '';
+            EXPORT_FIELDS.forEach((f, i) => {
+                const label = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = f;
+                cb.checked = f === 'roleId' || exportSelectedFields.has(f);
+                cb.disabled = f === 'roleId';
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(EXPORT_HEADERS[i]));
+                grid.appendChild(label);
+            });
+            document.getElementById('export-fields-dialog').showModal();
+        }
+
+        function setAllExportFields(on) {
+            document.querySelectorAll('#export-fields-grid input[type="checkbox"]').forEach(cb => {
+                if (!cb.disabled) cb.checked = on;
+            });
+        }
+
+        function exportFieldsConfirm() {
+            const checked = new Set([...document.querySelectorAll('#export-fields-grid input:checked')].map(cb => cb.value));
+            exportSelectedFields = checked;
+            const fields = EXPORT_FIELDS.filter(f => checked.has(f));
+            document.getElementById('export-fields-dialog').close('export');
+            const toBlob = pendingExportFormat === 'csv'
+                ? rs => rolesToCsvBlob(rs, fields)
+                : rs => rolesToXlsxBlob(rs, fields);
+            exportFiltered(toBlob, pendingExportFormat);
+        }
+
+        function exportCSV() { openExportFieldsDialog('csv'); }
+
+        function exportExcel() { openExportFieldsDialog('xlsx'); }
 
         // --- Render ---
         function render() {
