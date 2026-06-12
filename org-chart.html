@@ -523,6 +523,22 @@
         }
         .autosave-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
+        /* Multi-tab "file already open" warning — amber like .warning-banner, dismissible */
+        .multitab-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
         /* Chart search (Find) */
         .chart-search-group input[type="search"] {
             width: 100%;
@@ -1475,6 +1491,11 @@
                 <button class="btn-secondary btn-small" id="autosave-restore-btn">Restore</button>
                 <button class="btn-secondary btn-small" id="autosave-discard-btn">Discard</button>
             </span>
+        </div>
+
+        <div class="multitab-banner" id="multitab-banner">
+            <span id="multitab-banner-msg"></span>
+            <button class="btn-secondary btn-small" id="multitab-dismiss-btn" onclick="dismissMultitabBanner()">Dismiss</button>
         </div>
 
         <div class="tab-bar-container">
@@ -4846,15 +4867,44 @@
         // unsaved changes, and offered for restore on the next visit. Cleared on
         // every clean state (open / save / explicit discard). Separate from
         // UI_STATE_KEY, which persists UI chrome only.
-        const AUTOSAVE_KEY = 'orgChartAutosave';
+        //
+        // Snapshots are per tab (orgChartAutosave:<tabId>) so two tabs never
+        // clobber each other's safety net, and saving in one tab can't delete
+        // another's snapshot. A heartbeat key marks the owning tab as alive;
+        // restore is only offered for snapshots whose tab is gone. The one
+        // exception is this tab's own snapshot (sessionStorage keeps the id
+        // across a reload), which is always offered.
+        const AUTOSAVE_PREFIX = 'orgChartAutosave:';
+        const AUTOSAVE_LEGACY_KEY = 'orgChartAutosave'; // pre-per-tab snapshot
+        const AUTOSAVE_HB_PREFIX = 'orgChartAutosaveHb:';
         const AUTOSAVE_VERSION = 1;
         const AUTOSAVE_DEBOUNCE_MS = 1000;
+        const AUTOSAVE_HEARTBEAT_MS = 5000;
+        const AUTOSAVE_STALE_MS = 15000; // no heartbeat for this long = owning tab is dead
+        const AUTOSAVE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // GC abandoned snapshots
+        const TAB_ID = (function() {
+            try {
+                let id = sessionStorage.getItem('orgChartTabId');
+                if (!id) {
+                    id = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+                    sessionStorage.setItem('orgChartTabId', id);
+                }
+                return id;
+            } catch (e) {
+                return Date.now() + '-' + Math.random().toString(36).slice(2);
+            }
+        })();
         let autosaveTimer = null;
+        let autosaveHeartbeatTimer = null;
         let autosaveQuotaWarned = false;
 
         function scheduleAutosave() {
             if (autosaveTimer) clearTimeout(autosaveTimer);
             autosaveTimer = setTimeout(writeAutosave, AUTOSAVE_DEBOUNCE_MS);
+        }
+
+        function writeAutosaveHeartbeat() {
+            try { localStorage.setItem(AUTOSAVE_HB_PREFIX + TAB_ID, String(Date.now())); } catch (e) { /* ignore */ }
         }
 
         function writeAutosave() {
@@ -4863,13 +4913,16 @@
             const snapshot = {
                 v: AUTOSAVE_VERSION,
                 savedAt: Date.now(),
+                tabId: TAB_ID,
                 fileName: openFileName,
                 format: openFileFormat,
                 isTestData: openFileIsTestData,
                 roles: roles
             };
             try {
-                localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(snapshot));
+                localStorage.setItem(AUTOSAVE_PREFIX + TAB_ID, JSON.stringify(snapshot));
+                writeAutosaveHeartbeat();
+                if (!autosaveHeartbeatTimer) autosaveHeartbeatTimer = setInterval(writeAutosaveHeartbeat, AUTOSAVE_HEARTBEAT_MS);
             } catch (e) {
                 if (!autosaveQuotaWarned) {
                     autosaveQuotaWarned = true;
@@ -4880,26 +4933,81 @@
 
         function clearAutosave() {
             if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
-            try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) { /* ignore */ }
+            if (autosaveHeartbeatTimer) { clearInterval(autosaveHeartbeatTimer); autosaveHeartbeatTimer = null; }
+            try {
+                localStorage.removeItem(AUTOSAVE_PREFIX + TAB_ID);
+                localStorage.removeItem(AUTOSAVE_HB_PREFIX + TAB_ID);
+            } catch (e) { /* ignore */ }
         }
 
-        // Called once at startup. Autosave only writes while dirty and isDirty is
-        // false here, so the snapshot can't be overwritten before the user decides.
-        function offerAutosaveRestore() {
-            let snap = null;
+        function removeAutosaveEntry(entry) {
             try {
-                const raw = localStorage.getItem(AUTOSAVE_KEY);
-                if (raw) snap = JSON.parse(raw);
-            } catch (e) { /* corrupted snapshot — ignore */ }
-            if (!snap || snap.v !== AUTOSAVE_VERSION || !Array.isArray(snap.roles) || !snap.roles.length) return;
+                localStorage.removeItem(entry.key);
+                if (entry.tabId) localStorage.removeItem(AUTOSAVE_HB_PREFIX + entry.tabId);
+            } catch (e) { /* ignore */ }
+        }
+
+        // All stored snapshots (legacy single-key one included), dropping any
+        // that are invalid or older than the GC horizon. Also sweeps heartbeat
+        // keys whose snapshot is gone.
+        function readAutosaveSnapshots() {
+            const out = [];
+            const keys = [];
+            try {
+                for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+            } catch (e) { return out; }
+            const now = Date.now();
+            keys.forEach(function(key) {
+                if (key !== AUTOSAVE_LEGACY_KEY && key.indexOf(AUTOSAVE_PREFIX) !== 0) return;
+                let snap = null;
+                try { snap = JSON.parse(localStorage.getItem(key)); } catch (e) { /* corrupted */ }
+                const valid = snap && snap.v === AUTOSAVE_VERSION && Array.isArray(snap.roles) && snap.roles.length;
+                const tabId = key === AUTOSAVE_LEGACY_KEY ? null : key.slice(AUTOSAVE_PREFIX.length);
+                if (!valid || (snap.savedAt && now - snap.savedAt > AUTOSAVE_MAX_AGE_MS)) {
+                    removeAutosaveEntry({ key: key, tabId: tabId });
+                    return;
+                }
+                let hb = 0;
+                if (tabId) {
+                    try { hb = Number(localStorage.getItem(AUTOSAVE_HB_PREFIX + tabId)) || 0; } catch (e) { /* ignore */ }
+                }
+                out.push({ key: key, tabId: tabId, snap: snap, hb: hb });
+            });
+            const snapTabIds = new Set(out.map(function(e) { return e.tabId; }));
+            keys.forEach(function(key) {
+                if (key.indexOf(AUTOSAVE_HB_PREFIX) !== 0) return;
+                const tabId = key.slice(AUTOSAVE_HB_PREFIX.length);
+                if (tabId !== TAB_ID && !snapTabIds.has(tabId)) {
+                    try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+                }
+            });
+            return out;
+        }
+
+        // Called at startup (and again after a Discard, to surface the next
+        // snapshot if several tabs crashed). Autosave only writes while dirty
+        // and isDirty is false here, so this tab can't overwrite a snapshot
+        // before the user decides; other live tabs are excluded by heartbeat.
+        function offerAutosaveRestore() {
+            const now = Date.now();
+            const candidates = readAutosaveSnapshots().filter(function(e) {
+                if (e.tabId === TAB_ID) return true;             // own reload — always offer
+                return !e.hb || (now - e.hb) > AUTOSAVE_STALE_MS; // owning tab is gone
+            });
+            if (!candidates.length) return;
+            candidates.sort(function(a, b) { return (b.snap.savedAt || 0) - (a.snap.savedAt || 0); });
+            const entry = candidates[0];
+            const snap = entry.snap;
             const banner = document.getElementById('autosave-banner');
             const msg = document.getElementById('autosave-banner-msg');
             if (!banner || !msg) return;
             const when = snap.savedAt ? new Date(snap.savedAt).toLocaleString() : 'unknown time';
-            msg.textContent = 'Unsaved work found — "' + (snap.fileName || 'untitled') + '", saved ' + when + '. Restore it?';
+            msg.textContent = 'Unsaved work found — "' + (snap.fileName || 'untitled') + '", saved ' + when + '. Restore it?'
+                + (candidates.length > 1 ? ' (' + (candidates.length - 1) + ' more snapshot(s) pending.)' : '');
             banner.style.display = 'flex';
             document.getElementById('autosave-restore-btn').onclick = function() {
                 banner.style.display = 'none';
+                removeAutosaveEntry(entry);
                 roles = snap.roles;
                 recomputeNextId();
                 undoStack = [];
@@ -4910,6 +5018,8 @@
                 openFileHandle = null; // no live handle — Save falls back to download
                 openFileIsTestData = !!snap.isTestData;
                 isDirty = true;
+                scheduleAutosave(); // re-protect the restored data under this tab's own key
+                announceOpenFile();
                 validateRoles();
                 syncFilterUI();
                 render();
@@ -4918,8 +5028,77 @@
             };
             document.getElementById('autosave-discard-btn').onclick = function() {
                 banner.style.display = 'none';
-                clearAutosave();
+                removeAutosaveEntry(entry);
+                offerAutosaveRestore();
             };
+        }
+
+        // --- Multi-tab awareness ---
+        // Tabs announce which file they hold over a BroadcastChannel; any two
+        // tabs holding the same file each show a warning banner, since edits
+        // are not shared and an in-place save in one tab silently overwrites
+        // the other's. Matching is by file name only — identically named files
+        // from different folders can false-positive, acceptable for an
+        // advisory warning. An 'opened' message doubles as a roll call: tabs
+        // already holding that file reply 'present' so the newcomer learns of
+        // them too.
+        const tabChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('org-chart-tabs') : null;
+        const otherTabsWithFile = new Set();
+        let multitabDismissed = false;
+
+        function currentAnnounceName() {
+            return (openFileName && !openFileIsTestData) ? openFileName : '';
+        }
+
+        // Broadcast on every file identity change, including to no-file/test
+        // data — other tabs use the mismatch to drop us from their warning.
+        function announceOpenFile() {
+            otherTabsWithFile.clear();
+            multitabDismissed = false;
+            updateMultitabBanner();
+            if (tabChannel) tabChannel.postMessage({ type: 'opened', tabId: TAB_ID, fileName: currentAnnounceName() });
+        }
+
+        if (tabChannel) {
+            tabChannel.onmessage = function(ev) {
+                const m = ev.data || {};
+                if (!m.tabId || m.tabId === TAB_ID) return;
+                const name = currentAnnounceName();
+                const sameFile = name && m.fileName === name && m.type !== 'closed';
+                if (!sameFile) {
+                    if (otherTabsWithFile.delete(m.tabId)) updateMultitabBanner();
+                    return;
+                }
+                if (m.type === 'opened') tabChannel.postMessage({ type: 'present', tabId: TAB_ID, fileName: name });
+                if (!otherTabsWithFile.has(m.tabId)) {
+                    otherTabsWithFile.add(m.tabId);
+                    multitabDismissed = false; // new conflict — resurface even if dismissed
+                }
+                updateMultitabBanner();
+            };
+            window.addEventListener('pagehide', function() {
+                tabChannel.postMessage({ type: 'closed', tabId: TAB_ID });
+            });
+        }
+
+        function updateMultitabBanner() {
+            const banner = document.getElementById('multitab-banner');
+            const msg = document.getElementById('multitab-banner-msg');
+            if (!banner || !msg) return;
+            if (!otherTabsWithFile.size || multitabDismissed) {
+                banner.style.display = 'none';
+                return;
+            }
+            const n = otherTabsWithFile.size;
+            msg.textContent = '"' + openFileName + '" appears to be open in '
+                + (n === 1 ? 'another tab' : n + ' other tabs')
+                + '. Edits are not shared between tabs, and saving in one overwrites the other\'s changes.';
+            banner.style.display = 'flex';
+        }
+
+        function dismissMultitabBanner() {
+            multitabDismissed = true;
+            updateMultitabBanner();
         }
 
         // --- Sidebar, Summary, Minimap ---
@@ -5436,6 +5615,7 @@
             openFileIsTestData = !!state.isTestData;
             isDirty = false;
             clearAutosave();
+            announceOpenFile();
             updateFilenameIndicator();
             updateSaveButtonState();
         }
