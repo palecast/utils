@@ -298,6 +298,7 @@
         #rename-dialog,
         #confirm-dialog,
         #dotted-picker-dialog,
+        #compare-dialog,
         #role-editor-dialog {
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 12px;
@@ -313,12 +314,59 @@
         #rename-dialog::backdrop,
         #confirm-dialog::backdrop,
         #dotted-picker-dialog::backdrop,
+        #compare-dialog::backdrop,
         #role-editor-dialog::backdrop { background: rgba(58,47,40,0.35); }
         #saveas-dialog h3,
         #rename-dialog h3,
         #confirm-dialog h3,
         #dotted-picker-dialog h3,
+        #compare-dialog h3,
         #role-editor-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+
+        /* Compare (scenario diff) dialog */
+        #compare-dialog { width: min(720px, 94vw); max-width: 720px; max-height: 85vh; overflow: auto; }
+        #compare-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
+        .cmp-direction { font-size: 0.75rem; color: #6B5F54; margin: -6px 0 12px; }
+        .cmp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .cmp-chip {
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: #F2F0EB;
+            color: #3A2F28;
+            border: 1px solid rgba(74,93,71,0.18);
+        }
+        .cmp-chip .cmp-pos { color: #4A5D47; font-weight: 600; }
+        .cmp-chip .cmp-neg { color: #a33d2e; font-weight: 600; }
+        .cmp-section { margin-bottom: 14px; }
+        .cmp-section-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #6B5F54;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+        .cmp-section-title .cmp-count {
+            background: rgba(74,93,71,0.12);
+            color: #4A5D47;
+            border-radius: 999px;
+            padding: 1px 8px;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+        .cmp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .cmp-table th, .cmp-table td {
+            text-align: left;
+            padding: 5px 8px;
+            border-bottom: 1px solid rgba(58,47,40,0.08);
+            vertical-align: top;
+        }
+        .cmp-table th { color: #6B5F54; font-weight: 600; }
+        .cmp-table tr[data-locate-id] { cursor: pointer; }
+        .cmp-table tr[data-locate-id]:hover td { background: rgba(74,93,71,0.06); }
+        .cmp-field-line { display: block; }
+        .cmp-empty { font-size: 0.8rem; color: #6B5F54; padding: 4px 0; }
         #dotted-picker-dialog { width: min(420px, 92vw); }
         #dotted-picker-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
         #dotted-picker-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
@@ -440,6 +488,95 @@
             margin-bottom: 12px;
             display: none;
         }
+
+        /* Autosave restore banner — informational, unlike the amber warning banner */
+        .autosave-banner {
+            background: rgba(74, 93, 71, 0.08);
+            border: 1px solid rgba(74, 93, 71, 0.35);
+            color: #4A5D47;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .autosave-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+        /* Chart search (Find) */
+        .chart-search-group input[type="search"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px 8px;
+            border: 1px solid rgba(58, 47, 40, 0.25);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            color: #3A2F28;
+            background: #fff;
+        }
+        .chart-search-group input[type="search"]:focus {
+            outline: none;
+            border-color: #4A5D47;
+            box-shadow: 0 0 0 2px rgba(74, 93, 71, 0.15);
+        }
+        .chart-search-count {
+            font-size: 0.75rem;
+            color: #6B5F54;
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .orgchart .node.search-hit {
+            outline: 2px solid #4A5D47;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 5px rgba(74, 93, 71, 0.25);
+            animation: search-hit-pulse 0.9s ease-out 2;
+        }
+        @keyframes search-hit-pulse {
+            0%   { box-shadow: 0 0 0 5px rgba(74, 93, 71, 0.45); }
+            100% { box-shadow: 0 0 0 12px rgba(74, 93, 71, 0); }
+        }
+
+        /* Toasts — transient, non-blocking notices (bottom-right) */
+        .toast-container {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 3000;
+        }
+        .toast {
+            background: #3A2F28;
+            color: #FAF8F5;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            line-height: 1.45;
+            box-shadow: 0 6px 20px rgba(58, 47, 40, 0.35);
+            max-width: 380px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            white-space: pre-line;
+        }
+        .toast-close {
+            background: none;
+            border: none;
+            color: #FAF8F5;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 0;
+            line-height: 1.45;
+            flex-shrink: 0;
+        }
+        .toast-close:hover { opacity: 1; }
 
         /* Focus breadcrumb — sits above the chart when a subtree is selected */
         .focus-breadcrumb {
@@ -1306,12 +1443,22 @@
                 <button class="btn-header" onclick="openFile()">Open</button>
                 <button class="btn-header" id="btn-save" onclick="saveFile()" disabled>Save</button>
                 <button class="btn-header" onclick="saveFileAs()">Save As&hellip;</button>
+                <button class="btn-header" onclick="compareFile()" title="Diff the current data against another file">Compare&hellip;</button>
                 <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
+                <input type="file" id="compare-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="compareFileInput(event)">
                 <a class="disclaimer-link" href="/disclaimer">Disclaimer</a>
             </div>
         </header>
 
         <div class="warning-banner" id="warning-banner"></div>
+
+        <div class="autosave-banner" id="autosave-banner">
+            <span id="autosave-banner-msg"></span>
+            <span class="autosave-banner-actions">
+                <button class="btn-secondary btn-small" id="autosave-restore-btn">Restore</button>
+                <button class="btn-secondary btn-small" id="autosave-discard-btn">Discard</button>
+            </span>
+        </div>
 
         <div class="tab-bar-container">
             <div class="tab-bar">
@@ -1348,6 +1495,15 @@
                         <div class="control-section" data-section="view">
                             <div class="control-section-label">View</div>
                             <div class="control-section-body">
+                                <div class="control-group chart-search-group">
+                                    <label for="chart-search">Find:</label>
+                                    <input type="search" id="chart-search" placeholder="ID, title, name&hellip;" autocomplete="off">
+                                    <div class="depth-row">
+                                        <button class="btn-secondary" id="chart-search-prev" title="Previous match (Shift+Enter)">&#9650;</button>
+                                        <span id="chart-search-count" class="chart-search-count"></span>
+                                        <button class="btn-secondary" id="chart-search-next" title="Next match (Enter)">&#9660;</button>
+                                    </div>
+                                </div>
                                 <div class="depth-row">
                                     <label>Zoom:</label>
                                     <button class="btn-secondary" id="zoom-out" title="Zoom out (&minus;10%)  [&minus;]">&minus;</button>
@@ -1455,6 +1611,8 @@
                                 <button class="btn-secondary btn-small" onclick="printChart()">&#128424; Print</button>
                                 <span class="control-divider"></span>
                                 <button class="btn-secondary btn-small" onclick="downloadPNG()">&#11015; PNG</button>
+                                <span class="control-divider"></span>
+                                <button class="btn-secondary btn-small" onclick="downloadSVG()" title="Vector image — opens in browsers">&#11015; SVG</button>
                                 <span class="control-divider"></span>
                                 <button class="btn-secondary btn-small" onclick="exportCSV()">&#11015; CSV</button>
                                 <span class="control-divider"></span>
@@ -1579,9 +1737,9 @@
                         <div class="control-section">
                             <div class="control-section-label">Export</div>
                             <div class="control-section-body">
-                                <button class="btn-secondary btn-small" onclick="exportCSV()">&#11015; CSV</button>
+                                <button class="btn-secondary btn-small" onclick="exportPivotCSV()" title="Export the pivot grid as shown">&#11015; CSV</button>
                                 <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="exportExcel()">&#11015; Excel</button>
+                                <button class="btn-secondary btn-small" onclick="exportPivotExcel()" title="Export the pivot grid as shown">&#11015; Excel</button>
                             </div>
                         </div>
                     </div>
@@ -1757,6 +1915,17 @@
         </form>
     </dialog>
 
+    <dialog id="compare-dialog">
+        <h3>Current data vs <span id="cmp-filename"></span></h3>
+        <p class="cmp-direction">"Added" = in the current data but not in the file; "Removed" = in the file but no longer in the current data.</p>
+        <div class="cmp-chips" id="cmp-chips"></div>
+        <div id="cmp-sections"></div>
+        <menu>
+            <button type="button" class="btn-secondary" id="cmp-export-btn">Export diff CSV</button>
+            <button type="button" class="btn-primary" onclick="document.getElementById('compare-dialog').close()">Close</button>
+        </menu>
+    </dialog>
+
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css">
@@ -1785,9 +1954,25 @@
         let openFileIsTestData = false;   // test data has no real source — Save acts as Save As
         let isDirty = false;              // unsaved data changes since last open / save
         function markDirty() {
+            scheduleAutosave(); // every mutation refreshes the crash-recovery snapshot
             if (isDirty) return;
             isDirty = true;
             updateFilenameIndicator();
+        }
+        window.addEventListener('beforeunload', function(e) {
+            if (!isDirty) return;
+            e.preventDefault();
+            e.returnValue = ''; // legacy browsers need a non-undefined returnValue
+        });
+        // Ask before discarding unsaved edits when loading a different dataset.
+        function confirmDiscardIfDirty(proceed) {
+            if (!isDirty) { proceed(); return; }
+            openConfirmDialog({
+                title: 'Unsaved changes',
+                message: 'The current data has unsaved changes that will be lost. Continue?',
+                confirmLabel: 'Discard changes',
+                danger: true
+            }, proceed);
         }
         const HAS_FSA = typeof window.showOpenFilePicker === 'function'
                      && typeof window.showSaveFilePicker === 'function';
@@ -1807,7 +1992,6 @@
         let chartInstance = null;
         let tabulatorGrid = null;
         let isEditing = false;
-        let chartLayout = 'top-hybrid';
 
         // --- Undo / Redo (in-memory, structural mutations only) ---
         const UNDO_LIMIT = 20;
@@ -1877,26 +2061,8 @@
             return out;
         }
 
-        const LAYOUT_PRESETS = {
-            'top-hybrid': { direction: 't2b', hybrid: true,  label: 'Top-down Hybrid' },
-            'top':        { direction: 't2b', hybrid: false, label: 'Top-down' },
-            'left':       { direction: 'l2r', hybrid: false, label: 'Left-to-right' },
-        };
-
-        const GRID_COLUMNS = [
-            { field: 'roleId',          type: 'input' },
-            { field: 'roleTitle',       type: 'input' },
-            { field: 'status',          type: 'select' },
-            { field: 'incumbentName',   type: 'input' },
-            { field: 'managerRoleId',   type: 'select' },
-            { field: 'department',      type: 'input' },
-            { field: 'costToCompany',   type: 'input' },
-            { field: 'location',        type: 'input' },
-            { field: 'incumbentGender', type: 'select' },
-            { field: 'employmentType',  type: 'select' },
-            { field: 'workingPattern',  type: 'select' },
-            { field: 'comments',        type: 'input' },
-        ];
+        // Top-down hybrid is the only layout (the Layout selector was removed in cfa6314).
+        const CHART_LAYOUT = { direction: 't2b', hybrid: true };
 
         const STATUS_COLORS = { filled: '#27ae60', vacant: '#e74c3c', 'pending start': '#17a2b8', planned: '#f39c12', 'on hold': '#e67e22', sunsetting: '#9b59b6', removed: '#95a5a6', earmarked: '#3498db' };
         const PALETTE = ['#4e79a7','#f28e2b','#59a14f','#e15759','#b07aa1','#76b7b2','#edc948','#ff9da7','#9c755f','#bab0ac','#1f9e89','#7b3294'];
@@ -2038,21 +2204,36 @@
             // Scrub invalid dotted-line ids: empty/self/missing/primary-manager/descendant.
             // Descendant rule prevents a dotted line that points down into one's own subtree
             // (which would create a circular dotted graph and is rarely meaningful).
+            // Scrubbed entries are reported via toast. Because the scrub mutates the
+            // arrays, a later no-op re-validation finds nothing and stays silent — the
+            // toast only fires when bad data is (re)introduced (edit, import, undo).
             const idSet = new Set(ids.filter(Boolean));
+            const scrubbed = [];
             roles.forEach(r => {
                 if (!Array.isArray(r.dottedManagerIds) || !r.dottedManagerIds.length) return;
                 const descendants = getDescendantIds(r.roleId);
                 const seen = new Set();
                 r.dottedManagerIds = r.dottedManagerIds.filter(id => {
-                    if (!id || id === r.roleId) return false;
-                    if (id === r.managerRoleId) return false;
-                    if (!idSet.has(id)) return false;
-                    if (descendants.has(id)) return false;
-                    if (seen.has(id)) return false;
+                    let reason = '';
+                    if (!id) return false; // empty entries are noise, drop silently
+                    else if (id === r.roleId) reason = 'self-reference';
+                    else if (id === r.managerRoleId) reason = 'already the primary manager';
+                    else if (!idSet.has(id)) reason = 'unknown role ID';
+                    else if (descendants.has(id)) reason = 'is a descendant — would create a cycle';
+                    else if (seen.has(id)) reason = 'duplicate';
+                    if (reason) {
+                        scrubbed.push(r.roleId + ': ignored dotted manager "' + id + '" (' + reason + ')');
+                        return false;
+                    }
                     seen.add(id);
                     return true;
                 });
             });
+            if (scrubbed.length) {
+                let msg = scrubbed.slice(0, 5).join('\n');
+                if (scrubbed.length > 5) msg += '\n…and ' + (scrubbed.length - 5) + ' more';
+                showToast(msg);
+            }
 
             const banner = document.getElementById('warning-banner');
             if (warnings.length) {
@@ -2103,7 +2284,7 @@
                     data: roles.slice(),
                     layout: 'fitColumns',
                     movableRows: false,
-                    selectable: 1,
+                    selectableRows: 1,
                     placeholder: 'No roles yet — click + Add Row to start, or import a file.',
                     columns: [
                         { title: 'Role ID', field: 'roleId', editor: 'input', width: 90, headerFilter: 'input', headerFilterPlaceholder: 'Filter...' },
@@ -2252,7 +2433,10 @@
                     // event fires, which defeats updateRoleField's change detection (no
                     // undo snapshot) and roleId rename propagation. Restore the previous
                     // value so updateRoleField runs against the true before-state.
-                    const edited = roles.find(r => r.roleId === rowData.roleId);
+                    // rowData IS the shared role object (data: roles.slice() shares refs) —
+                    // looking it up by roleId would hit the WRONG role when a roleId edit
+                    // collides with an existing ID.
+                    const edited = roles.includes(rowData) ? rowData : roles.find(r => r.roleId === rowData.roleId);
                     if (edited) edited[field] = oldValue;
                     updateRoleField(roleId, field, newValue);
                     if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle' || field === 'dottedManagerIds') {
@@ -2414,6 +2598,7 @@
             const idx = roles.findIndex(r => r.roleId === roleId);
             if (idx < 0) return;
             const src = roles[idx];
+            pushUndo('Duplicate role');
             roles.splice(idx + 1, 0, {
                 ...src,
                 roleId: generateRoleId(),
@@ -4201,6 +4386,104 @@
             updateZoomBadge();
         }
 
+        // --- Locate / search ---
+        // Inverse of collapseHierarchyNode. The descendant strips are deliberately
+        // broad (mirroring dabeng's showChildren); callers re-collapse remaining
+        // isChildrenCollapsed branches afterwards to restore deeper collapsed state.
+        function expandHierarchyNode(hierarchy) {
+            const childUl = hierarchy.querySelector(':scope > ul.nodes');
+            if (!childUl) return;
+            hierarchy.classList.remove('isChildrenCollapsed');
+            childUl.classList.remove('hidden');
+            childUl.querySelectorAll('.node').forEach(function(n) { n.classList.remove('slide-up'); });
+            childUl.querySelectorAll('.hierarchy').forEach(function(h) { h.classList.remove('isCollapsedDescendant'); });
+        }
+
+        // Bring a role's chart node into view: expand collapsed ancestors, pan the
+        // chart so the node is centered at the current zoom, and flash a highlight.
+        // Returns 'located' | 'hidden' (exists but filtered/focused out) | 'missing'.
+        let _searchHitTimer = null;
+        function locateRoleInChart(roleId) {
+            if (activeTab !== 'chart') switchTab('chart'); // renders synchronously
+            const container = document.getElementById('chart-container');
+            const oc = getOrgchartEl();
+            if (!container || !oc) return 'missing';
+            const nodeEl = container.querySelector('.node[data-role-id="' + cssEscape(roleId) + '"]');
+            if (!nodeEl) {
+                return roles.some(r => r.roleId === roleId) ? 'hidden' : 'missing';
+            }
+
+            // Expand any collapsed ancestor so the node is visible. The node's own
+            // children stay as they are. Removing the ancestor from manuallyCollapsed
+            // keeps the next re-render from re-hiding it.
+            let li = nodeEl.closest('li.hierarchy');
+            li = li && li.parentElement && li.parentElement.closest('li.hierarchy');
+            let expandedAny = false;
+            while (li) {
+                if (li.classList.contains('isChildrenCollapsed')) {
+                    expandHierarchyNode(li);
+                    expandedAny = true;
+                    const ownerNode = li.querySelector(':scope > .node');
+                    if (ownerNode && ownerNode.dataset.roleId) manuallyCollapsed.delete(ownerNode.dataset.roleId);
+                }
+                li = li.parentElement && li.parentElement.closest('li.hierarchy');
+            }
+            if (expandedAny) {
+                // Restore collapsed state of branches off the expansion path that the
+                // broad descendant strip in expandHierarchyNode un-hid (idempotent).
+                container.querySelectorAll('li.hierarchy.isChildrenCollapsed').forEach(collapseHierarchyNode);
+                if (showDottedOverlay) redrawDottedOverlay();
+            }
+
+            // Center on the node. Measure after expansion (display:none rects are 0).
+            // m.e / m.f are post-scale pixel offsets, so live rect deltas — which
+            // already include scale, pan and container scroll — translate directly.
+            const m = readMatrix(oc);
+            const cRect = container.getBoundingClientRect();
+            const nRect = nodeEl.getBoundingClientRect();
+            m.e += (cRect.left + cRect.width / 2) - (nRect.left + nRect.width / 2);
+            m.f += (cRect.top + cRect.height / 2) - (nRect.top + nRect.height / 2);
+            oc.style.transform = m.toString();
+
+            container.querySelectorAll('.node.search-hit').forEach(function(n) { n.classList.remove('search-hit'); });
+            if (_searchHitTimer) clearTimeout(_searchHitTimer);
+            nodeEl.classList.add('search-hit');
+            _searchHitTimer = setTimeout(function() { nodeEl.classList.remove('search-hit'); }, 3000);
+            return 'located';
+        }
+
+        // Chart search box state + wiring (listeners attached in the Init block).
+        let chartSearchMatches = [];
+        let chartSearchIndex = -1;
+        function updateChartSearchMatches() {
+            const input = document.getElementById('chart-search');
+            const q = input.value.trim().toLowerCase();
+            chartSearchMatches = [];
+            chartSearchIndex = -1;
+            if (q) {
+                chartSearchMatches = roles.filter(r =>
+                    ['roleId', 'roleTitle', 'incumbentName', 'department'].some(
+                        f => String(r[f] || '').toLowerCase().includes(q))
+                ).map(r => r.roleId);
+            }
+            setChartSearchCount(q ? (chartSearchMatches.length ? chartSearchMatches.length + ' match' + (chartSearchMatches.length === 1 ? '' : 'es') : 'No matches') : '');
+        }
+        function setChartSearchCount(text) {
+            const el = document.getElementById('chart-search-count');
+            if (el) el.textContent = text;
+        }
+        function chartSearchGo(delta) {
+            if (!chartSearchMatches.length) return;
+            const n = chartSearchMatches.length;
+            chartSearchIndex = ((chartSearchIndex + delta) % n + n) % n;
+            const roleId = chartSearchMatches[chartSearchIndex];
+            const result = locateRoleInChart(roleId);
+            setChartSearchCount(
+                (chartSearchIndex + 1) + ' of ' + n +
+                (result === 'hidden' ? ' — hidden by filters/focus' : '')
+            );
+        }
+
         // --- Dotted-line overlay ---
         // Mounted as a child of `.orgchart` so it inherits the same pan/zoom transform.
         // We draw at untransformed local coordinates (computed by undoing the active
@@ -4395,7 +4678,7 @@
                 return;
             }
 
-            const preset = LAYOUT_PRESETS[chartLayout] || LAYOUT_PRESETS['top-hybrid'];
+            const preset = CHART_LAYOUT;
             const hasVirtualRoot = tree.roleId === '_root';
             const maxLevel = maxDepth === 0 ? 0 : maxDepth + (hasVirtualRoot ? 1 : 0);
 
@@ -4525,6 +4808,87 @@
             return p;
         }
 
+        // --- Crash-recovery autosave ---
+        // Working data is snapshotted to localStorage (debounced) while there are
+        // unsaved changes, and offered for restore on the next visit. Cleared on
+        // every clean state (open / save / explicit discard). Separate from
+        // UI_STATE_KEY, which persists UI chrome only.
+        const AUTOSAVE_KEY = 'orgChartAutosave';
+        const AUTOSAVE_VERSION = 1;
+        const AUTOSAVE_DEBOUNCE_MS = 1000;
+        let autosaveTimer = null;
+        let autosaveQuotaWarned = false;
+
+        function scheduleAutosave() {
+            if (autosaveTimer) clearTimeout(autosaveTimer);
+            autosaveTimer = setTimeout(writeAutosave, AUTOSAVE_DEBOUNCE_MS);
+        }
+
+        function writeAutosave() {
+            autosaveTimer = null;
+            if (!isDirty) return;
+            const snapshot = {
+                v: AUTOSAVE_VERSION,
+                savedAt: Date.now(),
+                fileName: openFileName,
+                format: openFileFormat,
+                isTestData: openFileIsTestData,
+                roles: roles
+            };
+            try {
+                localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(snapshot));
+            } catch (e) {
+                if (!autosaveQuotaWarned) {
+                    autosaveQuotaWarned = true;
+                    console.warn('Autosave failed (storage quota?) — crash recovery unavailable.', e);
+                }
+            }
+        }
+
+        function clearAutosave() {
+            if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = null; }
+            try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) { /* ignore */ }
+        }
+
+        // Called once at startup. Autosave only writes while dirty and isDirty is
+        // false here, so the snapshot can't be overwritten before the user decides.
+        function offerAutosaveRestore() {
+            let snap = null;
+            try {
+                const raw = localStorage.getItem(AUTOSAVE_KEY);
+                if (raw) snap = JSON.parse(raw);
+            } catch (e) { /* corrupted snapshot — ignore */ }
+            if (!snap || snap.v !== AUTOSAVE_VERSION || !Array.isArray(snap.roles) || !snap.roles.length) return;
+            const banner = document.getElementById('autosave-banner');
+            const msg = document.getElementById('autosave-banner-msg');
+            if (!banner || !msg) return;
+            const when = snap.savedAt ? new Date(snap.savedAt).toLocaleString() : 'unknown time';
+            msg.textContent = 'Unsaved work found — "' + (snap.fileName || 'untitled') + '", saved ' + when + '. Restore it?';
+            banner.style.display = 'flex';
+            document.getElementById('autosave-restore-btn').onclick = function() {
+                banner.style.display = 'none';
+                roles = snap.roles;
+                recomputeNextId();
+                undoStack = [];
+                redoStack = [];
+                updateUndoRedoButtonState();
+                openFileName = snap.fileName || '';
+                openFileFormat = snap.format || 'csv';
+                openFileHandle = null; // no live handle — Save falls back to download
+                openFileIsTestData = !!snap.isTestData;
+                isDirty = true;
+                validateRoles();
+                syncFilterUI();
+                render();
+                updateFilenameIndicator();
+                updateSaveButtonState();
+            };
+            document.getElementById('autosave-discard-btn').onclick = function() {
+                banner.style.display = 'none';
+                clearAutosave();
+            };
+        }
+
         // --- Sidebar, Summary, Minimap ---
         const UI_STATE_KEY = 'orgChartUiState';
         const UI_STATE_VERSION = 1;
@@ -4635,7 +4999,7 @@
             if (activeTab !== 'chart') return;
             if (e.metaKey || e.ctrlKey || e.altKey) return;
             const t = e.target;
-            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
 
             let handled = false;
             if (e.key === '+' || e.key === '=') {
@@ -4776,24 +5140,12 @@
             return { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' }[field] || field;
         }
 
-        function renderPivotTable() {
+        // Cross-tab as an array-of-arrays with raw (unformatted) values — shared by
+        // the HTML renderer and the pivot CSV/Excel exports. Null when nothing passes
+        // the filters. Row 0 is the header; the last row and column are totals.
+        function computePivotAoa() {
             const filtered = getFilteredRoles();
-            const container = document.getElementById('pivot-table-container');
-            const pivotSurface = document.getElementById('pivot-surface');
-            if (pivotSurface) {
-                pivotSurface.querySelectorAll('.focus-breadcrumb, .focus-warning').forEach(n => n.remove());
-                if (focusRoleId && focusFellBack) {
-                    pivotSurface.insertBefore(buildFocusFallbackWarning(), container);
-                } else if (focusRoleId) {
-                    const bc = buildFocusBreadcrumb();
-                    if (bc) pivotSurface.insertBefore(bc, container);
-                }
-            }
-            if (!filtered.length) {
-                container.innerHTML = '<p style="padding:40px;color:#888">No data. Import or add rows in the Table tab.</p>';
-                updateSummaryPanel(filtered);
-                return;
-            }
+            if (!filtered.length) return null;
 
             const rowField = document.getElementById('pivot-row-field').value;
             const colField = document.getElementById('pivot-col-field').value;
@@ -4811,35 +5163,86 @@
                 agg[key] = (agg[key] || 0) + (isCost ? (r.costToCompany || 0) : 1);
             });
 
-            function fmt(v) { return isCost ? Number(v).toLocaleString() : v; }
-
-            let html = '<table class="pivot-table"><thead><tr>';
-            html += '<th>' + escapeHtml(fieldLabel(rowField)) + ' \\ ' + escapeHtml(fieldLabel(colField)) + '</th>';
-            colVals.forEach(c => { html += '<th>' + escapeHtml(c) + '</th>'; });
-            html += '<th>Total</th></tr></thead><tbody>';
-
-            let colTotals = colVals.map(() => 0);
+            const aoa = [[fieldLabel(rowField) + ' \\ ' + fieldLabel(colField), ...colVals, 'Total']];
+            const colTotals = colVals.map(() => 0);
             let grandTotal = 0;
-
             rowVals.forEach(rv => {
-                html += '<tr><td>' + escapeHtml(rv) + '</td>';
                 let rowTotal = 0;
+                const row = [rv];
                 colVals.forEach((cv, ci) => {
                     const v = agg[rv + '|' + cv] || 0;
                     rowTotal += v;
                     colTotals[ci] += v;
-                    html += '<td>' + fmt(v) + '</td>';
+                    row.push(v);
                 });
                 grandTotal += rowTotal;
-                html += '<td>' + fmt(rowTotal) + '</td></tr>';
+                row.push(rowTotal);
+                aoa.push(row);
             });
+            aoa.push(['Total', ...colTotals, grandTotal]);
+            return { aoa, isCost };
+        }
 
-            html += '</tbody><tfoot><tr><td>Total</td>';
-            colTotals.forEach(ct => { html += '<td>' + fmt(ct) + '</td>'; });
-            html += '<td>' + fmt(grandTotal) + '</td></tr></tfoot></table>';
+        function renderPivotTable() {
+            const filtered = getFilteredRoles();
+            const container = document.getElementById('pivot-table-container');
+            const pivotSurface = document.getElementById('pivot-surface');
+            if (pivotSurface) {
+                pivotSurface.querySelectorAll('.focus-breadcrumb, .focus-warning').forEach(n => n.remove());
+                if (focusRoleId && focusFellBack) {
+                    pivotSurface.insertBefore(buildFocusFallbackWarning(), container);
+                } else if (focusRoleId) {
+                    const bc = buildFocusBreadcrumb();
+                    if (bc) pivotSurface.insertBefore(bc, container);
+                }
+            }
+            const pivot = computePivotAoa();
+            if (!pivot) {
+                container.innerHTML = '<p style="padding:40px;color:#888">No data. Import or add rows in the Table tab.</p>';
+                updateSummaryPanel(filtered);
+                return;
+            }
+            const { aoa, isCost } = pivot;
+            function fmt(v) { return isCost ? Number(v).toLocaleString() : v; }
+
+            let html = '<table class="pivot-table"><thead><tr>';
+            aoa[0].forEach(h => { html += '<th>' + escapeHtml(String(h)) + '</th>'; });
+            html += '</tr></thead><tbody>';
+            for (let i = 1; i < aoa.length - 1; i++) {
+                html += '<tr><td>' + escapeHtml(String(aoa[i][0])) + '</td>';
+                for (let j = 1; j < aoa[i].length; j++) html += '<td>' + fmt(aoa[i][j]) + '</td>';
+                html += '</tr>';
+            }
+            const totalRow = aoa[aoa.length - 1];
+            html += '</tbody><tfoot><tr><td>' + escapeHtml(String(totalRow[0])) + '</td>';
+            for (let j = 1; j < totalRow.length; j++) html += '<td>' + fmt(totalRow[j]) + '</td>';
+            html += '</tr></tfoot></table>';
 
             container.innerHTML = html;
             updateSummaryPanel(filtered);
+        }
+
+        // Pivot exports capture the rendered cross-tab itself (filter-aware by design),
+        // unlike the data exports which always contain the full role list.
+        function exportPivotCSV() {
+            const pivot = computePivotAoa();
+            if (!pivot) { alert('No data to export.'); return; }
+            const url = URL.createObjectURL(new Blob([serializeAoaToCsv(pivot.aoa)], { type: 'text/csv;charset=utf-8;' }));
+            triggerDownload(url, 'org-chart-pivot.csv');
+            URL.revokeObjectURL(url);
+        }
+
+        function exportPivotExcel() {
+            const pivot = computePivotAoa();
+            if (!pivot) { alert('No data to export.'); return; }
+            const ws = XLSX.utils.aoa_to_sheet(pivot.aoa);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Pivot');
+            const ab = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, 'org-chart-pivot.xlsx');
+            URL.revokeObjectURL(url);
         }
 
         // --- Import ---
@@ -4873,19 +5276,17 @@
             return mapping;
         }
 
-        function processImportData(arrayBuffer) {
+        // Pure parser: first sheet of a CSV/XLSX ArrayBuffer → roles array. No global
+        // state is touched, so it serves both real imports and the Compare feature.
+        function parseRolesFromArrayBuffer(arrayBuffer) {
             const data = new Uint8Array(arrayBuffer);
             const workbook = XLSX.read(data, { type: 'array' });
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-            if (!jsonData.length) {
-                alert('No data found in the file.');
-                return;
-            }
+            if (!jsonData.length) return [];
 
             const headerMap = mapHeaders(Object.keys(jsonData[0]));
-            roles = jsonData.map((row, i) => {
+            return jsonData.map((row, i) => {
                 const role = {
                     roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
                     managerRoleId: '', department: '', costToCompany: 0,
@@ -4913,12 +5314,38 @@
                 if (!role.roleId) role.roleId = 'R' + (i + 1);
                 return role;
             });
+        }
 
+        function recomputeNextId() {
             nextId = roles.reduce(function(max, r) {
                 var m = r.roleId.match(/^R(\d+)$/);
                 return m ? Math.max(max, parseInt(m[1]) + 1) : max;
             }, roles.length + 1);
+        }
+
+        function processImportData(arrayBuffer) {
+            const parsed = parseRolesFromArrayBuffer(arrayBuffer);
+            if (!parsed.length) {
+                alert('No data found in the file.');
+                return;
+            }
+            roles = parsed;
+            recomputeNextId();
+
+            // New dataset — undo history, manual collapse state and filter value
+            // selections all refer to the previous data. Undoing across an import
+            // would resurrect the old dataset under the new filename; stale filter
+            // values would silently hide imported rows.
+            undoStack = [];
+            redoStack = [];
+            updateUndoRedoButtonState();
+            manuallyCollapsed.clear();
+            filters.forEach(f => { if (f.field) f.values = new Set(getUniqueValues(f.field)); });
+            const liveTags = new Set(getAllTags());
+            [...tagFilter].forEach(t => { if (!liveTags.has(t)) tagFilter.delete(t); });
+
             validateRoles();
+            syncFilterUI();
             render();
         }
 
@@ -4945,6 +5372,10 @@
         }
 
         function loadTestData() {
+            confirmDiscardIfDirty(doLoadTestData);
+        }
+
+        function doLoadTestData() {
             fetch('test-data/org-chart-test-data.csv')
                 .then(function(response) {
                     if (!response.ok) throw new Error('Could not load test data (HTTP ' + response.status + ')');
@@ -4971,6 +5402,7 @@
             openFileHandle = state.handle || null;
             openFileIsTestData = !!state.isTestData;
             isDirty = false;
+            clearAutosave();
             updateFilenameIndicator();
             updateSaveButtonState();
         }
@@ -5001,7 +5433,11 @@
             btn.disabled = !canSave;
         }
 
-        async function openFile() {
+        function openFile() {
+            confirmDiscardIfDirty(doOpenFile);
+        }
+
+        async function doOpenFile() {
             if (HAS_FSA) {
                 try {
                     const [handle] = await window.showOpenFilePicker({
@@ -5029,6 +5465,198 @@
             }
         }
 
+        // --- Compare (scenario diff) ---
+        // Diffs the in-memory data against a second file without touching app state.
+        async function compareFile() {
+            if (!roles.length) { alert('No current data to compare — open or add roles first.'); return; }
+            if (HAS_FSA) {
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        types: [{
+                            description: 'Org chart data',
+                            accept: {
+                                'text/csv': ['.csv'],
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                                'application/vnd.ms-excel': ['.xls']
+                            }
+                        }],
+                        excludeAcceptAllOption: false,
+                        multiple: false
+                    });
+                    const file = await handle.getFile();
+                    runCompare(await file.arrayBuffer(), file.name);
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return; // user cancelled
+                    alert('Error opening comparison file: ' + (err && err.message || err));
+                }
+            } else {
+                document.getElementById('compare-file-input').click();
+            }
+        }
+
+        function compareFileInput(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) { runCompare(e.target.result, file.name); };
+            reader.readAsArrayBuffer(file);
+            event.target.value = ''; // allow re-picking the same file
+        }
+
+        function runCompare(arrayBuffer, fileName) {
+            let fileRoles;
+            try {
+                fileRoles = parseRolesFromArrayBuffer(arrayBuffer);
+            } catch (err) {
+                alert('Could not read the comparison file: ' + (err && err.message || err));
+                return;
+            }
+            if (!fileRoles.length) { alert('No data found in the comparison file.'); return; }
+            openCompareDialog(diffRoles(roles, fileRoles), fileName);
+        }
+
+        // Field value for diffing — arrays compare order-insensitively.
+        function diffCellValue(role, field) {
+            if (field === 'tags' || field === 'dottedManagerIds') {
+                const arr = Array.isArray(role[field]) ? role[field].slice().sort() : [];
+                return field === 'tags' ? tagsToString(arr) : dottedIdsToString(arr);
+            }
+            return String(fieldToCellValue(role, field));
+        }
+
+        // Diff keyed by roleId (duplicate IDs: last occurrence wins — fine for a
+        // report). "added" = present in the current data only; "removed" = present
+        // in the file only. A role can be both moved and changed.
+        function diffRoles(current, fileRoles) {
+            const curById = new Map(current.map(r => [r.roleId, r]));
+            const fileById = new Map(fileRoles.map(r => [r.roleId, r]));
+            const compareFields = EXPORT_FIELDS.filter(f => f !== 'roleId' && f !== 'managerRoleId');
+
+            const added = current.filter(r => !fileById.has(r.roleId));
+            const removed = fileRoles.filter(r => !curById.has(r.roleId));
+            const moved = [];
+            const changed = [];
+            curById.forEach((cur, id) => {
+                const other = fileById.get(id);
+                if (!other) return;
+                if (String(cur.managerRoleId || '') !== String(other.managerRoleId || '')) {
+                    moved.push({ role: cur, from: other.managerRoleId || '', to: cur.managerRoleId || '' });
+                }
+                const fields = compareFields
+                    .filter(f => diffCellValue(cur, f) !== diffCellValue(other, f))
+                    .map(f => ({ field: f, current: diffCellValue(cur, f), file: diffCellValue(other, f) }));
+                if (fields.length) changed.push({ role: cur, fields });
+            });
+
+            const sumCost = rs => rs.reduce((s, r) => s + (r.costToCompany || 0), 0);
+            return {
+                added, removed, moved, changed,
+                summary: {
+                    headcountCurrent: current.length,
+                    headcountFile: fileRoles.length,
+                    costCurrent: sumCost(current),
+                    costFile: sumCost(fileRoles)
+                }
+            };
+        }
+
+        function diffFieldLabel(field) {
+            const i = EXPORT_FIELDS.indexOf(field);
+            return i >= 0 ? EXPORT_HEADERS[i] : field;
+        }
+
+        let _lastDiff = null; // kept for the Export diff CSV button
+
+        function openCompareDialog(diff, fileName) {
+            _lastDiff = { diff, fileName };
+            const dlg = document.getElementById('compare-dialog');
+            document.getElementById('cmp-filename').textContent = fileName;
+
+            const s = diff.summary;
+            const hcDelta = s.headcountCurrent - s.headcountFile;
+            const costDelta = s.costCurrent - s.costFile;
+            const deltaSpan = (delta, fmt) => {
+                if (!delta) return '<span>±0</span>';
+                const cls = delta > 0 ? 'cmp-pos' : 'cmp-neg';
+                return '<span class="' + cls + '">' + (delta > 0 ? '+' : '−') + fmt(Math.abs(delta)) + '</span>';
+            };
+            const num = v => Number(v).toLocaleString();
+            document.getElementById('cmp-chips').innerHTML =
+                '<span class="cmp-chip">Headcount: ' + num(s.headcountFile) + ' → ' + num(s.headcountCurrent) + ' (' + deltaSpan(hcDelta, num) + ')</span>' +
+                '<span class="cmp-chip">Cost: ' + num(s.costFile) + ' → ' + num(s.costCurrent) + ' (' + deltaSpan(costDelta, num) + ')</span>' +
+                '<span class="cmp-chip">' + diff.added.length + ' added · ' + diff.removed.length + ' removed · ' + diff.moved.length + ' moved · ' + diff.changed.length + ' changed</span>';
+
+            // Rows for roles that exist in the current data are clickable and jump
+            // to the chart node; removed-only roles have nothing to jump to.
+            const roleCells = r =>
+                '<td>' + escapeHtml(r.roleId) + '</td><td>' + escapeHtml(r.roleTitle || '') + '</td>';
+            const locateAttr = roleId =>
+                roles.some(r => r.roleId === roleId) ? ' data-locate-id="' + escapeHtml(roleId) + '" title="Show in chart"' : '';
+            const managerLabel = id => {
+                if (!id) return '(root)';
+                // A file-side manager absent from the current data is, by definition,
+                // in the removed list.
+                const m = roles.find(r => r.roleId === id) || diff.removed.find(r => r.roleId === id);
+                return id + (m && m.roleTitle ? ' — ' + m.roleTitle : '');
+            };
+
+            const section = (title, rows, headHtml) => {
+                let html = '<div class="cmp-section"><div class="cmp-section-title">' + title +
+                    '<span class="cmp-count">' + rows.length + '</span></div>';
+                html += rows.length
+                    ? '<table class="cmp-table"><thead><tr>' + headHtml + '</tr></thead><tbody>' + rows.join('') + '</tbody></table>'
+                    : '<div class="cmp-empty">None</div>';
+                return html + '</div>';
+            };
+
+            const addedRows = diff.added.map(r =>
+                '<tr' + locateAttr(r.roleId) + '>' + roleCells(r) +
+                '<td>' + escapeHtml(r.incumbentName || '') + '</td><td>' + escapeHtml(r.status || '') + '</td><td>' + num(r.costToCompany || 0) + '</td></tr>');
+            const removedRows = diff.removed.map(r =>
+                '<tr>' + roleCells(r) +
+                '<td>' + escapeHtml(r.incumbentName || '') + '</td><td>' + escapeHtml(r.status || '') + '</td><td>' + num(r.costToCompany || 0) + '</td></tr>');
+            const movedRows = diff.moved.map(m =>
+                '<tr' + locateAttr(m.role.roleId) + '>' + roleCells(m.role) +
+                '<td>' + escapeHtml(managerLabel(m.from)) + ' → ' + escapeHtml(managerLabel(m.to)) + '</td></tr>');
+            const changedRows = diff.changed.map(c =>
+                '<tr' + locateAttr(c.role.roleId) + '>' + roleCells(c.role) + '<td>' +
+                c.fields.map(f => '<span class="cmp-field-line">' + escapeHtml(diffFieldLabel(f.field)) + ': ' +
+                    escapeHtml(f.file === '' ? '(empty)' : f.file) + ' ⇄ ' + escapeHtml(f.current === '' ? '(empty)' : f.current) + '</span>').join('') +
+                '</td></tr>');
+
+            const headPerson = '<th>Role ID</th><th>Title</th><th>Incumbent</th><th>Status</th><th>Cost</th>';
+            document.getElementById('cmp-sections').innerHTML =
+                section('Added', addedRows, headPerson) +
+                section('Removed', removedRows, headPerson) +
+                section('Moved', movedRows, '<th>Role ID</th><th>Title</th><th>Manager (file → current)</th>') +
+                section('Changed', changedRows, '<th>Role ID</th><th>Title</th><th>Changes (file ⇄ current)</th>');
+
+            document.getElementById('cmp-sections').onclick = function(e) {
+                const tr = e.target.closest('tr[data-locate-id]');
+                if (!tr) return;
+                dlg.close();
+                if (locateRoleInChart(tr.dataset.locateId) === 'hidden') {
+                    showToast('Role is hidden by the current filters/focus.');
+                }
+            };
+            document.getElementById('cmp-export-btn').onclick = exportDiffCSV;
+            dlg.showModal();
+        }
+
+        function exportDiffCSV() {
+            if (!_lastDiff) return;
+            const d = _lastDiff.diff;
+            const aoa = [['Category', 'Role ID', 'Title', 'Field', 'File value', 'Current value']];
+            d.added.forEach(r => aoa.push(['Added', r.roleId, r.roleTitle || '', '', '', '']));
+            d.removed.forEach(r => aoa.push(['Removed', r.roleId, r.roleTitle || '', '', '', '']));
+            d.moved.forEach(m => aoa.push(['Moved', m.role.roleId, m.role.roleTitle || '', 'Manager Role ID', m.from, m.to]));
+            d.changed.forEach(c => c.fields.forEach(f =>
+                aoa.push(['Changed', c.role.roleId, c.role.roleTitle || '', diffFieldLabel(f.field), f.file, f.current])));
+            const url = URL.createObjectURL(new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' }));
+            triggerDownload(url, 'org-chart-diff.csv');
+            URL.revokeObjectURL(url);
+        }
+
         async function saveFile() {
             if (!roles.length) { alert('No data to save.'); return; }
             // .xls is read-only in SheetJS — upgrade to .xlsx on first save.
@@ -5051,6 +5679,7 @@
                     await writable.write(blob);
                     await writable.close();
                     isDirty = false;
+                    clearAutosave();
                     flashSaveIndicator('Saved');
                 } catch (err) {
                     alert('Error saving file: ' + (err && err.message || err));
@@ -5061,6 +5690,7 @@
                 triggerDownload(url, openFileName);
                 URL.revokeObjectURL(url);
                 isDirty = false;
+                clearAutosave();
                 flashSaveIndicator('Downloaded');
             } else {
                 return saveFileAs();
@@ -5134,6 +5764,33 @@
             setTimeout(() => { updateFilenameIndicator(); }, 1400);
         }
 
+        // Transient bottom-right notice. Message is set via textContent (never HTML);
+        // newlines render as line breaks (white-space: pre-line).
+        function showToast(message, opts) {
+            const duration = (opts && opts.duration) || 8000;
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            const msg = document.createElement('span');
+            msg.textContent = message;
+            const close = document.createElement('button');
+            close.className = 'toast-close';
+            close.textContent = '✕';
+            close.title = 'Dismiss';
+            const remove = () => { toast.remove(); };
+            close.addEventListener('click', remove);
+            toast.appendChild(msg);
+            toast.appendChild(close);
+            container.appendChild(toast);
+            setTimeout(remove, duration);
+        }
+
         // --- Export / serialisation helpers ---
         const EXPORT_HEADERS = ['Role ID','Title','Status','Incumbent','Manager Role ID','Department','Cost to Company','Location','Gender','Employment Type','Working Pattern','Comments','Tags','Dotted Manager IDs'];
         const EXPORT_FIELDS  = ['roleId','roleTitle','status','incumbentName','managerRoleId','department','costToCompany','location','incumbentGender','employmentType','workingPattern','comments','tags','dottedManagerIds'];
@@ -5166,18 +5823,20 @@
             return role[field] !== undefined && role[field] !== null ? role[field] : '';
         }
 
+        // BOM so Excel detects UTF-8 (accented names mangle without it).
+        function serializeAoaToCsv(rows) {
+            return '\uFEFF' + rows.map(row => row.map(cell => {
+                let v = String(cell);
+                if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+                    v = '"' + v.replace(/"/g, '""') + '"';
+                }
+                return v;
+            }).join(',')).join('\n') + '\n';
+        }
+
         function rolesToCsvBlob(rs) {
-            let csv = EXPORT_HEADERS.join(',') + '\n';
-            rs.forEach(r => {
-                csv += EXPORT_FIELDS.map(f => {
-                    let v = String(fieldToCellValue(r, f));
-                    if (v.includes(',') || v.includes('"') || v.includes('\n')) {
-                        v = '"' + v.replace(/"/g, '""') + '"';
-                    }
-                    return v;
-                }).join(',') + '\n';
-            });
-            return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const aoa = [EXPORT_HEADERS, ...rs.map(r => EXPORT_FIELDS.map(f => fieldToCellValue(r, f)))];
+            return new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' });
         }
 
         function rolesToXlsxBlob(rs) {
@@ -5269,13 +5928,89 @@
                 logging: false
             }).then(function(canvas) {
                 canvas.toBlob(function(blob) {
-                    triggerDownload(URL.createObjectURL(blob), 'org-chart.png');
                     cleanup();
+                    if (!blob) {
+                        alert('Failed to render chart image — the chart may be too large for a single PNG. Try collapsing branches or lowering the depth.');
+                        return;
+                    }
+                    const url = URL.createObjectURL(blob);
+                    triggerDownload(url, 'org-chart.png');
+                    URL.revokeObjectURL(url);
                 }, 'image/png');
             }).catch(function() {
                 cleanup();
                 alert('Failed to render chart image.');
             });
+        }
+
+        // CSS embedded into the exported SVG: the page's single inline <style>
+        // (selectors that don't match inside the foreignObject are harmless) plus
+        // the dabeng orgchart stylesheet. The latter is a cross-origin <link>, so
+        // cssRules access would throw — fetch the text instead (jsDelivr sends
+        // CORS headers) and cache it for subsequent exports.
+        const ORGCHART_CSS_URL = 'https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css';
+        let _exportCssCache = null;
+        async function getChartCssForExport() {
+            if (_exportCssCache) return _exportCssCache;
+            const pageCss = document.querySelector('style').textContent;
+            let libCss = '';
+            try {
+                const resp = await fetch(ORGCHART_CSS_URL);
+                if (resp.ok) libCss = await resp.text();
+            } catch (e) { /* offline — handled below */ }
+            if (!libCss) {
+                showToast('Chart library CSS could not be embedded — the SVG may lose connector styling.');
+                return libCss + pageCss; // don't cache the degraded result
+            }
+            _exportCssCache = libCss + pageCss;
+            return _exportCssCache;
+        }
+
+        // SVG export via <foreignObject>: the chart is HTML (plus the SVG dotted
+        // overlay, whose local coordinates are already valid at scale 1), so the
+        // markup is serialized as XHTML inside an SVG wrapper. Known limitation:
+        // foreignObject renders in browsers but not in Office-style consumers —
+        // PNG remains the raster option for those.
+        async function downloadSVG() {
+            const oc = document.querySelector('#chart-container .orgchart');
+            if (!oc) { alert('Render the chart before exporting.'); return; }
+
+            const css = await getChartCssForExport();
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chart-export-wrapper';
+            // Off-screen attach purely to measure the natural (untransformed) size.
+            wrapper.style.cssText = 'position:fixed;left:-99999px;top:0;background:#FAF8F5;padding:24px;display:inline-block;';
+
+            const ocClone = oc.cloneNode(true);
+            ocClone.style.transform = '';
+            // The clone has no #chart-container ancestor, so restate the positioning
+            // the dotted overlay's absolute coordinates depend on.
+            ocClone.style.position = 'relative';
+            wrapper.appendChild(ocClone);
+            if (colorField && colorMap && Object.keys(colorMap).length) {
+                wrapper.appendChild(buildExportLegend());
+            }
+
+            document.body.appendChild(wrapper);
+            const width = wrapper.offsetWidth;
+            const height = wrapper.offsetHeight;
+            document.body.removeChild(wrapper);
+            // Drop the off-screen positioning before serializing.
+            wrapper.style.cssText = 'background:#FAF8F5;padding:24px;display:inline-block;';
+
+            const styleEl = document.createElement('style');
+            styleEl.textContent = css; // XMLSerializer entity-escapes; round-trips through XML parsing
+            wrapper.insertBefore(styleEl, wrapper.firstChild);
+
+            const serialized = new XMLSerializer().serializeToString(wrapper);
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height +
+                '" viewBox="0 0 ' + width + ' ' + height + '">' +
+                '<foreignObject x="0" y="0" width="100%" height="100%">' + serialized + '</foreignObject></svg>';
+
+            const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+            triggerDownload(url, 'org-chart.svg');
+            URL.revokeObjectURL(url);
         }
 
         function buildExportLegend() {
@@ -5318,6 +6053,7 @@
         render();
         updateFilenameIndicator();
         syncFilterUI();
+        offerAutosaveRestore();
 
         // Sidebar zoom controls (elements are static — wire once)
         document.getElementById('zoom-out').addEventListener('click', function() {
@@ -5330,6 +6066,28 @@
         });
         document.getElementById('zoom-pct').addEventListener('click', function() { setZoom(1); });
         document.getElementById('zoom-fit').addEventListener('click', fitChartToView);
+
+        // Chart search box
+        (function() {
+            const input = document.getElementById('chart-search');
+            let debounce = null;
+            input.addEventListener('input', function() {
+                if (debounce) clearTimeout(debounce);
+                debounce = setTimeout(function() { debounce = null; updateChartSearchMatches(); }, 150);
+            });
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (debounce) { clearTimeout(debounce); debounce = null; updateChartSearchMatches(); }
+                    chartSearchGo(e.shiftKey && e.key === 'Enter' ? -1 : 1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    chartSearchGo(-1);
+                }
+            });
+            document.getElementById('chart-search-next').addEventListener('click', function() { chartSearchGo(1); });
+            document.getElementById('chart-search-prev').addEventListener('click', function() { chartSearchGo(-1); });
+        })();
     </script>
 </body>
 </html>

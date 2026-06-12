@@ -52,13 +52,15 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 
 ### State Persistence
 
-Three tools persist user state to `localStorage`:
+Four tools persist user state to `localStorage`:
 
 | Tool | Key | What is saved |
 |------|-----|---------------|
 | `ccy-tracker.html` | `currencyTrackerState` | Selected currencies, time period, base currency |
 | `currency-converter.html` | `currencyConverterState` | From/to currencies, amount, selected period |
 | `timezone-compare-app.html` | `world-timeboard-state-v1` | City rows, home timezone, start hour |
+| `org-chart.html` | `orgChartUiState` | UI chrome only (sidebar/section collapse state) |
+| `org-chart.html` | `orgChartAutosave` | Crash-recovery snapshot of unsaved working data (debounced; cleared on save/open; restore offered on next visit) |
 
 `cost-splitter.html` and `days-between.html` do **not** persist state.
 
