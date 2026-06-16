@@ -2044,7 +2044,7 @@
         // restrict to that role and its descendants. Stacks with field/tag filters.
         let focusRoleId = '';
         let focusFellBack = false; // set by getFilteredRoles when focus target was filtered out
-        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, dottedLine: true, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPendingStart: false, hcPlanned: false, hcOnHold: false, hcSunsetting: false, hcRemoved: false, hcEarmarked: false, costFilled: false, costVacant: false, costPendingStart: false, costPlanned: false, costOnHold: false, costSunsetting: false, costRemoved: false, costEarmarked: false };
+        let chartFields = { incumbent: true, status: true, department: true, location: false, gender: false, employmentType: false, workingPattern: false, cost: false, comments: false, tagPills: true, dottedLine: true, headcount: false, cumulativeCost: false, hcFilled: false, hcVacant: false, hcPendingStart: false, hcPlanned: false, hcOnHold: false, hcSunsetting: false, hcRemoved: false, hcEarmarked: false, costFilled: false, costVacant: false, costPendingStart: false, costPlanned: false, costOnHold: false, costSunsetting: false, costRemoved: false, costEarmarked: false };
         let showDottedOverlay = false;
         let chartInstance = null;
         let tabulatorGrid = null;
@@ -3467,8 +3467,8 @@
 
         // --- Field visibility ---
         function renderFieldsDropdown() {
-            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern', cost: 'Cost', comments: 'Comments', dottedLine: 'Dotted Line Pills', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPendingStart: 'HC Pending Start', hcPlanned: 'HC Planned', hcOnHold: 'HC On Hold', hcSunsetting: 'HC Sunsetting', hcRemoved: 'HC Removed', hcEarmarked: 'HC Earmarked', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPendingStart: 'Cost Pending Start', costPlanned: 'Cost Planned', costOnHold: 'Cost On Hold', costSunsetting: 'Cost Sunsetting', costRemoved: 'Cost Removed', costEarmarked: 'Cost Earmarked' };
-            const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'employmentType', 'workingPattern', 'cost', 'comments', 'dottedLine'];
+            const labels = { incumbent: 'Incumbent', status: 'Status', department: 'Department', location: 'Location', gender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern', cost: 'Cost', comments: 'Comments', tagPills: 'Tag Pills', dottedLine: 'Dotted Line Pills', headcount: 'Headcount', cumulativeCost: 'Cumul. Cost', hcFilled: 'HC Filled', hcVacant: 'HC Vacant', hcPendingStart: 'HC Pending Start', hcPlanned: 'HC Planned', hcOnHold: 'HC On Hold', hcSunsetting: 'HC Sunsetting', hcRemoved: 'HC Removed', hcEarmarked: 'HC Earmarked', costFilled: 'Cost Filled', costVacant: 'Cost Vacant', costPendingStart: 'Cost Pending Start', costPlanned: 'Cost Planned', costOnHold: 'Cost On Hold', costSunsetting: 'Cost Sunsetting', costRemoved: 'Cost Removed', costEarmarked: 'Cost Earmarked' };
+            const baseFields = ['incumbent', 'status', 'department', 'location', 'gender', 'employmentType', 'workingPattern', 'cost', 'comments', 'tagPills', 'dottedLine'];
             const computedFields = ['headcount', 'cumulativeCost', 'hcFilled', 'hcVacant', 'hcPendingStart', 'hcPlanned', 'hcOnHold', 'hcSunsetting', 'hcRemoved', 'hcEarmarked', 'costFilled', 'costVacant', 'costPendingStart', 'costPlanned', 'costOnHold', 'costSunsetting', 'costRemoved', 'costEarmarked'];
             const dropdown = document.getElementById('fields-dropdown');
             let html = '';
@@ -3732,7 +3732,7 @@
                 }
             });
 
-            if (Array.isArray(role.tags) && role.tags.length) {
+            if (chartFields.tagPills && Array.isArray(role.tags) && role.tags.length) {
                 html += '<div class="node-tags">';
                 role.tags.forEach(t => {
                     html += '<span class="node-tag">#' + escapeHtml(String(t)) + '</span>';
