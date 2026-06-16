@@ -1477,6 +1477,7 @@
                 <button class="btn-header" id="btn-save" onclick="saveFile()" disabled>Save</button>
                 <button class="btn-header" onclick="saveFileAs()">Save As&hellip;</button>
                 <button class="btn-header" onclick="compareFile()" title="Diff the current data against another file">Compare&hellip;</button>
+                <button class="btn-header" onclick="showUnsavedChanges()" title="Summarise edits since the file was opened or last saved">Unsaved changes&hellip;</button>
                 <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
                 <input type="file" id="compare-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="compareFileInput(event)">
                 <a class="disclaimer-link" href="/disclaimer">Disclaimer</a>
@@ -1970,8 +1971,8 @@
     </dialog>
 
     <dialog id="compare-dialog">
-        <h3>Current data vs <span id="cmp-filename"></span></h3>
-        <p class="cmp-direction">"Added" = in the current data but not in the file; "Removed" = in the file but no longer in the current data.</p>
+        <h3 id="cmp-title">Current data vs <span id="cmp-filename"></span></h3>
+        <p class="cmp-direction" id="cmp-direction">"Added" = in the current data but not in the file; "Removed" = in the file but no longer in the current data.</p>
         <div class="cmp-chips" id="cmp-chips"></div>
         <div id="cmp-sections"></div>
         <menu>
@@ -2007,6 +2008,8 @@
         let openFileHandle = null;        // FileSystemFileHandle when FSA path used
         let openFileIsTestData = false;   // test data has no real source — Save acts as Save As
         let isDirty = false;              // unsaved data changes since last open / save
+        let baselineRoles = [];           // deep snapshot of the data as last opened / saved — diffed for the unsaved-changes summary
+        function captureBaseline() { baselineRoles = snapshotRoles(); }
         function markDirty() {
             scheduleAutosave(); // every mutation refreshes the crash-recovery snapshot
             if (isDirty) return;
@@ -4143,15 +4146,6 @@
         }
 
         // Switch to the Table tab and bring the given roleId's row into view.
-        function selectAndScrollToRow(roleId) {
-            switchTab('table');
-            if (!tabulatorGrid) return;
-            try { tabulatorGrid.deselectRow(); } catch (_) {}
-            try { tabulatorGrid.selectRow(roleId); } catch (_) {}
-            const p = tabulatorGrid.scrollToRow(roleId, 'center', false);
-            if (p && typeof p.catch === 'function') p.catch(() => {});
-        }
-
         // --- Right-click context menu ---
         function closeChartContextMenu() {
             const m = document.getElementById('chart-context-menu');
@@ -4201,8 +4195,6 @@
                 addItem('Remove dotted manager…', () => removeDottedManagerById(roleId));
             }
             addSep();
-            addItem('Jump to table', () => selectAndScrollToRow(roleId));
-            addSep();
             addItem('Delete…', () => openDeleteConfirm(roleId), { danger: true });
 
             document.body.appendChild(menu);
@@ -4244,7 +4236,7 @@
                 showChartContextMenu(data.roleId, e);
             });
 
-            // Click on a dotted-line pill → jump to that role's table row.
+            // Click on a dotted-line pill → centre the chart on that manager's node.
             // stopPropagation prevents the click from bubbling into selection/etc.
             el.addEventListener('click', function(e) {
                 const pill = e.target.closest && e.target.closest('.node-dotted-tag');
@@ -4252,7 +4244,9 @@
                 const targetId = pill.dataset.dottedTarget;
                 if (!targetId) return;
                 e.stopPropagation();
-                selectAndScrollToRow(targetId);
+                if (locateRoleInChart(targetId) === 'hidden') {
+                    showToast('That manager is hidden by the current filters/focus.');
+                }
             });
 
             if (data.roleId === '_root') return;
@@ -4917,7 +4911,8 @@
                 fileName: openFileName,
                 format: openFileFormat,
                 isTestData: openFileIsTestData,
-                roles: roles
+                roles: roles,
+                baseline: baselineRoles
             };
             try {
                 localStorage.setItem(AUTOSAVE_PREFIX + TAB_ID, JSON.stringify(snapshot));
@@ -5009,6 +5004,7 @@
                 banner.style.display = 'none';
                 removeAutosaveEntry(entry);
                 roles = snap.roles;
+                baselineRoles = Array.isArray(snap.baseline) ? snap.baseline : snapshotRoles();
                 recomputeNextId();
                 undoStack = [];
                 redoStack = [];
@@ -5614,6 +5610,7 @@
             openFileHandle = state.handle || null;
             openFileIsTestData = !!state.isTestData;
             isDirty = false;
+            captureBaseline();
             clearAutosave();
             announceOpenFile();
             updateFilenameIndicator();
@@ -5676,6 +5673,15 @@
             } else {
                 document.getElementById('file-input').click();
             }
+        }
+
+        // --- Unsaved changes summary ---
+        // Summarise edits made since the file was opened or last saved, reusing the
+        // Compare report: the in-memory baseline plays the role of the "file" side.
+        function showUnsavedChanges() {
+            if (!roles.length) { alert('No data yet.'); return; }
+            if (!isDirty) { showToast('No unsaved changes.'); return; }
+            openCompareDialog(diffRoles(roles, baselineRoles), openFileName || 'current data', { mode: 'unsaved' });
         }
 
         // --- Compare (scenario diff) ---
@@ -5780,10 +5786,20 @@
 
         let _lastDiff = null; // kept for the Export diff CSV button
 
-        function openCompareDialog(diff, fileName) {
-            _lastDiff = { diff, fileName };
+        function openCompareDialog(diff, fileName, opts) {
+            const unsaved = opts && opts.mode === 'unsaved';
+            _lastDiff = { diff, fileName, exportName: unsaved ? 'org-chart-unsaved-changes.csv' : 'org-chart-diff.csv' };
             const dlg = document.getElementById('compare-dialog');
-            document.getElementById('cmp-filename').textContent = fileName;
+            if (unsaved) {
+                document.getElementById('cmp-title').textContent = 'Unsaved changes — ' + fileName;
+                document.getElementById('cmp-direction').textContent =
+                    '"Added" = added since the file was opened / last saved; "Removed" = present then but now gone. Values shown as last-saved ⇄ current.';
+            } else {
+                document.getElementById('cmp-title').innerHTML = 'Current data vs <span id="cmp-filename"></span>';
+                document.getElementById('cmp-direction').textContent =
+                    '"Added" = in the current data but not in the file; "Removed" = in the file but no longer in the current data.';
+                document.getElementById('cmp-filename').textContent = fileName;
+            }
 
             const s = diff.summary;
             const hcDelta = s.headcountCurrent - s.headcountFile;
@@ -5866,7 +5882,7 @@
             d.changed.forEach(c => c.fields.forEach(f =>
                 aoa.push(['Changed', c.role.roleId, c.role.roleTitle || '', diffFieldLabel(f.field), f.file, f.current])));
             const url = URL.createObjectURL(new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' }));
-            triggerDownload(url, 'org-chart-diff.csv');
+            triggerDownload(url, _lastDiff.exportName || 'org-chart-diff.csv');
             URL.revokeObjectURL(url);
         }
 
@@ -5892,6 +5908,7 @@
                     await writable.write(blob);
                     await writable.close();
                     isDirty = false;
+                    captureBaseline();
                     clearAutosave();
                     flashSaveIndicator('Saved');
                 } catch (err) {
@@ -5903,6 +5920,7 @@
                 triggerDownload(url, openFileName);
                 URL.revokeObjectURL(url);
                 isDirty = false;
+                captureBaseline();
                 clearAutosave();
                 flashSaveIndicator('Downloaded');
             } else {
