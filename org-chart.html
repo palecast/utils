@@ -299,6 +299,7 @@
         #confirm-dialog,
         #dotted-picker-dialog,
         #compare-dialog,
+        #merge-dialog,
         #export-fields-dialog,
         #role-editor-dialog {
             border: 1px solid rgba(74,93,71,0.18);
@@ -316,6 +317,7 @@
         #confirm-dialog::backdrop,
         #dotted-picker-dialog::backdrop,
         #compare-dialog::backdrop,
+        #merge-dialog::backdrop,
         #export-fields-dialog::backdrop,
         #role-editor-dialog::backdrop { background: rgba(58,47,40,0.35); }
         #saveas-dialog h3,
@@ -323,6 +325,7 @@
         #confirm-dialog h3,
         #dotted-picker-dialog h3,
         #compare-dialog h3,
+        #merge-dialog h3,
         #export-fields-dialog h3,
         #role-editor-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
 
@@ -384,6 +387,45 @@
         .cmp-table tr[data-locate-id]:hover td { background: rgba(74,93,71,0.06); }
         .cmp-field-line { display: block; }
         .cmp-empty { font-size: 0.8rem; color: #6B5F54; padding: 4px 0; }
+
+        /* Merge (apply changes from an exported subset) dialog */
+        #merge-dialog { width: min(720px, 94vw); max-width: 720px; max-height: 85vh; overflow: auto; }
+        #merge-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
+        .merge-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .merge-progress { font-size: 0.8rem; color: #6B5F54; }
+        .merge-list { display: flex; flex-direction: column; gap: 8px; }
+        .merge-item {
+            border: 1px solid rgba(74,93,71,0.18);
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #FFFFFF;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .merge-item.applied { background: rgba(74,93,71,0.06); border-color: rgba(74,93,71,0.30); }
+        .merge-item-action { flex: 0 0 auto; padding-top: 1px; }
+        .merge-item-body { flex: 1 1 auto; min-width: 0; }
+        .merge-item-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .merge-role { font-size: 0.85rem; font-weight: 600; color: #3A2F28; }
+        .merge-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 999px;
+            line-height: 1.4;
+        }
+        .merge-badge.add { background: rgba(74,93,71,0.14); color: #3D4E3B; }
+        .merge-badge.update { background: rgba(176,124,42,0.16); color: #8a5a12; }
+        .merge-badge.move { background: rgba(74,93,71,0.04); color: #4A5D47; border: 1px dashed rgba(74,93,71,0.55); }
+        .merge-detail { font-size: 0.78rem; color: #3A2F28; }
+        .merge-detail .cmp-field-line { padding: 1px 0; color: #6B5F54; }
+        .merge-detail .merge-move-line { color: #8a5a12; font-weight: 500; }
+        .merge-detail .merge-kv { color: #6B5F54; }
+        .merge-detail .merge-kv b { color: #3A2F28; font-weight: 600; }
+        .merge-applied-badge { font-size: 0.8rem; font-weight: 600; color: #4A5D47; white-space: nowrap; }
         #dotted-picker-dialog { width: min(420px, 92vw); }
         #dotted-picker-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
         #dotted-picker-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
@@ -1477,9 +1519,11 @@
                 <button class="btn-header" id="btn-save" onclick="saveFile()" disabled>Save</button>
                 <button class="btn-header" onclick="saveFileAs()">Save As&hellip;</button>
                 <button class="btn-header" onclick="compareFile()" title="Diff the current data against another file">Compare&hellip;</button>
+                <button class="btn-header" onclick="mergeFromFile()" title="Merge changes from a previously exported subset file back into this data">Merge&hellip;</button>
                 <button class="btn-header" onclick="showUnsavedChanges()" title="Summarise edits since the file was opened or last saved">Unsaved changes&hellip;</button>
                 <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(event)">
                 <input type="file" id="compare-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="compareFileInput(event)">
+                <input type="file" id="merge-file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="mergeFileInput(event)">
                 <a class="disclaimer-link" href="/disclaimer">Disclaimer</a>
             </div>
         </header>
@@ -1978,6 +2022,21 @@
         <menu>
             <button type="button" class="btn-secondary" id="cmp-export-btn">Export diff CSV</button>
             <button type="button" class="btn-primary" onclick="document.getElementById('compare-dialog').close()">Close</button>
+        </menu>
+    </dialog>
+
+    <dialog id="merge-dialog">
+        <h3 id="mrg-title">Merge from <span id="mrg-filename"></span></h3>
+        <p class="cmp-direction">Matched by Role ID. Only adds and updates are applied — nothing is deleted. Review and apply each change; applied changes are ticked off and take effect immediately.</p>
+        <div class="cmp-chips" id="mrg-chips"></div>
+        <div class="merge-toolbar">
+            <button type="button" class="btn-primary btn-small" id="mrg-apply-all-btn">Apply all remaining</button>
+            <span class="merge-progress" id="mrg-progress"></span>
+        </div>
+        <div class="merge-list" id="mrg-list"></div>
+        <menu>
+            <button type="button" class="btn-secondary" id="mrg-export-btn">Export plan CSV</button>
+            <button type="button" class="btn-primary" onclick="document.getElementById('merge-dialog').close()">Close</button>
         </menu>
     </dialog>
 
@@ -5484,6 +5543,39 @@
             return mapping;
         }
 
+        // One spreadsheet row → a fully-defaulted role object, applying header
+        // aliasing and per-field coercion. Shared by the import/Compare parser and the
+        // Merge parser. A blank Role ID falls back to a positional 'R{n}' id; pass
+        // index = -1 to disable that fallback (Merge needs a real id to match on).
+        function rowToRole(row, headerMap, index) {
+            const role = {
+                roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
+                managerRoleId: '', department: '', costToCompany: 0,
+                location: '', incumbentGender: '', employmentType: 'Permanent',
+                workingPattern: 'Full-time', comments: '', tags: [],
+                dottedManagerIds: []
+            };
+            Object.entries(row).forEach(([col, val]) => {
+                const field = headerMap[col];
+                if (field) {
+                    if (field === 'costToCompany') {
+                        role[field] = parseFloat(val) || 0;
+                    } else if (field === 'status') {
+                        const s = String(val).toLowerCase().trim();
+                        role[field] = ['filled','vacant','pending start','planned','on hold','sunsetting','removed','earmarked'].includes(s) ? s : 'planned';
+                    } else if (field === 'tags') {
+                        role[field] = parseTagString(val);
+                    } else if (field === 'dottedManagerIds') {
+                        role[field] = parseDottedIdsString(val);
+                    } else {
+                        role[field] = String(val);
+                    }
+                }
+            });
+            if (!role.roleId && index >= 0) role.roleId = 'R' + (index + 1);
+            return role;
+        }
+
         // Pure parser: first sheet of a CSV/XLSX ArrayBuffer → roles array. No global
         // state is touched, so it serves both real imports and the Compare feature.
         function parseRolesFromArrayBuffer(arrayBuffer) {
@@ -5492,36 +5584,35 @@
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
             if (!jsonData.length) return [];
+            const headerMap = mapHeaders(Object.keys(jsonData[0]));
+            return jsonData.map((row, i) => rowToRole(row, headerMap, i));
+        }
+
+        // Merge parser: like parseRolesFromArrayBuffer, but additionally reports which
+        // columns the file actually contained — so a merge can leave absent columns
+        // untouched instead of overwriting them with parser defaults (e.g. a file
+        // exported without "Cost to Company" must not zero out salaries). Rows with no
+        // Role ID are skipped (merge matches on Role ID; the positional 'R{n}' fallback
+        // is disabled to avoid spurious matches). Duplicate Role IDs: last row wins.
+        function parseRolesForMerge(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+            if (!jsonData.length) return { roles: [], presentFields: new Set(), skippedNoId: 0, hasRoleIdColumn: false };
 
             const headerMap = mapHeaders(Object.keys(jsonData[0]));
-            return jsonData.map((row, i) => {
-                const role = {
-                    roleId: '', roleTitle: '', status: 'planned', incumbentName: '',
-                    managerRoleId: '', department: '', costToCompany: 0,
-                    location: '', incumbentGender: '', employmentType: 'Permanent',
-                    workingPattern: 'Full-time', comments: '', tags: [],
-                    dottedManagerIds: []
-                };
-                Object.entries(row).forEach(([col, val]) => {
-                    const field = headerMap[col];
-                    if (field) {
-                        if (field === 'costToCompany') {
-                            role[field] = parseFloat(val) || 0;
-                        } else if (field === 'status') {
-                            const s = String(val).toLowerCase().trim();
-                            role[field] = ['filled','vacant','pending start','planned','on hold','sunsetting','removed','earmarked'].includes(s) ? s : 'planned';
-                        } else if (field === 'tags') {
-                            role[field] = parseTagString(val);
-                        } else if (field === 'dottedManagerIds') {
-                            role[field] = parseDottedIdsString(val);
-                        } else {
-                            role[field] = String(val);
-                        }
-                    }
-                });
-                if (!role.roleId) role.roleId = 'R' + (i + 1);
-                return role;
+            const presentFields = new Set(Object.values(headerMap));
+            const hasRoleIdColumn = presentFields.has('roleId');
+
+            let skippedNoId = 0;
+            const byId = new Map(); // dedupe, last wins, first-seen order preserved
+            jsonData.forEach(row => {
+                const role = rowToRole(row, headerMap, -1); // -1 → no positional id fallback
+                if (!role.roleId) { skippedNoId++; return; }
+                byId.set(role.roleId, role);
             });
+            return { roles: [...byId.values()], presentFields, skippedNoId, hasRoleIdColumn };
         }
 
         function recomputeNextId() {
@@ -5883,6 +5974,329 @@
                 aoa.push(['Changed', c.role.roleId, c.role.roleTitle || '', diffFieldLabel(f.field), f.file, f.current])));
             const url = URL.createObjectURL(new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' }));
             triggerDownload(url, _lastDiff.exportName || 'org-chart-diff.csv');
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Merge (apply changes from a previously exported subset file) ---
+        // The picked file is the source of changes; the in-memory data is the target
+        // ("main file"). Roles are matched by Role ID. Only adds and updates are
+        // applied — never deletions. The merge is column-aware: only fields whose
+        // column was present in the file are compared/overwritten, so a subset
+        // exported without (say) Cost to Company can't blank out salaries on merge.
+        let _mergePlan = null;     // { items, addCount, editCount, inSyncCount, skippedNoId, presentFields }
+        let _mergeFileName = '';
+
+        async function mergeFromFile() {
+            if (!roles.length) { alert('No current data to merge into — open or add roles first.'); return; }
+            if (HAS_FSA) {
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        types: [{
+                            description: 'Org chart data',
+                            accept: {
+                                'text/csv': ['.csv'],
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                                'application/vnd.ms-excel': ['.xls']
+                            }
+                        }],
+                        excludeAcceptAllOption: false,
+                        multiple: false
+                    });
+                    const file = await handle.getFile();
+                    runMerge(await file.arrayBuffer(), file.name);
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return; // user cancelled
+                    alert('Error opening merge file: ' + (err && err.message || err));
+                }
+            } else {
+                document.getElementById('merge-file-input').click();
+            }
+        }
+
+        function mergeFileInput(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) { runMerge(e.target.result, file.name); };
+            reader.readAsArrayBuffer(file);
+            event.target.value = ''; // allow re-picking the same file
+        }
+
+        function runMerge(arrayBuffer, fileName) {
+            let parsed;
+            try {
+                parsed = parseRolesForMerge(arrayBuffer);
+            } catch (err) {
+                alert('Could not read the merge file: ' + (err && err.message || err));
+                return;
+            }
+            if (!parsed.hasRoleIdColumn) {
+                alert('This file has no Role ID column, so its changes cannot be matched. Merge needs a "Role ID" column.');
+                return;
+            }
+            if (!parsed.roles.length) {
+                alert('No rows with a Role ID were found in the file.' +
+                    (parsed.skippedNoId ? ' (' + parsed.skippedNoId + ' row(s) had a blank Role ID.)' : ''));
+                return;
+            }
+            const plan = computeMergePlan(parsed.roles, parsed.presentFields);
+            plan.skippedNoId = parsed.skippedNoId;
+            if (!plan.items.length) {
+                showToast('Nothing to merge — all ' + parsed.roles.length + ' role(s) in the file already match the current data.' +
+                    (parsed.skippedNoId ? '\n' + parsed.skippedNoId + ' row(s) skipped (no Role ID).' : ''));
+                return;
+            }
+            openMergeDialog(plan, fileName);
+        }
+
+        // Build the per-record change list. Adds = file role IDs absent from the
+        // current data; updates = matched roles with at least one differing present
+        // field. A manager (reporting-line) change is split out as `managerMove` so it
+        // can be shown with parent detail; other field changes go in `fieldChanges`.
+        function computeMergePlan(fileRoles, presentFields) {
+            const cmpFields = EXPORT_FIELDS.filter(f => f !== 'roleId' && f !== 'managerRoleId' && presentFields.has(f));
+            const items = [];
+            let inSyncCount = 0;
+            let nextId = 0;
+            fileRoles.forEach(fileRole => {
+                const cur = roles.find(r => r.roleId === fileRole.roleId);
+                if (!cur) {
+                    items.push({ id: nextId++, type: 'add', roleId: fileRole.roleId, fileRole: fileRole,
+                        currentRole: null, fieldChanges: [], managerMove: null, applied: false });
+                    return;
+                }
+                let managerMove = null;
+                if (presentFields.has('managerRoleId') &&
+                    diffCellValue(cur, 'managerRoleId') !== diffCellValue(fileRole, 'managerRoleId')) {
+                    managerMove = { from: cur.managerRoleId || '', to: fileRole.managerRoleId || '' };
+                }
+                const fieldChanges = cmpFields
+                    .filter(f => diffCellValue(cur, f) !== diffCellValue(fileRole, f))
+                    .map(f => ({ field: f, oldVal: diffCellValue(cur, f), newVal: diffCellValue(fileRole, f) }));
+                if (fieldChanges.length || managerMove) {
+                    items.push({ id: nextId++, type: 'edit', roleId: fileRole.roleId, fileRole: fileRole,
+                        currentRole: cur, fieldChanges: fieldChanges, managerMove: managerMove, applied: false });
+                } else {
+                    inSyncCount++;
+                }
+            });
+            // Adds first, then updates; file order preserved within each group.
+            items.sort((a, b) => (a.type === b.type) ? a.id - b.id : (a.type === 'add' ? -1 : 1));
+            return {
+                items: items,
+                addCount: items.filter(i => i.type === 'add').length,
+                editCount: items.filter(i => i.type === 'edit').length,
+                inSyncCount: inSyncCount,
+                presentFields: presentFields
+            };
+        }
+
+        // "id — Title" for a manager, resolved from the current data first, then from
+        // any not-yet-applied add in the same plan (a new manager may itself be an add).
+        function mergeManagerLabel(id) {
+            if (!id) return '(root)';
+            let r = roles.find(x => x.roleId === id);
+            if (!r && _mergePlan) {
+                const it = _mergePlan.items.find(i => i.type === 'add' && i.roleId === id);
+                if (it) r = it.fileRole;
+            }
+            return id + (r && r.roleTitle ? ' — ' + r.roleTitle : '');
+        }
+
+        function mergeFieldDisplay(role, field) {
+            if (field === 'tags') return tagsToString(role.tags || []);
+            if (field === 'dottedManagerIds') return dottedIdsToString(role.dottedManagerIds || []);
+            if (field === 'managerRoleId') return mergeManagerLabel(role.managerRoleId || '');
+            if (field === 'costToCompany') return Number(role.costToCompany || 0).toLocaleString();
+            return String(role[field] == null ? '' : role[field]);
+        }
+
+        function openMergeDialog(plan, fileName) {
+            _mergePlan = plan;
+            _mergeFileName = fileName;
+            document.getElementById('mrg-filename').textContent = fileName;
+
+            let chips =
+                '<span class="cmp-chip">' + plan.addCount + ' to add</span>' +
+                '<span class="cmp-chip">' + plan.editCount + ' to update</span>' +
+                '<span class="cmp-chip">' + plan.inSyncCount + ' already in sync</span>';
+            if (plan.skippedNoId) chips += '<span class="cmp-chip">' + plan.skippedNoId + ' row(s) skipped (no Role ID)</span>';
+            document.getElementById('mrg-chips').innerHTML = chips;
+
+            const list = document.getElementById('mrg-list');
+            list.innerHTML = '';
+            plan.items.forEach(item => list.appendChild(buildMergeItemEl(item)));
+            updateMergeProgress();
+
+            document.getElementById('mrg-apply-all-btn').onclick = applyAllRemaining;
+            document.getElementById('mrg-export-btn').onclick = exportMergePlanCSV;
+            document.getElementById('merge-dialog').showModal();
+        }
+
+        // Interactive controls are built with DOM APIs; only the read-only detail
+        // block uses innerHTML, with escapeHtml() applied to every value.
+        function buildMergeItemEl(item) {
+            const el = document.createElement('div');
+            el.className = 'merge-item' + (item.applied ? ' applied' : '');
+            el.dataset.itemId = item.id;
+
+            const action = document.createElement('div');
+            action.className = 'merge-item-action';
+            if (item.applied) {
+                const badge = document.createElement('span');
+                badge.className = 'merge-applied-badge';
+                badge.textContent = '✓ Applied';
+                action.appendChild(badge);
+            } else {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-primary btn-small';
+                btn.textContent = 'Apply';
+                btn.onclick = () => applyMergeItem(item.id);
+                action.appendChild(btn);
+            }
+            el.appendChild(action);
+
+            const body = document.createElement('div');
+            body.className = 'merge-item-body';
+
+            const head = document.createElement('div');
+            head.className = 'merge-item-head';
+            const typeBadge = document.createElement('span');
+            typeBadge.className = 'merge-badge ' + (item.type === 'add' ? 'add' : 'update');
+            typeBadge.textContent = item.type === 'add' ? 'Add' : 'Update';
+            head.appendChild(typeBadge);
+            if (item.managerMove) {
+                const moveBadge = document.createElement('span');
+                moveBadge.className = 'merge-badge move';
+                moveBadge.textContent = 'Move';
+                head.appendChild(moveBadge);
+            }
+            const roleLabel = document.createElement('span');
+            roleLabel.className = 'merge-role';
+            const title = item.type === 'add'
+                ? item.fileRole.roleTitle
+                : (item.currentRole.roleTitle || item.fileRole.roleTitle);
+            roleLabel.textContent = item.roleId + (title ? ' — ' + title : '');
+            head.appendChild(roleLabel);
+            body.appendChild(head);
+
+            const detail = document.createElement('div');
+            detail.className = 'merge-detail';
+            detail.innerHTML = item.type === 'add' ? mergeAddDetailHtml(item) : mergeEditDetailHtml(item);
+            body.appendChild(detail);
+
+            el.appendChild(body);
+            return el;
+        }
+
+        function mergeAddDetailHtml(item) {
+            const r = item.fileRole;
+            const present = _mergePlan.presentFields;
+            const order = ['incumbentName','status','managerRoleId','department','location',
+                'employmentType','workingPattern','costToCompany','incumbentGender','tags','dottedManagerIds','comments'];
+            const rows = [];
+            order.forEach(f => {
+                if (!present.has(f)) return;
+                if (f === 'costToCompany' && Number(r.costToCompany || 0) === 0) return;
+                const val = mergeFieldDisplay(r, f);
+                if (val === '' || val === '(root)') return;
+                rows.push('<span class="cmp-field-line merge-kv"><b>' + escapeHtml(diffFieldLabel(f)) + ':</b> ' + escapeHtml(val) + '</span>');
+            });
+            if (!rows.length) rows.push('<span class="cmp-field-line merge-kv">New role — no further details in the file.</span>');
+            return rows.join('');
+        }
+
+        function mergeEditDetailHtml(item) {
+            let html = '';
+            if (item.managerMove) {
+                html += '<span class="cmp-field-line merge-move-line">Manager: ' +
+                    escapeHtml(mergeManagerLabel(item.managerMove.from)) + ' → ' +
+                    escapeHtml(mergeManagerLabel(item.managerMove.to)) + '</span>';
+            }
+            html += item.fieldChanges.map(f =>
+                '<span class="cmp-field-line">' + escapeHtml(diffFieldLabel(f.field)) + ': ' +
+                escapeHtml(f.oldVal === '' ? '(empty)' : f.oldVal) + ' → ' +
+                escapeHtml(f.newVal === '' ? '(empty)' : f.newVal) + '</span>').join('');
+            return html;
+        }
+
+        // Mutate the in-memory data for one item. No undo / validation / render here —
+        // the callers (applyMergeItem, applyAllRemaining) own those so a single Apply
+        // and an Apply-all batch can each be one undo step.
+        function performMergeMutation(item) {
+            if (item.type === 'add') {
+                roles.push(item.fileRole);
+                return;
+            }
+            const role = roles.find(r => r.roleId === item.roleId);
+            if (!role) return; // defensive: the modal blocks concurrent edits
+            if (item.managerMove) applyRoleField(role, 'managerRoleId', item.fileRole.managerRoleId || '');
+            item.fieldChanges.forEach(fc => applyRoleField(role, fc.field, item.fileRole[fc.field]));
+        }
+
+        function applyMergeItem(id) {
+            const item = _mergePlan && _mergePlan.items.find(i => i.id === id);
+            if (!item || item.applied) return;
+            pushUndo(item.type === 'add' ? 'Merge add ' + item.roleId : 'Merge update ' + item.roleId);
+            performMergeMutation(item);
+            recomputeNextId();
+            validateRoles();
+            render();
+            markDirty();
+            item.applied = true;
+            refreshMergeItemEl(item);
+            updateMergeProgress();
+        }
+
+        function applyAllRemaining() {
+            if (!_mergePlan) return;
+            const pending = _mergePlan.items.filter(i => !i.applied);
+            if (!pending.length) return;
+            pushUndo('Merge ' + pending.length + ' change' + (pending.length === 1 ? '' : 's'));
+            pending.forEach(performMergeMutation);
+            recomputeNextId();
+            validateRoles();
+            render();
+            markDirty();
+            pending.forEach(item => { item.applied = true; refreshMergeItemEl(item); });
+            updateMergeProgress();
+        }
+
+        function refreshMergeItemEl(item) {
+            const list = document.getElementById('mrg-list');
+            const old = list.querySelector('[data-item-id="' + item.id + '"]');
+            if (old) list.replaceChild(buildMergeItemEl(item), old);
+        }
+
+        function updateMergeProgress() {
+            const items = _mergePlan.items;
+            const applied = items.filter(i => i.applied).length;
+            document.getElementById('mrg-progress').textContent = applied + ' of ' + items.length + ' applied';
+            const allBtn = document.getElementById('mrg-apply-all-btn');
+            allBtn.disabled = applied >= items.length;
+            allBtn.textContent = applied > 0 ? 'Apply all remaining' : 'Apply all';
+        }
+
+        function exportMergePlanCSV() {
+            if (!_mergePlan) return;
+            const aoa = [['Action', 'Applied', 'Role ID', 'Title', 'Field', 'Current value', 'New value']];
+            _mergePlan.items.forEach(item => {
+                const applied = item.applied ? 'yes' : 'no';
+                if (item.type === 'add') {
+                    aoa.push(['Add', applied, item.roleId, item.fileRole.roleTitle || '', '(new role)', '', '']);
+                    return;
+                }
+                if (item.managerMove) {
+                    aoa.push(['Update', applied, item.roleId, item.currentRole.roleTitle || '',
+                        'Manager Role ID', item.managerMove.from, item.managerMove.to]);
+                }
+                item.fieldChanges.forEach(fc =>
+                    aoa.push(['Update', applied, item.roleId, item.currentRole.roleTitle || '',
+                        diffFieldLabel(fc.field), fc.oldVal, fc.newVal]));
+            });
+            const url = URL.createObjectURL(new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' }));
+            triggerDownload(url, 'org-chart-merge-plan.csv');
             URL.revokeObjectURL(url);
         }
 
