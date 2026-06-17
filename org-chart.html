@@ -1700,6 +1700,8 @@
                                 <button class="btn-secondary btn-small" onclick="exportCSV()">&#11015; CSV</button>
                                 <span class="control-divider"></span>
                                 <button class="btn-secondary btn-small" onclick="exportExcel()">&#11015; Excel</button>
+                                <span class="control-divider"></span>
+                                <button class="btn-secondary btn-small" onclick="copyChartForSmartArt()" title="Copy an indented outline — Title (Incumbent), tabs for levels — ready to paste into a PowerPoint SmartArt graphic">&#128203; Copy for PowerPoint SmartArt</button>
                             </div>
                         </div>
                     </div>
@@ -6573,6 +6575,64 @@
         function exportCSV() { openExportFieldsDialog('csv'); }
 
         function exportExcel() { openExportFieldsDialog('xlsx'); }
+
+        // --- Copy for PowerPoint SmartArt ---
+        // Emits the *visible* chart (same filters + "show from" focus the other exports
+        // honour, via getFilteredRoles) as a tab-indented outline. One line per role:
+        // "Title (Incumbent)", with one leading tab per depth level. Pasting this into a
+        // PowerPoint SmartArt Text Pane reproduces the hierarchy (tabs = demote a level).
+        // Walks toNestedChartData() — the exact tree the chart renders — so structure,
+        // child order, and the synthetic "Organization" root (when there are multiple
+        // top-level roles) all match what's on screen.
+        function smartArtLabel(node) {
+            const title = (node.roleTitle && String(node.roleTitle).trim()) || node.roleId;
+            const inc = node.incumbentName && String(node.incumbentName).trim();
+            const label = inc ? title + ' (' + inc + ')' : title;
+            return label.replace(/[\t\r\n]+/g, ' '); // keep tabs/newlines out so they can't corrupt the levels
+        }
+
+        function copyChartForSmartArt() {
+            const filtered = getFilteredRoles();
+            if (!filtered.length) { showToast('No roles to copy — adjust filters or add data.'); return; }
+            const tree = toNestedChartData(filtered);
+            if (!tree) { showToast('Unable to build the chart outline.'); return; }
+
+            const lines = [];
+            (function walk(node, depth) {
+                lines.push('\t'.repeat(depth) + smartArtLabel(node));
+                (node.children || []).forEach(c => walk(c, depth + 1));
+            })(tree, 0);
+
+            const text = lines.join('\r\n');
+            const count = lines.length;
+            copyPlainText(text).then(function() {
+                showToast('Copied ' + count + ' role(s) — paste into a PowerPoint SmartArt graphic (Text Pane).');
+            }).catch(function() {
+                showToast('Could not copy to the clipboard automatically. Try a browser tab (http://) rather than a file opened directly.');
+            });
+        }
+
+        // Clipboard helper with a file:// fallback: navigator.clipboard needs a secure
+        // context (often absent when the page is opened directly as a local file), so
+        // fall back to a hidden <textarea> + execCommand('copy').
+        function copyPlainText(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+                return navigator.clipboard.writeText(text);
+            }
+            return new Promise(function(resolve, reject) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.top = '-1000px';
+                ta.setAttribute('readonly', '');
+                document.body.appendChild(ta);
+                ta.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                ok ? resolve() : reject(new Error('copy failed'));
+            });
+        }
 
         // --- Render ---
         function render() {
