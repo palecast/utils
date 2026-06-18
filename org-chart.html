@@ -236,6 +236,48 @@
             cursor: pointer;
         }
 
+        /* Split-button export menus (Image / Data) */
+        .export-menu-btn { display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .export-menu-caret { font-size: 0.6rem; opacity: 0.7; }
+        .export-menu { padding: 4px; min-width: 200px; }
+        .export-menu-note {
+            margin: 2px 6px 4px;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            color: #6B5F54;
+        }
+        .export-menu-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+            width: 100%;
+            padding: 7px 10px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #3A2F28;
+            text-align: left;
+            cursor: pointer;
+        }
+        .export-menu-item:hover { background: #EFEBE4; }
+        .export-menu-desc {
+            font-size: 0.72rem;
+            font-weight: 400;
+            color: #6B5F54;
+        }
+
+        /* Caption under a control-section label clarifying what an action affects */
+        .control-section-hint {
+            margin: 0 2px 2px;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            color: #6B5F54;
+        }
+        .control-section-hint strong { color: #4A5D47; font-weight: 600; }
+
         button:disabled { opacity: 0.45; cursor: not-allowed; }
         button:disabled:hover { background: #4A5D47; }
 
@@ -1691,17 +1733,28 @@
                         <div class="control-section" data-section="export">
                             <div class="control-section-label">Export</div>
                             <div class="control-section-body">
+                                <p class="control-section-hint">Exports cover only the roles in the <strong>current view</strong> — your filters &amp; focus are applied.</p>
                                 <button class="btn-secondary btn-small" onclick="printChart()">&#128424; Print</button>
                                 <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="downloadPNG()">&#11015; PNG</button>
+                                <div class="filter-container" id="image-export-container">
+                                    <button class="btn-secondary btn-small export-menu-btn" id="image-export-btn" onclick="toggleExportMenu('image-export')" title="Save the current chart view as an image">&#127912; Image&hellip; <span class="export-menu-caret">&#9662;</span></button>
+                                    <div class="filter-values export-menu" id="image-export-dropdown">
+                                        <p class="export-menu-note">Captures the chart exactly as shown, including the visible fields.</p>
+                                        <button type="button" class="export-menu-item" onclick="downloadPNG(); closeExportMenu('image-export')">PNG<span class="export-menu-desc">Raster image — best for slides &amp; docs</span></button>
+                                        <button type="button" class="export-menu-item" onclick="downloadSVG(); closeExportMenu('image-export')">SVG<span class="export-menu-desc">Vector image — scales without blur</span></button>
+                                    </div>
+                                </div>
                                 <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="downloadSVG()" title="Vector image — opens in browsers">&#11015; SVG</button>
+                                <div class="filter-container" id="data-export-container">
+                                    <button class="btn-secondary btn-small export-menu-btn" id="data-export-btn" onclick="toggleExportMenu('data-export')" title="Export the underlying role data (choose columns next)">&#128202; Data&hellip; <span class="export-menu-caret">&#9662;</span></button>
+                                    <div class="filter-values export-menu" id="data-export-dropdown">
+                                        <p class="export-menu-note">Same roles as the view; you choose which columns to include next.</p>
+                                        <button type="button" class="export-menu-item" onclick="exportExcel(); closeExportMenu('data-export')">Excel<span class="export-menu-desc">.xlsx workbook</span></button>
+                                        <button type="button" class="export-menu-item" onclick="exportCSV(); closeExportMenu('data-export')">CSV<span class="export-menu-desc">Plain text — opens anywhere</span></button>
+                                    </div>
+                                </div>
                                 <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="exportCSV()">&#11015; CSV</button>
-                                <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="exportExcel()">&#11015; Excel</button>
-                                <span class="control-divider"></span>
-                                <button class="btn-secondary btn-small" onclick="copyChartForSmartArt()" title="Copy an indented outline — Title (Incumbent), tabs for levels — ready to paste into a PowerPoint SmartArt graphic">&#128203; Copy for PowerPoint SmartArt</button>
+                                <button class="btn-secondary btn-small" onclick="copyChartForSmartArt()" title="Copy an indented outline — Title (Incumbent), tabs for levels — ready to paste into a PowerPoint SmartArt graphic">&#128203; PowerPoint SmartArt</button>
                             </div>
                         </div>
                     </div>
@@ -3416,6 +3469,8 @@
                 pairs.push(['tag-filter-btn' + sfx, 'tag-filter-dropdown' + sfx]);
             });
             pairs.push(['fields-btn', 'fields-dropdown']);
+            pairs.push(['image-export-btn', 'image-export-dropdown']);
+            pairs.push(['data-export-btn', 'data-export-dropdown']);
             pairs.push(['focus-picker-btn', 'focus-picker-dropdown']);
             pairs.push(['focus-picker-btn-pivot', 'focus-picker-dropdown-pivot']);
             pairs.forEach(([btnId, ddId]) => {
@@ -3556,6 +3611,19 @@
             if (!dd) return;
             if (dd.classList.contains('open')) closeFloatingDropdown(dd);
             else openFloatingDropdown(dd, btn);
+        }
+
+        // Split-button export menus (Image -> PNG/SVG, Data -> Excel/CSV).
+        function toggleExportMenu(key) {
+            const dd = document.getElementById(key + '-dropdown');
+            const btn = document.getElementById(key + '-btn');
+            if (!dd) return;
+            if (dd.classList.contains('open')) closeFloatingDropdown(dd);
+            else openFloatingDropdown(dd, btn);
+        }
+        function closeExportMenu(key) {
+            const dd = document.getElementById(key + '-dropdown');
+            if (dd) closeFloatingDropdown(dd);
         }
 
         // --- Depth controls ---
