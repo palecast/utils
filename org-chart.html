@@ -491,6 +491,7 @@
         .subtree-crumb.current { color: #3A2F28; font-weight: 600; cursor: default; }
         .subtree-crumb.current:hover { text-decoration: none; }
         .subtree-crumb-sep { color: #9a8f84; }
+        .subtree-zoom { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #3A2F28; }
         #subtree-chart-container {
             flex: 1;
             min-height: 0;
@@ -2162,6 +2163,12 @@
         <div class="subtree-header">
             <button type="button" class="btn-secondary btn-small" id="subtree-back-btn">&lsaquo; Back</button>
             <div class="subtree-breadcrumb" id="subtree-breadcrumb"></div>
+            <div class="subtree-zoom">
+                <button type="button" class="btn-secondary btn-small" id="subtree-zoom-out" title="Zoom out (&minus;10%)  [&minus;]">&minus;</button>
+                <span id="subtree-zoom-pct" class="zoom-pct" title="Reset to 100%  [0]">100%</span>
+                <button type="button" class="btn-secondary btn-small" id="subtree-zoom-in" title="Zoom in (+10%)  [+]">+</button>
+                <button type="button" class="btn-secondary btn-small" id="subtree-zoom-fit" title="Fit to view  [1]" aria-label="Fit to view">&#10530;</button>
+            </div>
             <button type="button" class="btn-secondary btn-small" onclick="document.getElementById('subtree-dialog').close()">Close</button>
         </div>
         <div id="subtree-chart-container"></div>
@@ -4589,8 +4596,21 @@
 
         function clampZoom(s) { return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, s)); }
 
-        function setZoom(targetScale, originX, originY) {
-            const oc = getOrgchartEl();
+        // Zoom "context": which .orgchart, its scroll container, and the ids of the
+        // %-badge and +/- buttons to keep in sync. The main chart and the subtree
+        // popup each get one so all zoom plumbing below is shared.
+        function mainZoomCtx() {
+            return { oc: getOrgchartEl(), container: document.getElementById('chart-container'),
+                     pctId: 'zoom-pct', minusId: 'zoom-out', plusId: 'zoom-in' };
+        }
+        function subtreeZoomCtx() {
+            return { oc: document.querySelector('#subtree-chart-container .orgchart'),
+                     container: document.getElementById('subtree-chart-container'),
+                     pctId: 'subtree-zoom-pct', minusId: 'subtree-zoom-out', plusId: 'subtree-zoom-in' };
+        }
+
+        function setZoomFor(ctx, targetScale, originX, originY) {
+            const oc = ctx.oc;
             if (!oc) return;
             const m = readMatrix(oc);
             const oldScale = m.a || 1;
@@ -4603,27 +4623,31 @@
             m.a = newScale;
             m.d = newScale;
             oc.style.transform = m.toString();
-            updateZoomBadge();
+            updateZoomBadgeFor(ctx);
         }
+        function setZoom(targetScale, originX, originY) { setZoomFor(mainZoomCtx(), targetScale, originX, originY); }
 
-        function updateZoomBadge() {
-            const oc = getOrgchartEl();
-            const pct = document.getElementById('zoom-pct');
-            const minus = document.getElementById('zoom-out');
-            const plus = document.getElementById('zoom-in');
+        function updateZoomBadgeFor(ctx) {
+            const oc = ctx.oc;
+            const pct = document.getElementById(ctx.pctId);
+            const minus = document.getElementById(ctx.minusId);
+            const plus = document.getElementById(ctx.plusId);
             if (!pct || !oc) return;
             const s = readMatrix(oc).a || 1;
             pct.textContent = Math.round(s * 100) + '%';
             if (minus) minus.disabled = s <= ZOOM_MIN + 1e-6;
             if (plus)  plus.disabled  = s >= ZOOM_MAX - 1e-6;
         }
+        function updateZoomBadge() { updateZoomBadgeFor(mainZoomCtx()); }
 
-        // Scale + recenter the chart to fit entirely within #chart-container.
+        // Scale + recenter the chart to fit entirely within its container.
         // Uses the existing transform/zoom plumbing so the zoom badge and min/max
         // clamping stay consistent with the +/- controls and wheel zoom.
-        function fitChartToView() {
-            const oc = getOrgchartEl();
-            const container = document.getElementById('chart-container');
+        // opts.maxScale caps the fit (auto-fit on popup open passes 1 so small
+        // subtrees aren't blown up past 100%; the fit buttons pass nothing).
+        function fitChartToViewFor(ctx, opts) {
+            const oc = ctx.oc;
+            const container = ctx.container;
             if (!oc || !container) return;
 
             // Clear the transform so offsetWidth/Height reflect the natural
@@ -4641,7 +4665,8 @@
             }
 
             const margin = 0.95;
-            const fitScale = Math.min(containerW / naturalW, containerH / naturalH) * margin;
+            let fitScale = Math.min(containerW / naturalW, containerH / naturalH) * margin;
+            if (opts && opts.maxScale != null) fitScale = Math.min(fitScale, opts.maxScale);
             const newScale = clampZoom(fitScale);
 
             // Default transform-origin (50% 50%) keeps the scaled visual
@@ -4656,8 +4681,9 @@
             container.scrollLeft = Math.max(0, (naturalW - containerW) / 2);
             container.scrollTop  = Math.max(0, (naturalH - containerH) / 2);
 
-            updateZoomBadge();
+            updateZoomBadgeFor(ctx);
         }
+        function fitChartToView() { fitChartToViewFor(mainZoomCtx()); }
 
         // --- Locate / search ---
         // Inverse of collapseHierarchyNode. The descendant strips are deliberately
@@ -5200,6 +5226,9 @@
                 createNode: function($node, data) { wireSubtreeNode($node, data); }
             });
             applyTwoColMarkers(container, tree);
+            // Scale to fit the dialog. Cap at 100% so small subtrees keep their
+            // natural card size — the fit button offers the uncapped fit.
+            fitChartToViewFor(subtreeZoomCtx(), { maxScale: 1 });
         }
 
         // Popup nodes: same card template, different interactions — badge = drill
@@ -5618,20 +5647,24 @@
             const t = e.target;
             if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
 
+            // While the subtree popup is open the hotkeys drive its chart, not the
+            // main one hidden behind the modal.
+            const ctx = document.getElementById('subtree-dialog').open ? subtreeZoomCtx() : mainZoomCtx();
+
             let handled = false;
             if (e.key === '+' || e.key === '=') {
-                const s = readMatrix(getOrgchartEl()).a || 1;
-                setZoom(s + ZOOM_BTN_STEP);
+                const s = readMatrix(ctx.oc).a || 1;
+                setZoomFor(ctx, s + ZOOM_BTN_STEP);
                 handled = true;
             } else if (e.key === '-' || e.key === '_') {
-                const s = readMatrix(getOrgchartEl()).a || 1;
-                setZoom(s - ZOOM_BTN_STEP);
+                const s = readMatrix(ctx.oc).a || 1;
+                setZoomFor(ctx, s - ZOOM_BTN_STEP);
                 handled = true;
             } else if (e.key === '0') {
-                setZoom(1);
+                setZoomFor(ctx, 1);
                 handled = true;
             } else if (e.key === '1') {
-                fitChartToView();
+                fitChartToViewFor(ctx);
                 handled = true;
             }
             if (handled) e.preventDefault();
@@ -7196,10 +7229,35 @@
         // natively and fires 'close', so cleanup runs on every exit path.
         document.getElementById('subtree-back-btn').addEventListener('click', subtreeBack);
         document.getElementById('subtree-dialog').addEventListener('close', function() {
+            // The close event fires on a queued task — if the dialog has already
+            // been reopened by then (close + open in the same tick), leave the
+            // freshly rendered chart alone.
+            if (this.open) return;
             const c = document.getElementById('subtree-chart-container');
             while (c.firstChild) c.removeChild(c.firstChild);
             subtreeStack = [];
         });
+        // Popup zoom controls — mirror the sidebar's main-chart set
+        document.getElementById('subtree-zoom-out').addEventListener('click', function() {
+            const ctx = subtreeZoomCtx();
+            setZoomFor(ctx, (readMatrix(ctx.oc).a || 1) - ZOOM_BTN_STEP);
+        });
+        document.getElementById('subtree-zoom-in').addEventListener('click', function() {
+            const ctx = subtreeZoomCtx();
+            setZoomFor(ctx, (readMatrix(ctx.oc).a || 1) + ZOOM_BTN_STEP);
+        });
+        document.getElementById('subtree-zoom-pct').addEventListener('click', function() { setZoomFor(subtreeZoomCtx(), 1); });
+        document.getElementById('subtree-zoom-fit').addEventListener('click', function() { fitChartToViewFor(subtreeZoomCtx()); });
+        // Wheel zoom inside the popup chart, same behavior as the main container
+        document.getElementById('subtree-chart-container').addEventListener('wheel', function(e) {
+            const ctx = subtreeZoomCtx();
+            if (!ctx.oc) return;
+            e.preventDefault();
+            const dir = e.deltaY > 0 ? -1 : 1;
+            const s = readMatrix(ctx.oc).a || 1;
+            const rect = ctx.container.getBoundingClientRect();
+            setZoomFor(ctx, s + dir * ZOOM_WHEEL_STEP, e.clientX - rect.left, e.clientY - rect.top);
+        }, { passive: false });
     </script>
 </body>
 </html>
