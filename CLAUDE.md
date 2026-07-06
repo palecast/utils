@@ -46,7 +46,8 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 - **Chart.js** (`cdn.jsdelivr.net/npm/chart.js`) — used by `currency-converter.html` and `ccy-tracker.html`
 - **DM Serif Display, Work Sans** (Google Fonts) — used only by `ccy-tracker.html` (intentional design exception)
 - **Tabulator** (`cdn.jsdelivr.net/npm/tabulator-tables@6`) — used by `org-chart.html` for the table/grid view
-- **d3-org-chart** (`cdn.jsdelivr.net/npm/d3-org-chart@3`) + **d3-flextree** — used by `org-chart.html` for the tree visualization
+- **OrgChart (Dabeng)** (`cdn.jsdelivr.net/npm/orgchart@5`) + **jQuery 3.7.1** — used by `org-chart.html` for the tree visualization
+- **html2canvas** (`cdn.jsdelivr.net/npm/html2canvas@1.4.1`) — used by `org-chart.html` for PNG export/print
 - **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx`) — used by `org-chart.html` for Excel import/export
 - **frankfurter.dev API** (`api.frankfurter.dev/v1`) — live and historical ECB exchange rates, used by both currency tools. No API key required.
 

@@ -343,6 +343,7 @@
         #compare-dialog,
         #merge-dialog,
         #export-fields-dialog,
+        #subtree-dialog,
         #role-editor-dialog {
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 12px;
@@ -361,6 +362,7 @@
         #compare-dialog::backdrop,
         #merge-dialog::backdrop,
         #export-fields-dialog::backdrop,
+        #subtree-dialog::backdrop,
         #role-editor-dialog::backdrop { background: rgba(58,47,40,0.35); }
         #saveas-dialog h3,
         #rename-dialog h3,
@@ -468,6 +470,41 @@
         .merge-detail .merge-kv { color: #6B5F54; }
         .merge-detail .merge-kv b { color: #3A2F28; font-weight: 600; }
         .merge-applied-badge { font-size: 0.8rem; font-weight: 600; color: #4A5D47; white-space: nowrap; }
+
+        /* Subtree popup (mini org chart) dialog */
+        #subtree-dialog { width: min(92vw, 1100px); max-width: 1100px; height: min(85vh, 820px); padding: 16px 20px; }
+        /* [open] only — must not override the UA's display:none when closed */
+        #subtree-dialog[open] { display: flex; flex-direction: column; }
+        .subtree-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .subtree-breadcrumb {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+            color: #6B5F54;
+        }
+        .subtree-crumb { cursor: pointer; color: #4A5D47; }
+        .subtree-crumb:hover { text-decoration: underline; }
+        .subtree-crumb.current { color: #3A2F28; font-weight: 600; cursor: default; }
+        .subtree-crumb.current:hover { text-decoration: none; }
+        .subtree-crumb-sep { color: #9a8f84; }
+        #subtree-chart-container {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            overflow: auto;
+            text-align: center;
+            border: 1px solid rgba(74,93,71,0.12);
+            border-radius: 8px;
+            background: #FAF8F5;
+        }
+        /* Drill-down in the popup is via the badge only — suppress Dabeng's hover edges/toggles there */
+        #subtree-chart-container .edge, #subtree-chart-container .toggleBtn { display: none !important; }
+        .subtree-hint { font-size: 0.72rem; color: #6B5F54; margin-top: 8px; }
+
         #dotted-picker-dialog { width: min(420px, 92vw); }
         #dotted-picker-dialog .saveas-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
         #dotted-picker-dialog label { font-size: 0.8rem; font-weight: 600; color: #6B5F54; }
@@ -991,12 +1028,38 @@
             text-align: center;
         }
 
-        .node-card { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 4px rgba(58,47,40,0.08); }
+        .node-card { position: relative; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 4px rgba(58,47,40,0.08); }
         .node-title-bar { font-size: 0.8rem; font-weight: 600; color: white; padding: 6px 8px; word-wrap: break-word; }
         .node-body { font-size: 0.75rem; padding: 6px 8px; background: white; border: 1px solid rgba(74,93,71,0.12); border-top: none; border-radius: 0 0 6px 6px; }
         .node-incumbent { font-weight: 500; margin-bottom: 2px; }
         .node-status { margin: 2px 0; }
         .node-meta { color: #6B5F54; font-size: 0.7rem; margin-top: 3px; }
+
+        /* Hidden-children badge — bottom-right of the card when children are collapsed/truncated */
+        .node-collapse-badge {
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1px 6px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            line-height: 1.4;
+            color: #4A5D47;
+            background: rgba(74,93,71,0.10);
+            border: 1px solid rgba(74,93,71,0.25);
+            border-radius: 999px;
+            cursor: pointer;
+            user-select: none;
+        }
+        /* The display rule above beats the UA's [hidden] display:none — restore it */
+        .node-collapse-badge[hidden] { display: none; }
+        .node-collapse-badge:hover { background: rgba(74,93,71,0.18); }
+        .node-collapse-badge svg { display: block; }
+        /* Reserve room so the badge doesn't overlap the last body line */
+        .node-card.has-collapse-badge .node-body { padding-bottom: 22px; }
 
         /* Dabeng OrgChart v5 overrides — strip default chrome, tint connectors to sage palette */
         .orgchart { background-image: none !important; padding: 12px !important; }
@@ -2093,6 +2156,16 @@
             <button type="button" class="btn-secondary" id="mrg-export-btn">Export plan CSV</button>
             <button type="button" class="btn-primary" onclick="document.getElementById('merge-dialog').close()">Close</button>
         </menu>
+    </dialog>
+
+    <dialog id="subtree-dialog">
+        <div class="subtree-header">
+            <button type="button" class="btn-secondary btn-small" id="subtree-back-btn">&lsaquo; Back</button>
+            <div class="subtree-breadcrumb" id="subtree-breadcrumb"></div>
+            <button type="button" class="btn-secondary btn-small" onclick="document.getElementById('subtree-dialog').close()">Close</button>
+        </div>
+        <div id="subtree-chart-container"></div>
+        <p class="subtree-hint">Click a badge to drill down &middot; double-click a card to locate it in the main chart</p>
     </dialog>
 
     <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
@@ -3879,7 +3952,14 @@
                 html += '</div>';
             }
 
-            html += '</div></div>';
+            html += '</div>';
+            // Hidden-children badge placeholder — direct child of .node-card so the
+            // absolute position anchors to the card, not the body. Filled/shown by
+            // updateCollapseBadges (main chart) or fillCollapseBadge (subtree popup).
+            html += '<span class="node-collapse-badge" hidden>'
+                  + '<svg width="10" height="10" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 1h4v4H6zM1 11h4v4H1zM11 11h4v4h-4zM7.5 5h1v3.5h-6V11h1V9.5h9V11h1V8.5h-6z"/></svg>'
+                  + '<span class="badge-count"></span></span>';
+            html += '</div>';
             return html;
         }
 
@@ -4318,6 +4398,13 @@
             addItem('Add child', () => addDirectReportById(roleId));
             addItem('Add sibling', () => addSiblingById(roleId));
             addItem('Rename…', () => openRenameDialog(roleId));
+            // Only for roles with children in the current filtered chart (visible or
+            // collapsed) — getFilteredRoles rewrites managerRoleId to the nearest
+            // kept ancestor, so this test matches what the chart actually shows.
+            if (getFilteredRoles().some(r => r.managerRoleId === roleId)) {
+                addSep();
+                addItem('View subtree chart…', () => openSubtreeDialog(roleId));
+            }
             addSep();
             addItem('Add dotted manager…', () => addDottedManagerById(roleId));
             if (Array.isArray(role.dottedManagerIds) && role.dottedManagerIds.length) {
@@ -4378,12 +4465,21 @@
                 }
             });
 
+            // Click on the hidden-children badge → subtree popup. Wired before the
+            // _root bail-out so a collapsed virtual root's badge works too.
+            el.addEventListener('click', function(e) {
+                const badge = e.target.closest && e.target.closest('.node-collapse-badge');
+                if (!badge || badge.hidden) return;
+                e.stopPropagation();
+                openSubtreeDialog(data.roleId);
+            });
+
             if (data.roleId === '_root') return;
 
             // Double-click → form editor; same guard list as dragstart so collapse
             // toggles, edges and dotted pills keep their own behavior.
             el.addEventListener('dblclick', function(e) {
-                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag')) return;
+                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag, .node-collapse-badge')) return;
                 e.stopPropagation();
                 openRoleEditor(data.roleId);
             });
@@ -4391,8 +4487,8 @@
             el.draggable = true;
 
             el.addEventListener('dragstart', function(e) {
-                // Skip drags initiated on the collapse toggle / edges / pills so those keep working.
-                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag')) {
+                // Skip drags initiated on the collapse toggle / edges / pills / badge so those keep working.
+                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag, .node-collapse-badge')) {
                     e.preventDefault();
                     return;
                 }
@@ -4609,6 +4705,7 @@
                 // Restore collapsed state of branches off the expansion path that the
                 // broad descendant strip in expandHierarchyNode un-hid (idempotent).
                 container.querySelectorAll('li.hierarchy.isChildrenCollapsed').forEach(collapseHierarchyNode);
+                updateCollapseBadges(container);
                 if (showDottedOverlay) redrawDottedOverlay();
             }
 
@@ -4824,6 +4921,7 @@
                             if (hierarchy.classList.contains('isChildrenCollapsed')) manuallyCollapsed.add(roleId);
                             else manuallyCollapsed.delete(roleId);
                         }
+                        updateCollapseBadges(container);
                         if (showDottedOverlay) redrawDottedOverlay();
                     }, 380);
                 });
@@ -4879,6 +4977,7 @@
 
             if (maxLevel > 0) applyDepthLimit(container, maxLevel);
             reapplyManualCollapse(container);
+            updateCollapseBadges(container);
 
             renderLegend();
             updateZoomBadge();
@@ -4976,6 +5075,187 @@
             childUl.querySelectorAll(':scope > li.hierarchy').forEach(function(child) {
                 collapseAtDepth(child, level + 1, maxLevel);
             });
+        }
+
+        // Fill/show the hidden-children badge on every visible node whose children
+        // are collapsed; hide it everywhere else. Pure DOM pass over the rendered
+        // tree, so counts automatically respect the current filters/focus. Idempotent.
+        function updateCollapseBadges(container) {
+            container.querySelectorAll('.node-collapse-badge').forEach(function(b) {
+                b.hidden = true;
+                const card = b.closest('.node-card');
+                if (card) card.classList.remove('has-collapse-badge');
+            });
+            container.querySelectorAll('li.hierarchy.isChildrenCollapsed').forEach(function(h) {
+                const node = h.querySelector(':scope > .node');
+                if (!node) return;
+                if (node.closest('.hidden')) return;              // inside a collapsed ancestor
+                if (/(^|\s)slide-/.test(node.className)) return;  // hidden by an edge-driven slide
+                const childUl = h.querySelector(':scope > ul.nodes');
+                if (!childUl) return;
+                const direct = childUl.querySelectorAll(':scope > li.hierarchy').length;
+                const total = childUl.querySelectorAll('.node').length;
+                if (!direct) return;
+                fillCollapseBadge(node, direct, total, 'hidden — click to view');
+            });
+        }
+
+        // Shared badge fill (main chart + subtree popup).
+        function fillCollapseBadge(nodeEl, direct, total, suffix) {
+            const badge = nodeEl.querySelector('.node-collapse-badge');
+            if (!badge) return;
+            badge.querySelector('.badge-count').textContent = String(direct);
+            badge.title = direct + ' direct report' + (direct === 1 ? '' : 's') + ' '
+                        + (total > direct ? '(' + total + ' in subtree) ' : '') + suffix;
+            badge.hidden = false;
+            const card = badge.closest('.node-card');
+            if (card) card.classList.add('has-collapse-badge');
+        }
+
+        // --- Subtree popup (mini org chart) ---
+        // A read-only chart of one role + SUBTREE_LEVELS levels of children in a
+        // modal, rendered as a second Dabeng instance with the same node template.
+        // Truncated nodes carry the collapse badge; clicking it re-roots the popup
+        // (drill-down), tracked in subtreeStack for the breadcrumb / Back button.
+        const SUBTREE_LEVELS = 2;
+        let subtreeStack = []; // drill-down trail of roleIds; last entry = current popup root
+
+        function openSubtreeDialog(roleId) {
+            subtreeStack = [roleId];
+            const dlg = document.getElementById('subtree-dialog');
+            // showModal BEFORE rendering — the chart must not build inside display:none
+            if (!dlg.open) dlg.showModal();
+            renderSubtreeChart();
+        }
+
+        function subtreeDrillTo(roleId) {
+            subtreeStack.push(roleId);
+            renderSubtreeChart();
+        }
+
+        function subtreeBack() {
+            if (subtreeStack.length < 2) return;
+            subtreeStack.pop();
+            renderSubtreeChart();
+        }
+
+        function subtreeJumpTo(index) { // breadcrumb click
+            if (index < 0 || index >= subtreeStack.length - 1) return;
+            subtreeStack = subtreeStack.slice(0, index + 1);
+            renderSubtreeChart();
+        }
+
+        // Popup data: the root + SUBTREE_LEVELS levels of children from the SAME
+        // filtered dataset the main chart renders. Reuses toFlatChartData so
+        // cumulative HC/cost on the cards reflect the full filtered subtree, not
+        // just the visible slice. Nodes whose children fall beyond the cut get
+        // hiddenDirect/hiddenTotal for the badge instead of children.
+        function buildSubtreeChartData(rootId) {
+            const flat = toFlatChartData(getFilteredRoles());
+            const byId = {};
+            flat.forEach(function(e) { byId[e.id] = e; });
+            if (!byId[rootId]) return null;
+            const childrenOf = {};
+            flat.forEach(function(e) {
+                if (e.parentId && byId[e.parentId]) (childrenOf[e.parentId] = childrenOf[e.parentId] || []).push(e.id);
+            });
+            function countSubtree(id) {
+                let n = 0;
+                (childrenOf[id] || []).forEach(function(c) { n += 1 + countSubtree(c); });
+                return n;
+            }
+            function build(id, depth) {
+                const node = Object.assign({}, byId[id], { children: [] });
+                const kids = childrenOf[id] || [];
+                if (depth < SUBTREE_LEVELS) {
+                    node.children = kids.map(function(k) { return build(k, depth + 1); });
+                } else if (kids.length) {
+                    node.hiddenDirect = kids.length;
+                    node.hiddenTotal = countSubtree(id);
+                }
+                return node;
+            }
+            return build(rootId, 0);
+        }
+
+        function renderSubtreeChart() {
+            const container = document.getElementById('subtree-chart-container');
+            while (container.firstChild) container.removeChild(container.firstChild); // required before orgchart re-init
+            const rootId = subtreeStack[subtreeStack.length - 1];
+            const tree = buildSubtreeChartData(rootId);
+            renderSubtreeBreadcrumb();
+            if (!tree) {
+                container.appendChild(emptyMsg('Role not visible with the current filters.'));
+                return;
+            }
+            applyLeafParentLayoutFlags(tree, 1, 0, CHART_LAYOUT);
+            $('#subtree-chart-container').orgchart({
+                data: tree,
+                direction: CHART_LAYOUT.direction,
+                pan: true,
+                zoom: false,
+                visibleLevel: 999,
+                nodeContent: 'roleTitle',
+                nodeTemplate: function(data) { return buildNodeContentHtml(data); },
+                createNode: function($node, data) { wireSubtreeNode($node, data); }
+            });
+            applyTwoColMarkers(container, tree);
+        }
+
+        // Popup nodes: same card template, different interactions — badge = drill
+        // down, dblclick = close + locate in main chart, dotted pill = close +
+        // locate manager. No drag, no context menu, no editor.
+        function wireSubtreeNode($node, data) {
+            const el = $node[0];
+            if (!data || !data.roleId) return;
+            el.dataset.roleId = data.roleId; // applyTwoColMarkers depends on this
+
+            if (data.hiddenDirect) fillCollapseBadge(el, data.hiddenDirect, data.hiddenTotal, 'not shown — click to drill down');
+
+            el.addEventListener('click', function(e) {
+                const badge = e.target.closest && e.target.closest('.node-collapse-badge');
+                if (badge && !badge.hidden) {
+                    e.stopPropagation();
+                    subtreeDrillTo(data.roleId);
+                    return;
+                }
+                const pill = e.target.closest && e.target.closest('.node-dotted-tag');
+                if (pill && pill.dataset.dottedTarget) {
+                    e.stopPropagation();
+                    document.getElementById('subtree-dialog').close();
+                    if (locateRoleInChart(pill.dataset.dottedTarget) === 'hidden') {
+                        showToast('That manager is hidden by the current filters/focus.');
+                    }
+                }
+            });
+
+            el.addEventListener('dblclick', function(e) {
+                if (data.roleId === '_root') return;
+                e.stopPropagation();
+                document.getElementById('subtree-dialog').close();
+                locateRoleInChart(data.roleId); // role is from the filtered set, so it exists in the main DOM
+            });
+        }
+
+        function renderSubtreeBreadcrumb() {
+            const bc = document.getElementById('subtree-breadcrumb');
+            while (bc.firstChild) bc.removeChild(bc.firstChild);
+            subtreeStack.forEach(function(id, i) {
+                if (i > 0) {
+                    const sep = document.createElement('span');
+                    sep.className = 'subtree-crumb-sep';
+                    sep.textContent = '›';
+                    bc.appendChild(sep);
+                }
+                const r = roles.find(function(x) { return x.roleId === id; });
+                const crumb = document.createElement('span');
+                const isCurrent = i === subtreeStack.length - 1;
+                crumb.className = 'subtree-crumb' + (isCurrent ? ' current' : '');
+                crumb.textContent = id === '_root' ? 'Organization' : (r ? (r.roleTitle || id) : id);
+                if (!isCurrent) crumb.addEventListener('click', function() { subtreeJumpTo(i); });
+                bc.appendChild(crumb);
+            });
+            document.getElementById('subtree-back-btn').disabled = subtreeStack.length < 2;
         }
 
         function emptyMsg(text) {
@@ -6911,6 +7191,15 @@
             document.getElementById('chart-search-next').addEventListener('click', function() { chartSearchGo(1); });
             document.getElementById('chart-search-prev').addEventListener('click', function() { chartSearchGo(-1); });
         })();
+
+        // Subtree popup — static elements, wire once. Escape closes the <dialog>
+        // natively and fires 'close', so cleanup runs on every exit path.
+        document.getElementById('subtree-back-btn').addEventListener('click', subtreeBack);
+        document.getElementById('subtree-dialog').addEventListener('close', function() {
+            const c = document.getElementById('subtree-chart-container');
+            while (c.firstChild) c.removeChild(c.firstChild);
+            subtreeStack = [];
+        });
     </script>
 </body>
 </html>
