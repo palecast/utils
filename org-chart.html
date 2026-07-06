@@ -5126,11 +5126,12 @@
             });
         }
 
-        // Shared badge fill (main chart + subtree popup).
+        // Shared badge fill (main chart + subtree popup). The visible count is the
+        // whole hidden subtree; the tooltip breaks it down into direct vs total.
         function fillCollapseBadge(nodeEl, direct, total, suffix) {
             const badge = nodeEl.querySelector('.node-collapse-badge');
             if (!badge) return;
-            badge.querySelector('.badge-count').textContent = String(direct);
+            badge.querySelector('.badge-count').textContent = String(total);
             badge.title = direct + ' direct report' + (direct === 1 ? '' : 's') + ' '
                         + (total > direct ? '(' + total + ' in subtree) ' : '') + suffix;
             badge.hidden = false;
