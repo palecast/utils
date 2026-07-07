@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Calculator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #FAF8F5;
+            --surface: #FFFFFF;
+            --text: #3A2F28;
+            --text-muted: #6B5F54;
+            --accent: #4A5D47;
+            --accent-hover: #3D4E3B;
+            --accent-soft: #8B6F47;
+            --border: rgba(74, 93, 71, 0.12);
+            --tint: rgba(232, 229, 223, 0.4);
+            --pill-bg: #E8E5DF;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                         Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            position: sticky; top: 0; z-index: 50;
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo-box {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--accent); color: var(--bg);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px;
+        }
+        .brand-title { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+        .brand-sub { font-size: 12px; color: var(--text-muted); }
+        .header-note { font-size: 12px; color: var(--text-muted); }
+
+        main {
+            flex: 1;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(58, 47, 40, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .inputs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .field label {
+            display: block;
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .field input, .field select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font: 400 14px 'Inter', sans-serif;
+            background: var(--surface);
+            color: var(--text);
+            transition: border-color 0.3s;
+        }
+        .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+        .term-row { display: flex; gap: 8px; }
+        .term-row .sub { flex: 1; }
+        .sub-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block; }
+
+        .error-banner {
+            display: none;
+            background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #c33;
+            color: #c33;
+            padding: 15px 22px; border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .metric {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(58, 47, 40, 0.04);
+        }
+        .metric .m-label {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .metric .m-value { font-size: 1.4rem; font-weight: 600; color: var(--accent); }
+        .metric .m-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .extra-card {
+            background: var(--tint);
+            border: 1px solid rgba(74, 93, 71, 0.06);
+            border-radius: 16px;
+            padding: 18px 24px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .extra-card h3 { font-size: 1rem; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+        .extra-card p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+        .extra-card strong { color: var(--text); }
+
+        .chart-wrap { position: relative; height: 320px; }
+
+        h2 {
+            font-size: 1.25rem; font-weight: 600; color: var(--accent);
+            margin: 28px 0 14px;
+        }
+
+        details.year {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        details.year summary {
+            cursor: pointer;
+            padding: 14px 20px;
+            font-weight: 500;
+            display: flex; flex-wrap: wrap; gap: 16px; align-items: baseline;
+            list-style: none;
+        }
+        details.year summary::-webkit-details-marker { display: none; }
+        details.year summary::before { content: '▸'; color: var(--text-muted); margin-right: 4px; }
+        details.year[open] summary::before { content: '▾'; }
+        details.year summary .y-meta { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+
+        .table-scroll { overflow-x: auto; }
+        table.schedule {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table.schedule th, table.schedule td {
+            padding: 8px 14px;
+            text-align: right;
+            border-top: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        table.schedule th {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.9px;
+            background: var(--tint);
+        }
+        table.schedule td:first-child, table.schedule th:first-child { text-align: left; }
+
+        .schedule-actions { display: flex; gap: 10px; margin-bottom: 14px; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #FFFFFF;
+            font: 600 14px 'Inter', sans-serif;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn.outline {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--accent);
+        }
+        .btn.outline:hover { background: var(--tint); transform: none; }
+
+        footer {
+            padding: 32px 24px;
+            text-align: center;
+            font: 300 0.875rem 'Inter', sans-serif;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.3);
+        }
+        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        footer a:hover { color: var(--text); }
+
+        @media (max-width: 768px) {
+            .inputs-grid { grid-template-columns: 1fr; }
+            .metrics { grid-template-columns: 1fr 1fr; }
+            .card { padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo-box">%</div>
+            <div>
+                <div class="brand-title">Loan Calculator</div>
+                <div class="brand-sub">Amortization schedule &amp; extra-payment planner</div>
+            </div>
+        </div>
+        <div class="header-note">Everything runs locally in your browser — nothing is uploaded.</div>
+    </header>
+
+    <main>
+        <div class="card">
+            <div class="inputs-grid">
+                <div class="field">
+                    <label for="principal">Loan amount</label>
+                    <input type="number" id="principal" min="0" step="any" value="250000">
+                </div>
+                <div class="field">
+                    <label for="rate">Annual interest rate (%)</label>
+                    <input type="number" id="rate" min="0" max="100" step="0.01" value="4.5">
+                </div>
+                <div class="field">
+                    <label>Term</label>
+                    <div class="term-row">
+                        <div class="sub">
+                            <input type="number" id="term-years" min="0" max="100" step="1" value="25" aria-label="Term years">
+                            <span class="sub-label">years</span>
+                        </div>
+                        <div class="sub">
+                            <input type="number" id="term-months" min="0" max="11" step="1" value="0" aria-label="Term extra months">
+                            <span class="sub-label">months</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="start-date">First payment month</label>
+                    <input type="month" id="start-date">
+                </div>
+                <div class="field">
+                    <label for="extra">Extra monthly payment (optional)</label>
+                    <input type="number" id="extra" min="0" step="any" value="0">
+                </div>
+                <div class="field">
+                    <label for="symbol">Currency symbol</label>
+                    <input type="text" id="symbol" maxlength="4" value="£">
+                </div>
+            </div>
+        </div>
+
+        <div class="error-banner" id="error-banner"></div>
+
+        <div class="metrics" id="metrics" style="display:none;">
+            <div class="metric">
+                <div class="m-label">Monthly payment</div>
+                <div class="m-value" id="m-payment">—</div>
+                <div class="m-note" id="m-payment-note"></div>
+            </div>
+            <div class="metric">
+                <div class="m-label">Total interest</div>
+                <div class="m-value" id="m-interest">—</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">Total paid</div>
+                <div class="m-value" id="m-total">—</div>
+            </div>
+            <div class="metric">
+                <div class="m-label">Paid off</div>
+                <div class="m-value" id="m-payoff">—</div>
+                <div class="m-note" id="m-payoff-note"></div>
+            </div>
+        </div>
+
+        <div class="extra-card" id="extra-card">
+            <h3>Effect of the extra payment</h3>
+            <p id="extra-summary"></p>
+        </div>
+
+        <div class="card">
+            <div class="chart-wrap">
+                <canvas id="balance-chart"></canvas>
+            </div>
+        </div>
+
+        <h2>Amortization schedule</h2>
+        <div class="schedule-actions">
+            <button class="btn outline" id="btn-csv">Export schedule CSV</button>
+            <button class="btn outline" id="btn-expand-years">Expand all years</button>
+        </div>
+        <div id="schedule"></div>
+    </main>
+
+    <footer>
+        Estimates only — check figures with your lender before making decisions.
+        <a href="/disclaimer.html">Disclaimer &amp; Terms</a>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const STORAGE_KEY = 'loanCalculatorState';
+        const MAX_TERM_MONTHS = 1200; // 100 years
+
+        const els = {
+            principal: document.getElementById('principal'),
+            rate: document.getElementById('rate'),
+            termYears: document.getElementById('term-years'),
+            termMonths: document.getElementById('term-months'),
+            startDate: document.getElementById('start-date'),
+            extra: document.getElementById('extra'),
+            symbol: document.getElementById('symbol')
+        };
+
+        let chart = null;
+        let currentSchedule = null;
+
+        // --- Money & date helpers (all money math in integer cents) ---
+
+        function fmtMoney(cents) {
+            const sym = els.symbol.value || '';
+            return sym + (cents / 100).toLocaleString('en-US', {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            });
+        }
+
+        function fmtMoneyRound(cents) {
+            const sym = els.symbol.value || '';
+            return sym + Math.round(cents / 100).toLocaleString('en-US');
+        }
+
+        const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        function parseStartMonth() {
+            // <input type=month> gives "YYYY-MM"; fall back to the current month
+            const v = els.startDate.value;
+            const m = v && v.match(/^(\d{4})-(\d{2})$/);
+            if (m) return { y: +m[1], m: +m[2] - 1 };
+            const now = new Date();
+            return { y: now.getFullYear(), m: now.getMonth() };
+        }
+
+        function addMonths(start, n) {
+            const total = start.y * 12 + start.m + n;
+            return { y: Math.floor(total / 12), m: ((total % 12) + 12) % 12 };
+        }
+
+        function fmtMonth(d) { return MONTHS[d.m] + ' ' + d.y; }
+
+        // --- Amortization (integer-cents; deterministic, no float drift) ---
+
+        function buildSchedule(principalCents, annualRatePct, termMonths, extraCents, start) {
+            const r = annualRatePct / 100 / 12;
+            let paymentCents;
+            if (r === 0) {
+                paymentCents = Math.ceil(principalCents / termMonths);
+            } else {
+                paymentCents = Math.round(principalCents * r / (1 - Math.pow(1 + r, -termMonths)));
+            }
+
+            const rows = [];
+            let balance = principalCents;
+            let totalInterest = 0;
+            let i = 0;
+            while (balance > 0 && i < MAX_TERM_MONTHS * 2) {
+                const interest = Math.round(balance * r);
+                let principalPart = paymentCents + extraCents - interest;
+                if (principalPart <= 0) return null; // payment doesn't cover interest
+                if (principalPart > balance) principalPart = balance; // final short payment
+                totalInterest += interest;
+                balance -= principalPart;
+                rows.push({
+                    n: i + 1,
+                    date: addMonths(start, i),
+                    payment: principalPart + interest,
+                    principal: principalPart,
+                    interest: interest,
+                    balance: balance
+                });
+                i++;
+            }
+            return {
+                rows,
+                paymentCents,
+                totalInterest,
+                totalPaid: principalCents + totalInterest,
+                months: rows.length,
+                payoffDate: rows.length ? rows[rows.length - 1].date : start
+            };
+        }
+
+        // --- Recalculate & render ---
+
+        function showError(msg) {
+            const b = document.getElementById('error-banner');
+            b.textContent = msg;
+            b.style.display = 'block';
+            document.getElementById('metrics').style.display = 'none';
+            document.getElementById('extra-card').style.display = 'none';
+            document.getElementById('schedule').replaceChildren();
+            if (chart) { chart.destroy(); chart = null; }
+            currentSchedule = null;
+        }
+
+        function recalc() {
+            saveState();
+            const principal = parseFloat(els.principal.value);
+            const rate = parseFloat(els.rate.value);
+            const years = parseInt(els.termYears.value, 10) || 0;
+            const months = parseInt(els.termMonths.value, 10) || 0;
+            const extra = parseFloat(els.extra.value) || 0;
+            const termMonths = years * 12 + months;
+
+            if (!(principal > 0)) return showError('Enter a loan amount greater than zero.');
+            if (!(rate >= 0) || rate > 100) return showError('Enter an annual interest rate between 0 and 100.');
+            if (termMonths < 1) return showError('Enter a term of at least one month.');
+            if (termMonths > MAX_TERM_MONTHS) return showError('Terms above 100 years are not supported.');
+            if (extra < 0) return showError('The extra payment cannot be negative.');
+
+            const principalCents = Math.round(principal * 100);
+            const extraCents = Math.round(extra * 100);
+            const start = parseStartMonth();
+
+            const base = buildSchedule(principalCents, rate, termMonths, 0, start);
+            const actual = extraCents > 0
+                ? buildSchedule(principalCents, rate, termMonths, extraCents, start)
+                : base;
+            if (!base || !actual) return showError('These inputs produce a payment that never repays the loan.');
+
+            document.getElementById('error-banner').style.display = 'none';
+            currentSchedule = actual;
+
+            // Metric cards
+            document.getElementById('metrics').style.display = 'grid';
+            document.getElementById('m-payment').textContent = fmtMoney(base.paymentCents + extraCents);
+            document.getElementById('m-payment-note').textContent =
+                extraCents > 0 ? fmtMoney(base.paymentCents) + ' + ' + fmtMoney(extraCents) + ' extra' : '';
+            document.getElementById('m-interest').textContent = fmtMoney(actual.totalInterest);
+            document.getElementById('m-total').textContent = fmtMoney(actual.totalPaid);
+            document.getElementById('m-payoff').textContent = fmtMonth(actual.payoffDate);
+            document.getElementById('m-payoff-note').textContent =
+                actual.months + ' payment' + (actual.months === 1 ? '' : 's');
+
+            // Extra-payment comparison
+            const extraCard = document.getElementById('extra-card');
+            if (extraCents > 0) {
+                const saved = base.totalInterest - actual.totalInterest;
+                const sooner = base.months - actual.months;
+                const p = document.getElementById('extra-summary');
+                p.replaceChildren();
+                const strong1 = document.createElement('strong');
+                strong1.textContent = fmtMoney(saved);
+                const strong2 = document.createElement('strong');
+                strong2.textContent = sooner + ' month' + (sooner === 1 ? '' : 's');
+                p.append('Paying ', fmtMoney(extraCents), ' extra each month saves ', strong1,
+                         ' in interest and clears the loan ', strong2, ' sooner (',
+                         fmtMonth(actual.payoffDate), ' instead of ', fmtMonth(base.payoffDate), ').');
+                extraCard.style.display = 'block';
+            } else {
+                extraCard.style.display = 'none';
+            }
+
+            renderChart(base, actual, extraCents > 0);
+            renderSchedule(actual);
+        }
+
+        // --- Chart ---
+
+        function renderChart(base, actual, hasExtra) {
+            if (typeof Chart === 'undefined') return; // CDN failed — table still works
+            const n = base.months;
+            const labels = [];
+            const baseData = [];
+            const extraData = [];
+            for (let i = 0; i < n; i++) {
+                labels.push(fmtMonth(base.rows[i].date));
+                baseData.push(base.rows[i].balance / 100);
+                extraData.push(i < actual.months ? actual.rows[i].balance / 100 : 0);
+            }
+            const datasets = [{
+                label: hasExtra ? 'Balance (no extra)' : 'Balance',
+                data: baseData,
+                borderColor: '#4A5D47',
+                backgroundColor: 'rgba(74, 93, 71, 0.08)',
+                borderWidth: 2, pointRadius: 0, tension: 0.15, fill: true
+            }];
+            if (hasExtra) {
+                datasets.push({
+                    label: 'Balance (with extra)',
+                    data: extraData,
+                    borderColor: '#8B6F47',
+                    backgroundColor: 'rgba(139, 111, 71, 0.08)',
+                    borderWidth: 2, pointRadius: 0, tension: 0.15, fill: true
+                });
+            }
+            if (chart) chart.destroy();
+            chart = new Chart(document.getElementById('balance-chart').getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: '#6B5F54', usePointStyle: true, pointStyle: 'circle' } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.dataset.label + ': ' + fmtMoney(Math.round(ctx.parsed.y * 100))
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { color: '#6B5F54', maxTicksLimit: 10, maxRotation: 0, autoSkip: true, font: { size: 11 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { color: '#6B5F54', font: { size: 11 }, callback: v => fmtMoneyRound(v * 100) }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Schedule table (DOM-built, grouped by calendar year) ---
+
+        function renderSchedule(sched) {
+            const container = document.getElementById('schedule');
+            container.replaceChildren();
+
+            const byYear = new Map();
+            sched.rows.forEach(row => {
+                if (!byYear.has(row.date.y)) byYear.set(row.date.y, []);
+                byYear.get(row.date.y).push(row);
+            });
+
+            let first = true;
+            byYear.forEach((rows, year) => {
+                const det = document.createElement('details');
+                det.className = 'year';
+                if (first) { det.open = true; first = false; }
+
+                const yearInterest = rows.reduce((s, r) => s + r.interest, 0);
+                const yearPrincipal = rows.reduce((s, r) => s + r.principal, 0);
+
+                const sum = document.createElement('summary');
+                const yEl = document.createElement('span');
+                yEl.textContent = year;
+                const meta = document.createElement('span');
+                meta.className = 'y-meta';
+                meta.textContent = rows.length + ' payment' + (rows.length === 1 ? '' : 's') +
+                    ' · principal ' + fmtMoney(yearPrincipal) +
+                    ' · interest ' + fmtMoney(yearInterest) +
+                    ' · closing balance ' + fmtMoney(rows[rows.length - 1].balance);
+                sum.append(yEl, meta);
+                det.appendChild(sum);
+
+                const scroll = document.createElement('div');
+                scroll.className = 'table-scroll';
+                const table = document.createElement('table');
+                table.className = 'schedule';
+                const thead = document.createElement('thead');
+                const hr = document.createElement('tr');
+                ['Month', '#', 'Payment', 'Principal', 'Interest', 'Balance'].forEach(h => {
+                    const th = document.createElement('th');
+                    th.textContent = h;
+                    hr.appendChild(th);
+                });
+                thead.appendChild(hr);
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                rows.forEach(r => {
+                    const tr = document.createElement('tr');
+                    [fmtMonth(r.date), r.n, fmtMoney(r.payment), fmtMoney(r.principal),
+                     fmtMoney(r.interest), fmtMoney(r.balance)].forEach(v => {
+                        const td = document.createElement('td');
+                        td.textContent = v;
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                scroll.appendChild(table);
+                det.appendChild(scroll);
+                container.appendChild(det);
+            });
+        }
+
+        // --- CSV export ---
+
+        function csvValue(v) {
+            const s = String(v);
+            return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+
+        document.getElementById('btn-csv').addEventListener('click', () => {
+            if (!currentSchedule) return;
+            const lines = [['Payment #', 'Month', 'Payment', 'Principal', 'Interest', 'Balance'].join(',')];
+            currentSchedule.rows.forEach(r => {
+                lines.push([
+                    r.n,
+                    fmtMonth(r.date),
+                    (r.payment / 100).toFixed(2),
+                    (r.principal / 100).toFixed(2),
+                    (r.interest / 100).toFixed(2),
+                    (r.balance / 100).toFixed(2)
+                ].map(csvValue).join(','));
+            });
+            const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'loan-schedule.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('btn-expand-years').addEventListener('click', function() {
+            const open = this.textContent.startsWith('Expand');
+            document.querySelectorAll('details.year').forEach(d => { d.open = open; });
+            this.textContent = open ? 'Collapse all years' : 'Expand all years';
+        });
+
+        // --- Persistence ---
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    principal: els.principal.value,
+                    rate: els.rate.value,
+                    termYears: els.termYears.value,
+                    termMonths: els.termMonths.value,
+                    startDate: els.startDate.value,
+                    extra: els.extra.value,
+                    symbol: els.symbol.value
+                }));
+            } catch (e) { /* private mode / quota — non-fatal */ }
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const s = JSON.parse(raw);
+                if (s.principal != null) els.principal.value = s.principal;
+                if (s.rate != null) els.rate.value = s.rate;
+                if (s.termYears != null) els.termYears.value = s.termYears;
+                if (s.termMonths != null) els.termMonths.value = s.termMonths;
+                if (s.startDate != null) els.startDate.value = s.startDate;
+                if (s.extra != null) els.extra.value = s.extra;
+                if (s.symbol != null) els.symbol.value = s.symbol;
+            } catch (e) { /* corrupted state — use defaults */ }
+        }
+
+        // --- Init ---
+
+        Object.values(els).forEach(el => el.addEventListener('input', recalc));
+        loadState();
+        if (!els.startDate.value) {
+            const now = new Date();
+            els.startDate.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        }
+        recalc();
+    </script>
+</body>
+</html>
