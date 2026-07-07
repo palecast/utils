@@ -1420,6 +1420,21 @@
         .pivot-table tbody tr:hover { background: #E8E5DF; }
         .pivot-table tfoot td { font-weight: 700; border-top: 2px solid #4A5D47; background: #F2F0EB; }
 
+        /* Pivot treemap */
+        .pivot-treemap-section { margin-top: 24px; }
+        .pivot-treemap-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+        .pivot-treemap-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #6B5F54; }
+        .pivot-treemap-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+        .pivot-treemap-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #6B5F54; }
+        .pivot-treemap-legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+        .pivot-treemap { position: relative; height: clamp(300px, 45vh, 560px); background: #fff; border: 1px solid rgba(74, 93, 71, 0.12); border-radius: 12px; overflow: hidden; }
+        .pivot-treemap-group { position: absolute; display: flex; flex-direction: column; overflow: hidden; }
+        .pivot-treemap-group-label { height: 20px; flex-shrink: 0; padding: 2px 6px 0; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6B5F54; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pivot-treemap-group-body { position: relative; flex: 1; min-height: 0; }
+        .pivot-treemap-leaf { position: absolute; border-radius: 4px; overflow: hidden; padding: 3px 6px; font-size: 0.7rem; font-weight: 600; line-height: 1.25; transition: filter 0.15s ease; }
+        .pivot-treemap-leaf:hover { filter: brightness(1.08); }
+        .pivot-treemap-leaf-value { display: block; font-weight: 400; font-size: 0.65rem; opacity: 0.85; }
+
         .control-section {
             display: flex;
             flex-direction: column;
@@ -1866,6 +1881,10 @@
                                         <option value="workingPattern">Working Pattern</option>
                                     </select>
                                 </div>
+                                <span class="control-divider"></span>
+                                <div class="control-group">
+                                    <button class="btn-secondary btn-small" id="pivot-swap-btn" onclick="swapPivotFields()" title="Swap row and column dimensions">&#8645; Swap rows / columns</button>
+                                </div>
                             </div>
                         </div>
                         <div class="control-section" data-section="value">
@@ -1949,6 +1968,13 @@
                 </div>
                 <div class="pivot-surface" id="pivot-surface">
                     <div id="pivot-table-container"></div>
+                    <div id="pivot-treemap-section" class="pivot-treemap-section" hidden>
+                        <div class="pivot-treemap-header">
+                            <span class="pivot-treemap-title" id="pivot-treemap-title"></span>
+                            <div class="pivot-treemap-legend" id="pivot-treemap-legend"></div>
+                        </div>
+                        <div class="pivot-treemap" id="pivot-treemap"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2336,6 +2362,12 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function fmtCompactCost(v) {
+            if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+            if (v >= 1000) return (v / 1000).toFixed(0) + 'K';
+            return v.toFixed(0);
         }
 
         function generateRoleId() {
@@ -5777,15 +5809,9 @@
             const maxSpan = spans.length ? Math.max.apply(null, spans) : 0;
             const avgSpan = spans.length ? (spans.reduce(function(a, b) { return a + b; }, 0) / spans.length).toFixed(1) : '0';
 
-            function fmtCost(v) {
-                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-                if (v >= 1000) return (v / 1000).toFixed(0) + 'K';
-                return v.toFixed(0);
-            }
-
             var html = '';
             html += '<div class="summary-stat"><span class="summary-stat-label">Total Roles</span><span class="summary-stat-value">' + total + '</span></div>';
-            html += '<div class="summary-stat"><span class="summary-stat-label">Total Cost</span><span class="summary-stat-value">' + fmtCost(totalCost) + '</span></div>';
+            html += '<div class="summary-stat"><span class="summary-stat-label">Total Cost</span><span class="summary-stat-value">' + fmtCompactCost(totalCost) + '</span></div>';
             html += '<div class="summary-stat"><span class="summary-stat-label">Status</span><div class="summary-pills">';
             ['filled', 'vacant', 'pending start', 'planned', 'on hold', 'sunsetting', 'removed', 'earmarked'].forEach(function(s) {
                 if (statusCounts[s]) {
@@ -5835,6 +5861,15 @@
             renderPivotTable();
         }
 
+        function swapPivotFields() {
+            const rowSel = document.getElementById('pivot-row-field');
+            const colSel = document.getElementById('pivot-col-field');
+            const tmp = rowSel.value;
+            rowSel.value = colSel.value;
+            colSel.value = tmp;
+            renderPivotTable();
+        }
+
         function fieldLabel(field) {
             return { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' }[field] || field;
         }
@@ -5879,7 +5914,7 @@
                 aoa.push(row);
             });
             aoa.push(['Total', ...colTotals, grandTotal]);
-            return { aoa, isCost };
+            return { aoa, isCost, rowVals, colVals, agg };
         }
 
         function renderPivotTable() {
@@ -5898,6 +5933,7 @@
             const pivot = computePivotAoa();
             if (!pivot) {
                 container.innerHTML = '<p style="padding:40px;color:#888">No data. Import or add rows in the Table tab.</p>';
+                renderPivotTreemap(null);
                 updateSummaryPanel(filtered);
                 return;
             }
@@ -5920,8 +5956,182 @@
             html += '</tr></tfoot></table>';
 
             container.innerHTML = html;
+            renderPivotTreemap(pivot);
             updateSummaryPanel(filtered);
         }
+
+        // --- Pivot treemap ---
+        // Squarified treemap layout (Bruls et al.). `values` must be positive and
+        // sorted descending; returns rects parallel to `values` that tile (x,y,w,h)
+        // with area proportional to value.
+        function squarifyLayout(values, x, y, w, h) {
+            const total = values.reduce((a, b) => a + b, 0);
+            if (!(total > 0) || !(w > 0) || !(h > 0)) return values.map(() => ({ x, y, w: 0, h: 0 }));
+            const scale = (w * h) / total;
+            const areas = values.map(v => v * scale);
+            const rects = [];
+            let rx = x, ry = y, rw = w, rh = h;
+            let row = [], rowSum = 0, rowMin = Infinity, rowMax = 0;
+
+            function worst(sum, minA, maxA, L) {
+                const s2 = sum * sum, L2 = L * L;
+                return Math.max((L2 * maxA) / s2, s2 / (L2 * minA));
+            }
+
+            function flushRow() {
+                const vertical = rw >= rh;
+                const L = vertical ? rh : rw;
+                if (rowSum <= 0 || L <= 0) {
+                    row.forEach(() => rects.push({ x: rx, y: ry, w: 0, h: 0 }));
+                } else {
+                    const t = rowSum / L;
+                    let pos = vertical ? ry : rx;
+                    row.forEach(a => {
+                        const len = a / t;
+                        rects.push(vertical
+                            ? { x: rx, y: pos, w: t, h: len }
+                            : { x: pos, y: ry, w: len, h: t });
+                        pos += len;
+                    });
+                    if (vertical) { rx += t; rw = Math.max(0, rw - t); }
+                    else { ry += t; rh = Math.max(0, rh - t); }
+                }
+                row = []; rowSum = 0; rowMin = Infinity; rowMax = 0;
+            }
+
+            areas.forEach(a => {
+                const L = Math.min(rw, rh);
+                if (row.length && L > 0 &&
+                    worst(rowSum + a, Math.min(rowMin, a), Math.max(rowMax, a), L) > worst(rowSum, rowMin, rowMax, L)) {
+                    flushRow();
+                }
+                row.push(a);
+                rowSum += a; rowMin = Math.min(rowMin, a); rowMax = Math.max(rowMax, a);
+            });
+            if (row.length) flushRow();
+            return rects;
+        }
+
+        // Colors are keyed off the FULL role list (not the filtered set) so applying
+        // a filter never recolors the surviving rectangles. Status values keep their
+        // fixed app-wide colors; other fields use the categorical palette.
+        function buildPivotColorKey(colField) {
+            const vals = [...new Set(roles.map(r => String(r[colField] || '') || '(blank)'))].sort();
+            const map = new Map();
+            vals.forEach((v, i) => {
+                map.set(v, (colField === 'status' && STATUS_COLORS[v]) ? STATUS_COLORS[v] : getCategoryColor(i));
+            });
+            return map;
+        }
+
+        // getCategoryColor returns hex for palette colors and hsl() strings beyond it.
+        function treemapTextColor(fill) {
+            let light;
+            if (fill[0] === '#') {
+                const r = parseInt(fill.slice(1, 3), 16), g = parseInt(fill.slice(3, 5), 16), b = parseInt(fill.slice(5, 7), 16);
+                light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+            } else {
+                const m = fill.match(/hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*([\d.]+)%/);
+                light = m ? parseFloat(m[1]) / 100 : 0.5;
+            }
+            return light < 0.55 ? '#FAF8F5' : '#3A2F28';
+        }
+
+        let _lastPivotForTreemap = null;
+        let _treemapLaidOutW = 0, _treemapLaidOutH = 0;
+
+        // Treemap companion to the pivot table: row-dimension groups tiled by total,
+        // column-dimension leaves inside each group, area = the selected metric.
+        function renderPivotTreemap(pivot) {
+            const section = document.getElementById('pivot-treemap-section');
+            const el = document.getElementById('pivot-treemap');
+            _lastPivotForTreemap = pivot;
+            if (!pivot) { section.hidden = true; el.innerHTML = ''; return; }
+
+            const groups = [];
+            pivot.rowVals.forEach(rv => {
+                const children = pivot.colVals
+                    .map(cv => ({ name: cv, value: pivot.agg[rv + '|' + cv] || 0 }))
+                    .filter(c => c.value > 0)
+                    .sort((a, b) => b.value - a.value);
+                const total = children.reduce((s, c) => s + c.value, 0);
+                if (total > 0) groups.push({ name: rv, total, children });
+            });
+            groups.sort((a, b) => b.total - a.total);
+            if (!groups.length) { section.hidden = true; el.innerHTML = ''; return; }
+
+            section.hidden = false;
+            const W = el.clientWidth, H = el.clientHeight;
+            if (!(W > 0) || !(H > 0)) { section.hidden = true; return; }
+            _treemapLaidOutW = W; _treemapLaidOutH = H;
+
+            const rowField = document.getElementById('pivot-row-field').value;
+            const colField = document.getElementById('pivot-col-field').value;
+            const valueSel = document.getElementById('pivot-value-field');
+            const metricLabel = valueSel.options[valueSel.selectedIndex].text;
+            const colors = buildPivotColorKey(colField);
+            const fill = v => colors.get(v) || getCategoryColor(colors.size);
+
+            document.getElementById('pivot-treemap-title').textContent =
+                metricLabel + ' — ' + fieldLabel(rowField) + ' → ' + fieldLabel(colField);
+            document.getElementById('pivot-treemap-legend').innerHTML = pivot.colVals.map(cv =>
+                '<span class="pivot-treemap-legend-item"><span class="pivot-treemap-legend-swatch" style="background:' + fill(cv) + '"></span>' + escapeHtml(cv) + '</span>'
+            ).join('');
+
+            const LABEL_H = 20, GAP = 2, PAD = GAP / 2;
+            const fmtFull = v => Number(v).toLocaleString();
+            const fmtShort = v => pivot.isCost ? fmtCompactCost(v) : String(v);
+
+            // Positions are percentages of the parent box so the treemap keeps its
+            // proportions during the sidebar width transition, between debounced
+            // re-layouts. Everything data-derived goes through escapeHtml.
+            let html = '';
+            const groupRects = squarifyLayout(groups.map(g => g.total), 0, 0, W, H);
+            groups.forEach((g, gi) => {
+                const gr = groupRects[gi];
+                const gx = gr.x + PAD, gy = gr.y + PAD, gw = gr.w - GAP, gh = gr.h - GAP;
+                if (gw <= 0 || gh <= 0) return;
+                const showLabel = gh >= 34;
+                const bodyH = gh - (showLabel ? LABEL_H : 0);
+                const gTitle = escapeHtml(g.name + ' — ' + metricLabel + ': ' + fmtFull(g.total));
+                html += '<div class="pivot-treemap-group" title="' + gTitle + '" style="left:' + (gx / W * 100) + '%;top:' + (gy / H * 100) + '%;width:' + (gw / W * 100) + '%;height:' + (gh / H * 100) + '%">';
+                if (showLabel) html += '<div class="pivot-treemap-group-label">' + escapeHtml(g.name) + '</div>';
+                html += '<div class="pivot-treemap-group-body">';
+                if (bodyH > 0) {
+                    const leafRects = squarifyLayout(g.children.map(c => c.value), 0, 0, gw, bodyH);
+                    g.children.forEach((c, ci) => {
+                        const lr = leafRects[ci];
+                        const lx = lr.x + PAD, ly = lr.y + PAD, lw = lr.w - GAP, lh = lr.h - GAP;
+                        if (lw <= 0 || lh <= 0) return;
+                        const bg = fill(c.name);
+                        const pctOfGroup = Math.round((c.value / g.total) * 100);
+                        const tip = escapeHtml(c.name + '\n' + metricLabel + ': ' + fmtFull(c.value) + ' (' + pctOfGroup + '% of ' + g.name + ')');
+                        const label = (lw >= 48 && lh >= 22)
+                            ? escapeHtml(c.name) + '<span class="pivot-treemap-leaf-value">' + escapeHtml(fmtShort(c.value)) + '</span>'
+                            : '';
+                        html += '<div class="pivot-treemap-leaf" title="' + tip + '" style="left:' + (lx / gw * 100) + '%;top:' + (ly / bodyH * 100) + '%;width:' + (lw / gw * 100) + '%;height:' + (lh / bodyH * 100) + '%;background:' + bg + ';color:' + treemapTextColor(bg) + '">' + label + '</div>';
+                    });
+                }
+                html += '</div></div>';
+            });
+            el.innerHTML = html;
+        }
+
+        // Re-squarify when the treemap's box changes (window resize, sidebar collapse,
+        // summary panel toggle). The last-laid-out size guard stops the observer
+        // retriggering off its own DOM writes.
+        let _treemapResizeTimer = null;
+        new ResizeObserver(() => {
+            if (activeTab !== 'pivot' || !_lastPivotForTreemap) return;
+            if (document.getElementById('pivot-treemap-section').hidden) return;
+            clearTimeout(_treemapResizeTimer);
+            _treemapResizeTimer = setTimeout(() => {
+                if (activeTab !== 'pivot' || !_lastPivotForTreemap) return;
+                const el = document.getElementById('pivot-treemap');
+                if (el.clientWidth === _treemapLaidOutW && el.clientHeight === _treemapLaidOutH) return;
+                renderPivotTreemap(_lastPivotForTreemap);
+            }, 150);
+        }).observe(document.getElementById('pivot-treemap'));
 
         // Pivot exports capture the rendered cross-tab itself (filter-aware by design),
         // unlike the data exports which always contain the full role list.
