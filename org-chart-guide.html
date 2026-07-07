@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Org Chart — How-To Guide</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #FAF8F5;
+            --surface: #FFFFFF;
+            --text: #3A2F28;
+            --text-muted: #6B5F54;
+            --accent: #4A5D47;
+            --accent-hover: #3D4E3B;
+            --border: rgba(74, 93, 71, 0.12);
+            --tint: rgba(232, 229, 223, 0.4);
+            --pill-bg: #E8E5DF;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                         Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        header {
+            position: sticky; top: 0; z-index: 50;
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo-box {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--accent); color: var(--bg);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px;
+        }
+        .brand-title { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+        .brand-sub { font-size: 12px; color: var(--text-muted); }
+        .open-app {
+            padding: 10px 20px;
+            border: none; border-radius: 8px;
+            background: var(--accent); color: #fff;
+            font: 600 14px 'Inter', sans-serif;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .open-app:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 20px 60px;
+        }
+
+        .lead {
+            font-size: 1.1rem; font-weight: 300; color: var(--text-muted);
+            line-height: 1.7;
+            margin: 24px 0 28px;
+        }
+
+        .toc {
+            background: var(--tint);
+            border: 1px solid rgba(74, 93, 71, 0.06);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 36px;
+        }
+        .toc .toc-label {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1.1px;
+            margin-bottom: 12px;
+        }
+        .toc ol {
+            columns: 2; column-gap: 32px;
+            padding-left: 20px;
+            font-size: 14px;
+        }
+        .toc li { margin-bottom: 6px; }
+        .toc a { color: var(--accent); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+
+        section { margin-bottom: 44px; }
+        h2 {
+            font-size: 1.4rem; font-weight: 600; color: var(--accent);
+            margin-bottom: 6px;
+            padding-top: 12px;
+        }
+        .h2-sub { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 16px; }
+        h3 { font-size: 1.02rem; font-weight: 600; color: var(--text); margin: 22px 0 8px; }
+        p { margin-bottom: 12px; font-size: 15px; }
+        ul, ol { padding-left: 24px; margin-bottom: 12px; font-size: 15px; }
+        li { margin-bottom: 6px; }
+
+        .steps {
+            counter-reset: step;
+            list-style: none;
+            padding-left: 0;
+        }
+        .steps li {
+            counter-increment: step;
+            position: relative;
+            padding-left: 40px;
+            margin-bottom: 10px;
+        }
+        .steps li::before {
+            content: counter(step);
+            position: absolute; left: 0; top: 1px;
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: var(--accent); color: #fff;
+            font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .ui { font-weight: 600; color: var(--accent); }
+        kbd {
+            font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            background: var(--pill-bg);
+            border: 1px solid var(--border);
+            border-bottom-width: 2px;
+            border-radius: 5px;
+            padding: 1px 6px;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .callout {
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin: 14px 0;
+            font-size: 14px;
+        }
+        .callout.tip {
+            background: var(--tint);
+            border: 1px solid rgba(74, 93, 71, 0.08);
+            color: var(--text-muted);
+        }
+        .callout.tip strong { color: var(--accent); }
+        .callout.warn {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+
+        .table-scroll { overflow-x: auto; margin: 14px 0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            font-size: 13.5px;
+        }
+        th, td {
+            padding: 9px 14px;
+            text-align: left;
+            border-top: 1px solid var(--border);
+            vertical-align: top;
+        }
+        thead th {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.9px;
+            background: var(--tint);
+            border-top: none;
+        }
+        code {
+            font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            background: var(--pill-bg);
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+
+        .back-to-top {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+        .back-to-top:hover { color: var(--text); }
+
+        footer {
+            padding: 32px 24px;
+            text-align: center;
+            font: 300 0.875rem 'Inter', sans-serif;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.3);
+        }
+        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        footer a:hover { color: var(--text); }
+
+        @media (max-width: 768px) {
+            .toc ol { columns: 1; }
+            h2 { font-size: 1.2rem; }
+            .open-app { padding: 8px 14px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo-box">OC</div>
+            <div>
+                <div class="brand-title">Org Chart — How-To Guide</div>
+                <div class="brand-sub">Practical walkthroughs for every feature</div>
+            </div>
+        </div>
+        <a class="open-app" href="/org-chart">Open the app</a>
+    </header>
+
+    <main id="top">
+        <p class="lead">
+            The Org Chart tool lets you import, design, analyse and share organisation structures —
+            entirely in your browser, with nothing uploaded anywhere. This guide walks through the
+            common workflows, from loading your first spreadsheet to running a month-over-month
+            org review with <span class="ui">Compare</span> and applying a delegated team plan
+            with <span class="ui">Merge</span>.
+        </p>
+
+        <nav class="toc">
+            <div class="toc-label">In this guide</div>
+            <ol>
+                <li><a href="#import">Get your org in</a></li>
+                <li><a href="#files">Work with files like documents</a></li>
+                <li><a href="#edit">Edit the org</a></li>
+                <li><a href="#navigate">Navigate a large chart</a></li>
+                <li><a href="#slice">Slice, filter and colour</a></li>
+                <li><a href="#dotted">Matrix (dotted-line) reporting</a></li>
+                <li><a href="#compare">Run an org review with Compare</a></li>
+                <li><a href="#merge">Delegate a subtree and Merge it back</a></li>
+                <li><a href="#export">Share and export</a></li>
+                <li><a href="#pivot">Analyse with Pivot</a></li>
+                <li><a href="#safety">Where your data lives</a></li>
+                <li><a href="#reference">Reference</a></li>
+            </ol>
+        </nav>
+
+        <section id="import">
+            <h2>1. Get your org in</h2>
+            <div class="h2-sub">Import an Excel or CSV export from your HR system — column names are matched flexibly.</div>
+            <ol class="steps">
+                <li>Click <span class="ui">Open</span> in the header and pick a <code>.xlsx</code>, <code>.xls</code> or <code>.csv</code> file. Only the first sheet of a workbook is read.</li>
+                <li>Check the warning banner: duplicate Role IDs and circular reporting lines are flagged immediately.</li>
+                <li>Switch to the <span class="ui">Chart</span> tab to see the hierarchy.</li>
+            </ol>
+            <p>Column headers are matched case-insensitively against a set of aliases, so most HR exports work without renaming anything. The full alias list is in the <a href="#reference">Reference</a> section — for example <code>Manager</code>, <code>Reports To</code> and <code>Manager ID</code> all map to the same field.</p>
+            <ul>
+                <li><strong>Role ID</strong> is the only structural requirement — every row needs one, and the <strong>Manager</strong> column must contain the manager's Role ID. Rows with a blank Role ID are auto-assigned one (<code>R1</code>, <code>R2</code>…) on import.</li>
+                <li>A role whose Manager is blank (or unknown) becomes a top-level root. Multiple roots are grouped under a synthetic "Organization" node.</li>
+                <li><strong>Status</strong> is normalised to one of: filled, vacant, pending start, planned, on hold, sunsetting, removed, earmarked. Anything unrecognised becomes <em>planned</em>.</li>
+            </ul>
+            <div class="callout tip"><strong>Just exploring?</strong> Click <span class="ui">Load test data</span> on the Table tab to populate the app with a realistic sample org, including tags and dotted-line managers.</div>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="files">
+            <h2>2. Work with files like documents</h2>
+            <div class="h2-sub">Open, Save, Save As — plus a crash-recovery net underneath.</div>
+            <p>The header works like a desktop app: the centre shows the open file name, with a leading <span class="ui">•</span> whenever in-memory data has diverged from the saved file. In Chromium browsers (Chrome, Edge), <span class="ui">Save</span> writes back to the original file in place; other browsers download a fresh copy instead.</p>
+            <ul>
+                <li><span class="ui">Save</span> / <span class="ui">Save As…</span> always write <strong>every role and every column</strong> — they are your master copy, unaffected by filters.</li>
+                <li><span class="ui">Unsaved changes…</span> shows exactly what differs from the last save — the same added / removed / moved / changed breakdown as Compare.</li>
+            </ul>
+            <h3>Crash recovery</h3>
+            <p>While you have unsaved work, a snapshot is continuously kept in the browser's local storage (per tab). If the tab crashes or is closed before saving, the next visit shows a banner offering to <span class="ui">Restore</span> the work. The snapshot is cleared whenever you save or open a file, and old snapshots are removed after 7 days.</p>
+            <h3>Same file in two tabs</h3>
+            <p>Tabs announce which file they have open. If two tabs hold a file with the same name, both show an amber warning — edits are not shared between tabs, and saving in one overwrites the other. Close one tab, or make sure you know which is current.</p>
+            <div class="callout warn">Autosave is a crash-recovery net, not cloud sync. Your file on disk only changes when you press Save.</div>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="edit">
+            <h2>3. Edit the org</h2>
+            <div class="h2-sub">Edit in the grid, in a form, or directly on the chart — everything is undoable.</div>
+            <h3>On the Table tab</h3>
+            <ul>
+                <li>Click any cell to edit it in place. Header filters under each column name narrow the grid as you type.</li>
+                <li>Changing a role's <strong>Manager</strong> opens a tree picker mirroring the hierarchy — the role's own subtree is excluded, so a reporting cycle cannot be created.</li>
+                <li>The <span class="ui">✎</span> row button (or double-clicking a row) opens the role editor dialog, which edits every field at once and saves as a single undo step.</li>
+                <li>Row actions: <span class="ui">+child</span> adds a direct report, <span class="ui">⎘</span> duplicates the role, <span class="ui">✕</span> deletes it (its reports move up to its manager).</li>
+                <li>Keyboard: arrow keys move the active cell, <kbd>Enter</kbd> opens the editor, and typing a letter in a list cell jumps to the first matching option.</li>
+            </ul>
+            <h3>On the Chart tab</h3>
+            <ul>
+                <li><strong>Right-click any card</strong> for: Edit details, Add child, Add sibling, Rename, View subtree chart, Add/Remove dotted manager, Delete.</li>
+                <li><strong>Drag a card onto another</strong> to change its manager. Drops that would create a cycle are refused; moving a manager with their whole team asks for confirmation first.</li>
+                <li>Double-click a card to open the role editor.</li>
+            </ul>
+            <h3>Undo / Redo</h3>
+            <p><kbd>Cmd/Ctrl</kbd>+<kbd>Z</kbd> undoes the last structural change; <kbd>Cmd/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> redoes it. Both are also buttons in the sidebar's History section. The last 20 steps are kept.</p>
+            <div class="callout tip"><strong>Sketch live in a meeting:</strong> drag teams around on the chart while people watch, then undo back to reality — or Save As to keep the scenario.</div>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="navigate">
+            <h2>4. Navigate a large chart</h2>
+            <div class="h2-sub">Find anyone in two keystrokes; keep hundreds of roles readable.</div>
+            <ul>
+                <li><strong>Zoom</strong>: sidebar <span class="ui">−</span> / <span class="ui">+</span> buttons, the mouse wheel, or hotkeys — <kbd>+</kbd> and <kbd>-</kbd> zoom, <kbd>0</kbd> resets to 100%, <kbd>1</kbd> fits the whole visible chart to the canvas.</li>
+                <li><strong>Depth</strong>: the sidebar Depth control limits how many levels are expanded — step down to an executive summary, back up to full detail.</li>
+                <li><strong>Collapse badges</strong>: a collapsed branch shows a badge with its hidden subtree count. Click the badge to open a popup mini-chart of that subtree — drill deeper via its own badges, use the breadcrumb to step back, and double-click a card to locate it in the main chart.</li>
+                <li><strong>Find</strong>: the search box on the Chart tab matches Role ID, job title, incumbent name and department. Press <kbd>Enter</kbd> (or ▲/▼) to cycle through matches — collapsed ancestors expand automatically and the chart pans to each hit.</li>
+                <li><strong>Show from</strong>: focus the whole app (chart, pivot, summary, exports) on one subtree. Pick a role from the sidebar tree picker or click a node, then follow the breadcrumb trail back up.</li>
+            </ul>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="slice">
+            <h2>5. Slice, filter and colour</h2>
+            <div class="h2-sub">Cut a big org down to the exact slice you need — the three mechanisms compose.</div>
+            <ul>
+                <li><strong>Filters</strong>: two field filters in the sidebar (Status, Department, Location, Gender, Employment Type, Working Pattern) are ANDed together — e.g. Department = Engineering AND Status = vacant.</li>
+                <li><strong>Tags</strong>: a free-form tags field on every role (space- or comma-separated, shown as chips on cards). The Tags filter matches any selected tag, and combines with the field filters.</li>
+                <li><strong>Colour</strong>: colour cards by any category field. The legend is draggable — park it anywhere; it snaps back when you change the colour dimension. Colours never repeat, however many values the field has.</li>
+                <li><strong>Visible Fields</strong>: choose which fields appear on cards, including computed roll-ups — subtree headcount, cumulative cost, and per-status counts.</li>
+            </ul>
+            <div class="callout tip"><strong>Planning scenario:</strong> tag roles <code>2027-plan</code> as you work, then filter to that tag to review just the proposed changes — combined with "Show from" to stay inside one division.</div>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="dotted">
+            <h2>6. Matrix (dotted-line) reporting</h2>
+            <div class="h2-sub">Secondary reporting lines without cluttering the tree.</div>
+            <p>Any role can carry a list of dotted-line managers alongside its solid line. They appear three ways:</p>
+            <ul>
+                <li>As dashed pills on the role's card — clicking a pill pans to that manager;</li>
+                <li>As a column on the Table tab (Role IDs separated by <code>;</code>, which round-trips through CSV/Excel);</li>
+                <li>As a dashed overlay drawn between the linked cards — enable <span class="ui">Show dotted lines</span> in the sidebar.</li>
+            </ul>
+            <p>Add or remove dotted lines from the chart's right-click menu via a searchable role picker. Imports are validated: self-references, unknown IDs, duplicates, the role's own primary manager and anything that would create a dotted cycle are scrubbed, with a notification explaining what was dropped and why.</p>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="compare">
+            <h2>7. Run an org review with Compare</h2>
+            <div class="h2-sub">Quantify exactly what changed between two versions of the org — e.g. this month's HR extract vs last month's.</div>
+            <ol class="steps">
+                <li>Open your baseline file (last month's org, or your working plan).</li>
+                <li>Click <span class="ui">Compare…</span> in the header and pick the second file (e.g. the latest HR extract).</li>
+                <li>Read the summary chips: headcount and total cost before → after, with deltas.</li>
+                <li>Work through the four sections — <strong>Added</strong> (in your current data but not the file), <strong>Removed</strong> (in the file but not your data), <strong>Moved</strong> (manager changed), and <strong>Changed</strong> (field-by-field edits).</li>
+                <li>Click any row for a role that still exists to jump straight to its chart node.</li>
+                <li>Click <span class="ui">Export diff CSV</span> for an auditable change list to circulate for sign-off.</li>
+            </ol>
+            <p>Compare is read-only — it never modifies your data. Roles are matched by Role ID, so both files need consistent IDs.</p>
+            <div class="callout tip"><strong>Also useful before a reorg lands:</strong> compare your planned-state file against production to verify it contains only the intended moves.</div>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="merge">
+            <h2>8. Delegate a subtree and Merge it back</h2>
+            <div class="h2-sub">Send a department head just their team, let them edit, then apply their changes — without them ever seeing salary data.</div>
+            <ol class="steps">
+                <li>Focus the chart on the department with <span class="ui">Show from</span> (or filter to it).</li>
+                <li>On the Chart sidebar, choose <span class="ui">📊 Data…</span> → Excel or CSV. The field picker opens — <strong>Cost to Company is unticked by default</strong>, so salaries stay behind unless you explicitly include them. Role ID is always included so the file merges back cleanly.</li>
+                <li>Send the file. The recipient edits it in Excel — retitling roles, moving people, adding rows.</li>
+                <li>When it comes back, click <span class="ui">Merge…</span> in the header and pick their file.</li>
+                <li>Review the plan: chips show what will be <strong>added</strong>, <strong>updated</strong>, what is <strong>already in sync</strong>, and any skipped rows (no Role ID). Each item lists the exact field changes.</li>
+                <li>Apply items one by one with their <span class="ui">Apply</span> buttons, or <span class="ui">Apply all remaining</span>. Every apply is a single undo step.</li>
+                <li>Optionally <span class="ui">Export plan CSV</span> to file the merge decision trail.</li>
+            </ol>
+            <p>Merge is deliberately conservative:</p>
+            <ul>
+                <li>It <strong>never deletes</strong> — roles missing from the subset file are left untouched (use Compare if you need to see removals).</li>
+                <li>It is <strong>column-aware</strong> — only fields whose column exists in the file are compared or written. A file exported without the Cost column cannot zero out salaries.</li>
+            </ul>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="export">
+            <h2>9. Share and export</h2>
+            <div class="h2-sub">What you see is what you share — exports follow the current filters and focus.</div>
+            <p>All exports live in the Chart sidebar's Export section (Data exports are also on the Table tab). The rule of thumb: <strong>Save writes everything; exports write what you're looking at.</strong></p>
+            <div class="table-scroll">
+            <table>
+                <thead><tr><th>Export</th><th>What you get</th><th>Best for</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="ui">🖨 Print</span></td><td>Browser print of the visible chart with the colour key as a footer, colours forced on</td><td>Paper handouts, PDF via the print dialog</td></tr>
+                    <tr><td><span class="ui">🎨 Image…</span> → PNG</td><td>High-resolution snapshot including the colour key strip</td><td>Email, chat, wikis</td></tr>
+                    <tr><td><span class="ui">🎨 Image…</span> → SVG</td><td>Vector version of the chart — crisp at any zoom</td><td>Slide decks, large-format print</td></tr>
+                    <tr><td><span class="ui">📊 Data…</span> → CSV / Excel</td><td>The visible rows (filters, tags and focus applied) with a column picker — cost excluded unless ticked</td><td>Sending a slice to someone; re-importable subsets for Merge</td></tr>
+                    <tr><td><span class="ui">📋 PowerPoint SmartArt</span></td><td>An indented text outline of the visible hierarchy on your clipboard</td><td>Native, editable PowerPoint org charts</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <h3>Filtered exports stay coherent</h3>
+            <p>If a role's manager is filtered out of view, the exported file rewrites that role's manager to its nearest <em>visible</em> ancestor — so the exported hierarchy always hangs together and re-imports cleanly.</p>
+            <h3>Pasting into PowerPoint</h3>
+            <ol class="steps">
+                <li>Click <span class="ui">📋 PowerPoint SmartArt</span> — the outline is copied to your clipboard.</li>
+                <li>In PowerPoint: <span class="ui">Insert → SmartArt → Hierarchy → Organization Chart</span>.</li>
+                <li>Open the SmartArt <span class="ui">Text Pane</span>, select its placeholder lines, and paste.</li>
+            </ol>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="pivot">
+            <h2>10. Analyse with Pivot</h2>
+            <div class="h2-sub">Cross-tab headcount or cost by any two dimensions.</div>
+            <p>The <span class="ui">Pivot</span> tab builds a cross-tab from the same slice the chart shows (focus, filters and tags all apply). Choose the Rows and Columns dimensions, and aggregate either <strong>headcount</strong> (count) or <strong>cost</strong> (sum). Export CSV/Excel writes the rendered cross-tab — exactly the table you see — ready to paste into a monthly report.</p>
+            <div class="callout tip"><strong>Example:</strong> Rows = Department, Columns = Status, Aggregate = Count → a vacancy heat-map by department in three clicks.</div>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="safety">
+            <h2>11. Where your data lives</h2>
+            <div class="h2-sub">Everything stays on your machine.</div>
+            <ul>
+                <li>All processing happens in your browser. Org data is never uploaded — the only network requests are for the page's fonts and libraries.</li>
+                <li>Your master copy is the file you Save. Autosave snapshots and UI preferences live in the browser's local storage on your machine, and snapshots are garbage-collected after 7 days.</li>
+                <li>Clearing browser site data removes snapshots and preferences — never your saved files.</li>
+                <li>Salary data leaves the tool only when you explicitly tick Cost in an export, or use Save/Save As (which always writes all fields).</li>
+            </ul>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+
+        <section id="reference">
+            <h2>12. Reference</h2>
+            <h3>Keyboard shortcuts</h3>
+            <div class="table-scroll">
+            <table>
+                <thead><tr><th>Keys</th><th>Where</th><th>Action</th></tr></thead>
+                <tbody>
+                    <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Chart tab</td><td>Zoom in / out</td></tr>
+                    <tr><td><kbd>0</kbd></td><td>Chart tab</td><td>Reset zoom to 100%</td></tr>
+                    <tr><td><kbd>1</kbd></td><td>Chart tab</td><td>Fit the whole chart to the canvas</td></tr>
+                    <tr><td><kbd>Cmd/Ctrl</kbd>+<kbd>Z</kbd></td><td>Anywhere</td><td>Undo the last structural change</td></tr>
+                    <tr><td><kbd>Cmd/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Anywhere</td><td>Redo</td></tr>
+                    <tr><td><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd></td><td>Table tab</td><td>Move the active cell</td></tr>
+                    <tr><td><kbd>Enter</kbd></td><td>Table tab</td><td>Edit the active cell</td></tr>
+                    <tr><td>Type a letter</td><td>Table list cells</td><td>Jump to the first matching option</td></tr>
+                    <tr><td><kbd>Enter</kbd></td><td>Chart Find box</td><td>Cycle to the next match</td></tr>
+                </tbody>
+            </table>
+            </div>
+
+            <h3>Status values</h3>
+            <p><code>filled</code> · <code>vacant</code> · <code>pending start</code> · <code>planned</code> · <code>on hold</code> · <code>sunsetting</code> · <code>removed</code> · <code>earmarked</code> — unrecognised values import as <code>planned</code>. Headcount roll-ups count filled, pending start, planned and earmarked roles.</p>
+
+            <h3>Import columns and their aliases</h3>
+            <div class="table-scroll">
+            <table>
+                <thead><tr><th>Field</th><th>Accepted column headers (case-insensitive)</th></tr></thead>
+                <tbody>
+                    <tr><td>Role ID <em>(required)</em></td><td>Role ID, ID</td></tr>
+                    <tr><td>Title</td><td>Title, Role</td></tr>
+                    <tr><td>Status</td><td>Status</td></tr>
+                    <tr><td>Incumbent</td><td>Incumbent, Name</td></tr>
+                    <tr><td>Manager</td><td>Manager, Reports To, Manager ID</td></tr>
+                    <tr><td>Department</td><td>Department, Dept</td></tr>
+                    <tr><td>Cost</td><td>Cost, Salary, CTC</td></tr>
+                    <tr><td>Location</td><td>Location, Office</td></tr>
+                    <tr><td>Gender</td><td>Gender</td></tr>
+                    <tr><td>Employment Type</td><td>Employment Type, Contract Type</td></tr>
+                    <tr><td>Working Pattern</td><td>Working Pattern, FTE</td></tr>
+                    <tr><td>Comments</td><td>Comments, Notes</td></tr>
+                    <tr><td>Tags</td><td>Tags, Keywords, Labels — space or comma separated</td></tr>
+                    <tr><td>Dotted Managers</td><td>Dotted Manager IDs, Dotted Line, Secondary Manager — <code>;</code> separated Role IDs</td></tr>
+                </tbody>
+            </table>
+            </div>
+            <a class="back-to-top" href="#top">↑ Back to top</a>
+        </section>
+    </main>
+
+    <footer>
+        No ads, no tracking, no data leaves your browser.
+        <a href="/org-chart">Open the Org Chart app</a> ·
+        <a href="/disclaimer">Disclaimer &amp; Terms</a>
+    </footer>
+</body>
+</html>
