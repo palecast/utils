@@ -183,7 +183,7 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous"></script>
     <script>
         const formTemplates = {
             url: `
@@ -269,7 +269,6 @@
             `
         };
 
-        let qrcode = null;
         let currentQRType = 'url';
 
         // Initialize form
@@ -342,7 +341,13 @@
         }
 
         function escapeVCardField(str) {
-            return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+            // vCard 3.0: backslash-escape \ ; , and fold newlines to literal \n
+            // (an unescaped newline breaks the one-property-per-line structure)
+            return str.replace(/\\/g, '\\\\')
+                .replace(/;/g, '\\;')
+                .replace(/,/g, '\\,')
+                .replace(/\r/g, '')
+                .replace(/\n/g, '\\n');
         }
 
         function generateVCardData() {
@@ -365,9 +370,9 @@
 
             if (organization) vcard += `ORG:${escapeVCardField(organization)}\n`;
             if (title) vcard += `TITLE:${escapeVCardField(title)}\n`;
-            if (phone) vcard += `TEL:${phone}\n`;
-            if (email) vcard += `EMAIL:${email}\n`;
-            if (website) vcard += `URL:${website}\n`;
+            if (phone) vcard += `TEL:${escapeVCardField(phone)}\n`;
+            if (email) vcard += `EMAIL:${escapeVCardField(email)}\n`;
+            if (website) vcard += `URL:${escapeVCardField(website)}\n`;
             if (address) vcard += `ADR:;;${escapeVCardField(address)};;;;\n`;
             
             vcard += 'END:VCARD';
@@ -411,43 +416,51 @@
             // Clear previous QR code
             qrcodeContainer.innerHTML = '';
 
-            // Try to create QR code with fallback error correction levels
-            // Start with highest quality (H) and reduce if data is too large
-            // H = High (30% error correction, best quality, least data capacity)
-            // Q = Quartile (25% error correction)
-            // M = Medium (15% error correction)
-            // L = Low (7% error correction, most data capacity)
-            const errorLevels = [
-                QRCode.CorrectLevel.H,  // Try highest quality first
-                QRCode.CorrectLevel.Q,
-                QRCode.CorrectLevel.M,
-                QRCode.CorrectLevel.L   // Fallback to lowest for maximum data capacity
-            ];
+            // Encode input as real UTF-8 bytes so accents, emoji and non-Latin
+            // scripts survive scanning (the default byte encoder is Latin-1 only)
+            qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
 
-            let qrCreated = false;
-            let lastError = null;
+            // Try error correction levels from highest to lowest:
+            // H = 30% error correction (best resilience, least data capacity)
+            // Q = 25%, M = 15%, L = 7% (most data capacity)
+            const errorLevels = ['H', 'Q', 'M', 'L'];
 
-            for (let level of errorLevels) {
+            let qr = null;
+            for (const level of errorLevels) {
                 try {
-                    qrcode = new QRCode(qrcodeContainer, {
-                        text: data,
-                        width: 256,
-                        height: 256,
-                        colorDark: '#000000',
-                        colorLight: '#ffffff',
-                        correctLevel: level
-                    });
-                    qrCreated = true;
+                    const candidate = qrcode(0, level); // 0 = auto-size to the data
+                    candidate.addData(data, 'Byte');
+                    candidate.make();
+                    qr = candidate;
                     break;
                 } catch (error) {
-                    lastError = error;
-                    qrcodeContainer.innerHTML = ''; // Clear failed attempt
+                    // Data too large at this level — try the next one
                 }
             }
 
-            if (!qrCreated) {
+            if (!qr) {
                 throw new Error('QR code data is too large. Please reduce the amount of information.');
             }
+
+            // Render onto a canvas (PNG download reads it back via toBlob)
+            const moduleCount = qr.getModuleCount();
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            ctx.fillStyle = '#000000';
+            const cell = size / moduleCount;
+            for (let row = 0; row < moduleCount; row++) {
+                for (let col = 0; col < moduleCount; col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect(Math.floor(col * cell), Math.floor(row * cell), Math.ceil(cell), Math.ceil(cell));
+                    }
+                }
+            }
+            qrcodeContainer.appendChild(canvas);
 
             // Show QR code container
             qrcodeWrapper.classList.add('show');

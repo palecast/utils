@@ -257,6 +257,16 @@
             to { transform: rotate(360deg); }
         }
 
+        .error-banner {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #c33;
+            color: #c33;
+            padding: 15px 22px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
         .empty-state {
             display: flex;
             flex-direction: column;
@@ -366,6 +376,7 @@
         </div>
 
         <div class="chart-container">
+            <div class="error-banner" id="errorBanner" style="display: none;"></div>
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <div>Loading currency data...</div>
@@ -387,6 +398,7 @@
         let baseCurrency = 'USD';
         let chart = null;
         let availableCurrencies = [];
+        let chartAbortController = null;
 
         // Color palette for currency lines
         const currencyColors = [
@@ -408,10 +420,21 @@
             updateChart();
         }
 
+        function showError(message) {
+            const banner = document.getElementById('errorBanner');
+            banner.textContent = message;
+            banner.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorBanner').style.display = 'none';
+        }
+
         // Fetch available currencies from API
         async function loadAvailableCurrencies() {
             try {
                 const response = await fetch('https://api.frankfurter.dev/v1/currencies');
+                if (!response.ok) throw new Error(`Currency list request failed (${response.status})`);
                 const currencies = await response.json();
                 availableCurrencies = Object.keys(currencies).sort();
 
@@ -440,6 +463,8 @@
                 baseSelect.value = baseCurrency;
             } catch (error) {
                 console.error('Error loading currencies:', error);
+                document.getElementById('currencySelect').innerHTML = '<option value="">Currencies unavailable</option>';
+                showError('Could not load the currency list — check your connection and reload the page.');
             }
         }
 
@@ -609,19 +634,29 @@
             const loading = document.getElementById('loading');
             loading.classList.add('active');
 
+            // Abort any in-flight update so a slow older response can't
+            // overwrite this newer one
+            if (chartAbortController) chartAbortController.abort();
+            chartAbortController = new AbortController();
+            const signal = chartAbortController.signal;
+
             try {
                 const { start, end } = getDateRange();
 
                 // Fetch data for all currencies relative to base currency
+                let labels = [];
                 const datasets = await Promise.all(
                     selectedCurrencies.map(async (currency, index) => {
                         const response = await fetch(
-                            `https://api.frankfurter.dev/v1/${start}..${end}?from=${baseCurrency}&to=${currency}`
+                            `https://api.frankfurter.dev/v1/${start}..${end}?from=${baseCurrency}&to=${currency}`,
+                            { signal }
                         );
+                        if (!response.ok) throw new Error(`Rate request failed (${response.status})`);
                         const data = await response.json();
 
                         // Normalize data to start at 100
                         const dates = Object.keys(data.rates).sort();
+                        if (index === 0) labels = dates; // all series share the same business days
                         // Invert rates: if 1 USD = 0.85 EUR, we want to show 1 EUR = 1.176 USD
                         const rates = dates.map(date => 1 / data.rates[date][currency]);
 
@@ -646,12 +681,7 @@
                     })
                 );
 
-                // Get dates for x-axis
-                const firstCurrencyResponse = await fetch(
-                    `https://api.frankfurter.dev/v1/${start}..${end}?from=${baseCurrency}`
-                );
-                const firstCurrencyData = await firstCurrencyResponse.json();
-                const labels = Object.keys(firstCurrencyData.rates).sort();
+                hideError();
 
                 // Update or create chart
                 if (chart) {
@@ -749,10 +779,14 @@
                     });
                 }
             } catch (error) {
+                if (error.name === 'AbortError') return; // superseded by a newer request
                 console.error('Error fetching currency data:', error);
-                alert('Error loading currency data. Please try again.');
+                showError('Error loading currency data — check your connection and try again.');
             } finally {
-                loading.classList.remove('active');
+                // Only the still-current request may clear the loading state
+                if (chartAbortController && chartAbortController.signal === signal) {
+                    loading.classList.remove('active');
+                }
             }
         }
 

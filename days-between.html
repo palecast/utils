@@ -574,6 +574,10 @@
         let isEditingDays = false;
         let selectedSubdivision = null;
         let currentCountryCode = null;
+        let fetchedHolidayYears = new Set();
+        let holidayYearsCapped = false;
+        const MAX_HOLIDAY_YEARS = 20;
+        const MAX_EDITABLE_DAYS = 36500; // ~100 years
 
         function escapeHtml(str) {
             return String(str)
@@ -776,10 +780,12 @@
         // Add working days to a date
         function addWorkingDays(dateString, workingDays) {
             if (workingDays <= 0) return dateString;
+            workingDays = Math.min(workingDays, MAX_EDITABLE_DAYS);
             let date = new Date(dateString + 'T00:00:00');
             let addedDays = 0;
+            let iterations = 0;
 
-            while (addedDays < workingDays) {
+            while (addedDays < workingDays && ++iterations <= MAX_EDITABLE_DAYS * 2) {
                 date.setDate(date.getDate() + 1);
                 const dayOfWeek = date.getDay();
                 const year = date.getFullYear();
@@ -997,6 +1003,8 @@
                 publicHolidays = [];
                 selectedSubdivision = null;
                 currentCountryCode = null;
+                fetchedHolidayYears = new Set();
+                holidayYearsCapped = false;
                 document.getElementById('subdivisionSelector').style.display = 'none';
                 updateDisplay();
                 return;
@@ -1011,19 +1019,25 @@
                 const startYear = new Date(startDate).getFullYear();
                 const endYear = new Date(endDate).getFullYear();
                 
-                // Fetch holidays for all years in range
+                // Fetch holidays for all years in range (capped so a huge range can't flood the API)
                 const years = [];
                 for (let year = startYear; year <= endYear; year++) {
                     years.push(year);
                 }
+                holidayYearsCapped = years.length > MAX_HOLIDAY_YEARS;
+                const yearsToFetch = years.slice(0, MAX_HOLIDAY_YEARS);
 
-                const holidayPromises = years.map(year => 
+                const holidayPromises = yearsToFetch.map(year =>
                     fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`)
-                        .then(res => res.json())
+                        .then(res => res.ok ? res.json() : [])
                 );
 
-                const holidayArrays = await Promise.all(holidayPromises);
-                publicHolidays = holidayArrays.flat();
+                // allSettled: one failed year shouldn't drop every other year's holidays
+                const holidayResults = await Promise.allSettled(holidayPromises);
+                publicHolidays = holidayResults
+                    .filter(r => r.status === 'fulfilled' && Array.isArray(r.value))
+                    .flatMap(r => r.value);
+                fetchedHolidayYears = new Set(yearsToFetch);
                 
                 // Only update subdivision selector if requested (when country changes, not when refetching for new years)
                 if (updateSubdivisionSelector) {
@@ -1049,7 +1063,7 @@
                         let html = '<option value="">All regions</option>';
                         sortedSubdivisions.forEach(subdivision => {
                             const displayName = getSubdivisionName(subdivision);
-                            html += `<option value="${subdivision}">${displayName}</option>`;
+                            html += `<option value="${escapeHtml(subdivision)}">${escapeHtml(displayName)}</option>`;
                         });
                         
                         subdivisionSelect.innerHTML = html;
@@ -1108,7 +1122,9 @@
             const holidays = getHolidaysBetween(startDate, endDate);
 
             if (holidays.length === 0) {
-                holidaysList.innerHTML = '';
+                holidaysList.innerHTML = holidayYearsCapped
+                    ? `<div style="color:#6B5F54;font-size:0.85rem;">Public holidays are loaded for the first ${MAX_HOLIDAY_YEARS} years of the selected range only.</div>`
+                    : '';
                 return;
             }
 
@@ -1123,10 +1139,14 @@
                             month: 'short', 
                             year: 'numeric' 
                         })}</div>
-                        <div class="holiday-name">${holiday.name}</div>
+                        <div class="holiday-name">${escapeHtml(holiday.name)}</div>
                     </div>
                 `;
             });
+
+            if (holidayYearsCapped) {
+                html += `<div style="color:#6B5F54;font-size:0.85rem;margin-top:8px;">Public holidays are loaded for the first ${MAX_HOLIDAY_YEARS} years of the selected range only.</div>`;
+            }
 
             holidaysList.innerHTML = html;
         }
@@ -1160,18 +1180,13 @@
 
             const startYear = new Date(startDate).getFullYear();
             const endYear = new Date(endDate).getFullYear();
-            
-            // Get the years we currently have holidays for
-            const currentYears = new Set();
-            publicHolidays.forEach(holiday => {
-                const year = new Date(holiday.date).getFullYear();
-                currentYears.add(year);
-            });
-            
-            // Check if we need any years that we don't have
+
+            // Check if we need any years that we haven't already attempted
+            // (only within the fetch cap, so an over-cap range doesn't refetch forever)
             let needsRefetch = false;
-            for (let year = startYear; year <= endYear; year++) {
-                if (!currentYears.has(year)) {
+            const lastFetchableYear = startYear + MAX_HOLIDAY_YEARS - 1;
+            for (let year = startYear; year <= Math.min(endYear, lastFetchableYear); year++) {
+                if (!fetchedHolidayYears.has(year)) {
                     needsRefetch = true;
                     break;
                 }
@@ -1219,6 +1234,7 @@
             input.type = 'number';
             input.value = currentValue;
             input.min = '0';
+            input.max = String(MAX_EDITABLE_DAYS);
 
             element.innerHTML = '';
             element.appendChild(input);
@@ -1226,7 +1242,7 @@
             input.select();
 
             const finishEdit = async () => {
-                const newValue = parseInt(input.value) || 0;
+                const newValue = Math.min(parseInt(input.value) || 0, MAX_EDITABLE_DAYS);
                 isEditingDays = false;
 
                 if (newValue !== currentValue) {

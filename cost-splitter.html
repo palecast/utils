@@ -980,6 +980,20 @@
         const sc = getScenario();
         sc.costs.forEach(c => { if (c.assignedToGroup === id) c.assignedToGroup = null; });
         sc.groups = sc.groups.filter(g => g.id !== id);
+        // Clear "paid by" references to people who left with the group, so
+        // settlements don't keep crediting someone who no longer exists
+        const remaining = new Set(getAllPeople(sc));
+        const clearedPayers = new Set();
+        sc.costs.forEach(c => {
+            if (c.paidBy && !remaining.has(c.paidBy)) {
+                clearedPayers.add(c.paidBy);
+                c.paidBy = '';
+            }
+        });
+        if (clearedPayers.size) {
+            alert('The deleted group contained payer(s) ' + [...clearedPayers].join(', ') +
+                  ' — their costs were reset to shared payment.');
+        }
         if (editingGroupId === id) editingGroupId = null;
         saveAndRender();
     }
@@ -1010,7 +1024,14 @@
         group.people.forEach((p, i) => {
             const pnEl = document.getElementById('editPersonName_' + id + '_' + i);
             const pwEl = document.getElementById('editPersonWeight_' + id + '_' + i);
-            if (pnEl && pnEl.value.trim()) p.name = pnEl.value.trim();
+            if (pnEl && pnEl.value.trim()) {
+                const newName = pnEl.value.trim();
+                if (newName !== p.name) {
+                    // Keep "paid by" references pointing at the same person across a rename
+                    sc.costs.forEach(c => { if (c.paidBy === p.name) c.paidBy = newName; });
+                    p.name = newName;
+                }
+            }
             if (pwEl) p.weight = Math.max(0.01, parseFloat(pwEl.value) || 1);
         });
 

@@ -394,6 +394,13 @@ function defaultState(){
   };
 }
 
+// An unknown IANA id makes Intl throw deep inside render() — validate before adopting
+function isValidTimeZone(tz){
+  if (typeof tz !== 'string' || !tz) return false;
+  try { new Intl.DateTimeFormat('en-US', {timeZone: tz}); return true; }
+  catch (e) { return false; }
+}
+
 function loadState(){
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -403,7 +410,7 @@ function loadState(){
 
     parsed.rows = parsed.rows
       .map(r => ({ label: r.label, tz: r.tz, home: !!r.home }))
-      .filter(r => r.label && r.tz);
+      .filter(r => r.label && isValidTimeZone(r.tz));
 
     if (!parsed.rows.length) return defaultState();
     if (!parsed.rows.some(r => r.home)) parsed.rows[0].home = true;
@@ -446,13 +453,16 @@ function showSavedIndicator(){
   const start = params.get('start');
   if (packed){
     const parts = packed.split(',').map(s=>decodeURIComponent(s));
-    state.rows = parts.map(p=>{
+    const rows = parts.map(p=>{
       const pipeIdx = p.indexOf('|');
       const [label, tz] = pipeIdx >= 0 ? [p.slice(0, pipeIdx), p.slice(pipeIdx + 1)] : [p, p];
       return {label, tz, home:false};
-    });
-    const idx = state.rows.findIndex(r=>r.tz===home);
-    if (idx>=0) state.rows[idx].home = true; else if (state.rows.length) state.rows[0].home=true;
+    }).filter(r => r.label && isValidTimeZone(r.tz)); // drop invalid zones from shared links
+    if (rows.length){
+      state.rows = rows;
+      const idx = state.rows.findIndex(r=>r.tz===home);
+      if (idx>=0) state.rows[idx].home = true; else state.rows[0].home=true;
+    }
   }
   if (start !== null) {
     const parsed = parseInt(start, 10);

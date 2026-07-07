@@ -625,6 +625,11 @@
 
         function escapeCsvValue(str) {
             var s = String(str);
+            // Neutralize formula injection: Excel executes cells starting with = + - @
+            // (plain negative numbers are left untouched)
+            if (/^[=+\-@]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) {
+                s = "'" + s;
+            }
             if (s.includes(',') || s.includes('"') || s.includes('\n')) {
                 return '"' + s.replace(/"/g, '""') + '"';
             }

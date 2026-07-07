@@ -294,6 +294,9 @@
         let currencies = {};
         let chart = null;
         let currentPeriod = 30;
+        let convertAbort = null;
+        let chartAbort = null;
+        let convertDebounce = null;
 
         // DOM Elements
         const fromAmount = document.getElementById('fromAmount');
@@ -322,6 +325,7 @@
         async function loadCurrencies() {
             try {
                 const response = await fetch(`${API_BASE}/currencies`);
+                if (!response.ok) throw new Error(`Currency list request failed (${response.status})`);
                 currencies = await response.json();
                 
                 const state = loadState();
@@ -356,7 +360,12 @@
 
         // Setup event listeners
         function setupEventListeners() {
-            fromAmount.addEventListener('input', () => { convert(); saveState(); });
+            // Debounce so fast typing doesn't fire a request per keystroke
+            fromAmount.addEventListener('input', () => {
+                clearTimeout(convertDebounce);
+                convertDebounce = setTimeout(convert, 250);
+                saveState();
+            });
             fromCurrency.addEventListener('change', () => {
                 convert();
                 updateChart();
@@ -406,7 +415,11 @@
             }
             
             try {
-                const response = await fetch(`${API_BASE}/latest?base=${from}&symbols=${to}`);
+                if (convertAbort) convertAbort.abort();
+                convertAbort = new AbortController();
+                const response = await fetch(`${API_BASE}/latest?base=${from}&symbols=${to}`,
+                    { signal: convertAbort.signal });
+                if (!response.ok) throw new Error(`Rate request failed (${response.status})`);
                 const data = await response.json();
                 const rate = data.rates[to];
                 const converted = amount * rate;
@@ -422,6 +435,7 @@
                     </div>
                 `;
             } catch (error) {
+                if (error.name === 'AbortError') return; // superseded by a newer request
                 showError('Failed to convert currency');
                 console.error('Error converting:', error);
             }
@@ -444,9 +458,13 @@
                 const endStr = endDate.toISOString().split('T')[0];
                 
                 // Fetch historical data
+                if (chartAbort) chartAbort.abort();
+                chartAbort = new AbortController();
                 const response = await fetch(
-                    `${API_BASE}/${startStr}..${endStr}?base=${from}&symbols=${to}`
+                    `${API_BASE}/${startStr}..${endStr}?base=${from}&symbols=${to}`,
+                    { signal: chartAbort.signal }
                 );
+                if (!response.ok) throw new Error(`History request failed (${response.status})`);
                 const data = await response.json();
                 
                 // Prepare chart data
@@ -469,6 +487,7 @@
                     createChart(dates, rates, from, to);
                 }
             } catch (error) {
+                if (error.name === 'AbortError') return; // superseded by a newer request
                 showError('Failed to load historical data');
                 console.error('Error loading chart data:', error);
             }

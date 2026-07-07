@@ -581,6 +581,12 @@
                     }));
                 }
                 marked.setOptions({ gfm: true, breaks: false });
+                // Links that open a new tab must not expose window.opener (reverse tab-nabbing)
+                DOMPurify.addHook('afterSanitizeAttributes', function (node) {
+                    if (node.tagName === 'A' && node.hasAttribute('target')) {
+                        node.setAttribute('rel', 'noopener noreferrer');
+                    }
+                });
             }
 
             // --- Render & dirty ---
