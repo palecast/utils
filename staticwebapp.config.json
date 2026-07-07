@@ -33,6 +33,34 @@
       "rewrite": "/coastal-conditions.html"
     },
     {
+      "route": "/daylight-hours",
+      "rewrite": "/daylight-hours.html"
+    },
+    {
+      "route": "/field-mapper",
+      "rewrite": "/field-mapper.html"
+    },
+    {
+      "route": "/text-diff",
+      "rewrite": "/text-diff.html"
+    },
+    {
+      "route": "/markdown-editor",
+      "rewrite": "/markdown-editor.html"
+    },
+    {
+      "route": "/json-formatter",
+      "rewrite": "/json-formatter.html"
+    },
+    {
+      "route": "/loan-calculator",
+      "rewrite": "/loan-calculator.html"
+    },
+    {
+      "route": "/org-chart-guide",
+      "rewrite": "/org-chart-guide.html"
+    },
+    {
       "route": "/disclaimer",
       "rewrite": "/disclaimer.html"
     },
@@ -79,6 +107,41 @@
     {
       "route": "/coastal-conditions.html",
       "redirect": "/coastal-conditions",
+      "statusCode": 301
+    },
+    {
+      "route": "/daylight-hours.html",
+      "redirect": "/daylight-hours",
+      "statusCode": 301
+    },
+    {
+      "route": "/field-mapper.html",
+      "redirect": "/field-mapper",
+      "statusCode": 301
+    },
+    {
+      "route": "/text-diff.html",
+      "redirect": "/text-diff",
+      "statusCode": 301
+    },
+    {
+      "route": "/markdown-editor.html",
+      "redirect": "/markdown-editor",
+      "statusCode": 301
+    },
+    {
+      "route": "/json-formatter.html",
+      "redirect": "/json-formatter",
+      "statusCode": 301
+    },
+    {
+      "route": "/loan-calculator.html",
+      "redirect": "/loan-calculator",
+      "statusCode": 301
+    },
+    {
+      "route": "/org-chart-guide.html",
+      "redirect": "/org-chart-guide",
       "statusCode": 301
     },
     {

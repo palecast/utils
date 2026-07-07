@@ -27,7 +27,28 @@ Compare the relative value of currencies over time against a chosen base currenc
 Split a bill between any number of people, with support for individual non-shared items and optional tip.
 
 ### 🏢 Org Chart
-Design and model org structures. Import/export Excel/CSV, filter by department or role, color-code nodes, and visualize hierarchies as a tree or table. Supports print and image export.
+Design and model org structures. Import/export Excel/CSV, filter by department or role, color-code nodes, and visualize hierarchies as a tree or table. Compare snapshots, merge delegated edits back in, and export to print, PNG, SVG, or PowerPoint SmartArt. Has its own [how-to guide](https://www.duplessis.uk/org-chart-guide).
+
+### ☀️ Daylight Hours
+Visualize sunrise and sunset for every day of the year for any city, as a ribbon chart with hover details.
+
+### 🌊 Coastal Conditions
+Marine conditions for watersports: wave height, swell, sea temperature, and currents at coastal locations worldwide. Powered by Open-Meteo.
+
+### 🔄 Field Mapper
+Map and transform CSV/Excel fields with template expressions — drag source fields into output expressions, preview live, export CSV/Excel.
+
+### 📝 Text Diff
+Compare two text files or snippets side by side, with added/removed/changed highlighting and change navigation.
+
+### 📄 Markdown Editor
+Write Markdown with a live side-by-side preview. Open and save `.md` files locally; export to PDF with selectable text.
+
+### 🧰 JSON Formatter
+Format, minify and validate JSON. Explore documents in a collapsible tree with search and path copying.
+
+### 🏦 Loan Calculator
+Amortization schedules with monthly payment, total interest, payoff date, and the effect of extra payments. Export the schedule to CSV.
 
 ---
 

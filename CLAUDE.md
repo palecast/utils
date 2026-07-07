@@ -28,6 +28,8 @@ npx serve .
 - `index.html` — Landing page; dynamically renders tool cards from a `utilities[]` config array. Page title changes based on `window.location.hostname`.
 - Each `*.html` — A standalone utility with no external file dependencies (except CDN links)
 - `disclaimer.html` — Shared terms/disclaimer page linked from tool footers
+- `org-chart-guide.html` — Static how-to guide for the Org Chart tool, linked from its header Help button
+- `dc-inventory.html` — **Obsolete**: unmaintained, deliberately absent from `index.html` (role-gated in `staticwebapp.config.json`); do not extend
 
 ### Visual Design Conventions
 
@@ -43,7 +45,8 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 ### External Dependencies (CDN)
 
 - **Inter** (`fonts.googleapis.com/css2?family=Inter`) — loaded by every standard tool (weights 300/400/500/600)
-- **Chart.js** (`cdn.jsdelivr.net/npm/chart.js`) — used by `currency-converter.html` and `ccy-tracker.html`
+- **Chart.js** (`cdn.jsdelivr.net/npm/chart.js`) — used by `currency-converter.html`, `ccy-tracker.html`, and `loan-calculator.html`
+- **qrcode-generator** (`cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4`, SRI-pinned) — used by `qr-generator.html` (UTF-8-correct QR encoding)
 - **DM Serif Display, Work Sans** (Google Fonts) — used only by `ccy-tracker.html` (intentional design exception)
 - **Tabulator** (`cdn.jsdelivr.net/npm/tabulator-tables@6`) — used by `org-chart.html` for the table/grid view
 - **OrgChart (Dabeng)** (`cdn.jsdelivr.net/npm/orgchart@5`) + **jQuery 3.7.1** — used by `org-chart.html` for the tree visualization
@@ -60,6 +63,7 @@ Four tools persist user state to `localStorage`:
 | `ccy-tracker.html` | `currencyTrackerState` | Selected currencies, time period, base currency |
 | `currency-converter.html` | `currencyConverterState` | From/to currencies, amount, selected period |
 | `timezone-compare-app.html` | `world-timeboard-state-v1` | City rows, home timezone, start hour |
+| `loan-calculator.html` | `loanCalculatorState` | Loan inputs (amount, rate, term, start month, extra payment, currency symbol) |
 | `org-chart.html` | `orgChartUiState` | UI chrome only (sidebar/section collapse state) |
 | `org-chart.html` | `orgChartAutosave:<tabId>` | Per-tab crash-recovery snapshot of unsaved working data (debounced; cleared on save/open; restore offered on next visit for snapshots whose tab is dead, judged via the `orgChartAutosaveHb:<tabId>` heartbeat key; tab id lives in `sessionStorage` as `orgChartTabId`) |
 
