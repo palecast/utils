@@ -54,6 +54,15 @@
   .row{display:flex;align-items:stretch;position:relative}
   .row + .row{margin-top:4px}
   .col-city{display:flex;align-items:center;gap:6px;padding:6px 4px}
+  .drag-handle{
+    cursor:grab; color:var(--muted); font-size:12px; line-height:1;
+    padding:2px 1px; flex-shrink:0;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+    touch-action:none;           /* stop touch scroll hijacking vertical drags */
+    opacity:.4; transition:opacity .2s ease;
+  }
+  .drag-handle:hover{opacity:.8}
+  .row:only-child .drag-handle{visibility:hidden}
   .offset-badge{min-width:28px;text-align:center;font-weight:600;color:var(--muted);cursor:pointer;flex-shrink:0;font-size:11px}
   .offset-badge.home{color:var(--accent)}
   .city-info{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
@@ -74,6 +83,14 @@
   .work{background:var(--work)}
   .hovercol{position:absolute;top:0;bottom:0;background:rgba(34, 197, 94, 0.12);border-left:2px solid var(--hover-border);border-right:2px solid var(--hover-border);pointer-events:none;z-index:3}
   .hourlabel{font-weight:700}
+  .row.dragging{
+    opacity:.9;
+    box-shadow:0 8px 24px rgba(58,47,40,.12);
+    z-index:20;                                 /* above sticky row-heads (z-index:10) */
+  }
+  .row.dragging .drag-handle{opacity:.8;cursor:grabbing}
+  body.drag-active{user-select:none;-webkit-user-select:none;cursor:grabbing}
+  body.drag-active .cells{pointer-events:none}  /* suppress column-hover overlays during drag */
 
   .legend{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:10px;flex-wrap:wrap}
   .legend .swatch{width:12px;height:12px;border:1px solid var(--line);border-radius:2px}
@@ -506,11 +523,18 @@ function render(){
   state.rows.forEach((row, idx)=>{
     const wrap = document.createElement('div');
     wrap.className = 'row';
+    wrap.dataset.index = idx;
 
     // Head section
     const head = document.createElement('div');
     head.className = 'row-head col-city';
     const off = hoursAhead(home.tz, row.tz);
+
+    const handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    handle.title = 'Drag to reorder';
+    handle.textContent = '☰';
+    attachRowDrag(handle, wrap);
 
     const offEl = document.createElement('div');
     offEl.className = 'offset-badge' + (row.home? ' home':'');
@@ -555,7 +579,7 @@ function render(){
     close.title = 'Remove row';
     close.addEventListener('click', ()=> removeRow(idx));
 
-    head.append(offEl, cityInfo, close);
+    head.append(handle, offEl, cityInfo, close);
 
     // Cells section (no wrapper)
     const cells = document.createElement('div');
@@ -619,6 +643,65 @@ function drawHover(){
     col.style.width = cellWidth + 'px';
     cells.appendChild(col);
   });
+}
+
+// ------- Drag to reorder -------
+let dragCtx = null;   // { rowEl, handle, pointerId } while a drag is live
+
+function attachRowDrag(handle, rowEl){
+  handle.addEventListener('pointerdown', (e)=>{
+    if (dragCtx || !e.isPrimary || e.button !== 0) return;
+    if (state.rows.length < 2) return;
+    e.preventDefault();                                   // stop text-selection (mouse)
+    try { handle.setPointerCapture(e.pointerId); } catch(_) { return; }
+    dragCtx = { rowEl, handle, pointerId: e.pointerId };
+    rowEl.classList.add('dragging');
+    document.body.classList.add('drag-active');
+    highlightColumn(-1);                                  // clear column overlay
+  });
+  handle.addEventListener('pointermove', onDragMove);
+  handle.addEventListener('pointerup',         ()=> endDrag(true));
+  handle.addEventListener('pointercancel',     ()=> endDrag(false));
+  handle.addEventListener('lostpointercapture',()=> endDrag(false)); // safety net
+}
+
+function onDragMove(e){
+  if (!dragCtx || e.pointerId !== dragCtx.pointerId) return;
+  const rowEl = dragCtx.rowEl;
+  const content = rowEl.parentElement;                    // .board-content
+  // Reorder by moving siblings past the dragged row, never the row itself:
+  // relocating the captured element in the DOM releases pointer capture,
+  // which would abort the drag. Re-measure after each swap so multi-row
+  // jumps and variable row heights stay correct.
+  for (;;){
+    const prev = rowEl.previousElementSibling;
+    if (prev){
+      const r = prev.getBoundingClientRect();
+      if (e.clientY < r.top + r.height/2){ content.insertBefore(prev, rowEl.nextElementSibling); continue; }
+    }
+    const nxt = rowEl.nextElementSibling;
+    if (nxt){
+      const r = nxt.getBoundingClientRect();
+      if (e.clientY > r.top + r.height/2){ content.insertBefore(nxt, rowEl); continue; }
+    }
+    break;
+  }
+}
+
+function endDrag(commit){
+  if (!dragCtx) return;
+  const { rowEl } = dragCtx;
+  dragCtx = null;                                         // idempotency guard first
+  rowEl.classList.remove('dragging');
+  document.body.classList.remove('drag-active');
+  if (commit){
+    const content = rowEl.parentElement;
+    const newOrder = [...content.querySelectorAll(':scope > .row')]
+      .map(el => state.rows[+el.dataset.index]);
+    const changed = newOrder.some((r, i) => r !== state.rows[i]);
+    if (changed){ state.rows = newOrder; saveState(); }   // no "✓ Saved" flash on no-op wiggle
+  }
+  render();  // commit: fresh closures for new order; abort: restores original order from state
 }
 
 // ------- Search -------
