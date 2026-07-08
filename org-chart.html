@@ -1428,8 +1428,10 @@
         .pivot-treemap-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #6B5F54; }
         .pivot-treemap-legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
         .pivot-treemap { position: relative; height: clamp(300px, 45vh, 560px); background: #fff; border: 1px solid rgba(74, 93, 71, 0.12); border-radius: 12px; overflow: hidden; }
-        .pivot-treemap-group { position: absolute; display: flex; flex-direction: column; overflow: hidden; }
-        .pivot-treemap-group-label { height: 20px; flex-shrink: 0; padding: 2px 6px 0; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6B5F54; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pivot-treemap-group { position: absolute; display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(74,93,71,0.5); border-radius: 6px; background: #FAF8F5; }
+        .pivot-treemap-group-label { height: 20px; flex-shrink: 0; display: flex; align-items: baseline; gap: 8px; padding: 2px 6px 0; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6B5F54; white-space: nowrap; overflow: hidden; }
+        .pivot-treemap-group-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        .pivot-treemap-group-value { flex-shrink: 0; margin-left: auto; font-size: 0.7rem; font-weight: 600; text-transform: none; letter-spacing: normal; color: #3A2F28; }
         .pivot-treemap-group-body { position: relative; flex: 1; min-height: 0; }
         .pivot-treemap-leaf { position: absolute; border-radius: 4px; overflow: hidden; padding: 3px 6px; font-size: 0.7rem; font-weight: 600; line-height: 1.25; transition: filter 0.15s ease; }
         .pivot-treemap-leaf:hover { filter: brightness(1.08); }
@@ -4490,6 +4492,11 @@
             // kept ancestor, so this test matches what the chart actually shows.
             if (getFilteredRoles().some(r => r.managerRoleId === roleId)) {
                 addSep();
+                const nodeEl = document.querySelector('#chart-container .node[data-role-id="' + cssEscape(roleId) + '"]');
+                const hierarchy = nodeEl && nodeEl.closest('li.hierarchy');
+                if (hierarchy && hierarchy.querySelector(':scope > ul.nodes') && isHierarchyCollapsed(hierarchy)) {
+                    addItem('Expand one level', () => expandOneLevelById(roleId));
+                }
                 addItem('View subtree chart…', () => openSubtreeDialog(roleId));
             }
             addSep();
@@ -4776,6 +4783,42 @@
             childUl.classList.remove('hidden');
             childUl.querySelectorAll('.node').forEach(function(n) { n.classList.remove('slide-up'); });
             childUl.querySelectorAll('.hierarchy').forEach(function(h) { h.classList.remove('isCollapsedDescendant'); });
+            setToggleBtnIcon(hierarchy, false);
+        }
+
+        // Reveal exactly one level: show the node's direct children, keeping (or
+        // putting) everything deeper in the collapsed state so each child with
+        // hidden children of its own carries the subtree badge.
+        function expandHierarchyOneLevel(hierarchy) {
+            const childUl = hierarchy.querySelector(':scope > ul.nodes');
+            if (!childUl) return;
+            hierarchy.classList.remove('isChildrenCollapsed');
+            childUl.classList.remove('hidden');
+            setToggleBtnIcon(hierarchy, false);
+            childUl.querySelectorAll(':scope > li.hierarchy').forEach(function(child) {
+                const n = child.querySelector(':scope > .node');
+                if (n) n.classList.remove('slide-up', 'sliding');
+                child.classList.remove('isCollapsedDescendant');
+                if (child.querySelector(':scope > ul.nodes')) collapseHierarchyNode(child);
+            });
+        }
+
+        // Context-menu entry point: expand one level under roleId's chart node and
+        // move the manual-collapse bookkeeping down to the newly exposed frontier
+        // so a re-render preserves what's on screen.
+        function expandOneLevelById(roleId) {
+            const container = document.getElementById('chart-container');
+            const nodeEl = container && container.querySelector('.node[data-role-id="' + cssEscape(roleId) + '"]');
+            const hierarchy = nodeEl && nodeEl.closest('li.hierarchy');
+            if (!hierarchy) return;
+            expandHierarchyOneLevel(hierarchy);
+            manuallyCollapsed.delete(roleId);
+            hierarchy.querySelectorAll(':scope > ul.nodes > li.hierarchy').forEach(function(child) {
+                const n = child.querySelector(':scope > .node');
+                if (n && n.dataset.roleId && isHierarchyCollapsed(child)) manuallyCollapsed.add(n.dataset.roleId);
+            });
+            updateCollapseBadges(container);
+            if (showDottedOverlay) redrawDottedOverlay();
         }
 
         // Bring a role's chart node into view: expand collapsed ancestors, pan the
@@ -4799,7 +4842,7 @@
             li = li && li.parentElement && li.parentElement.closest('li.hierarchy');
             let expandedAny = false;
             while (li) {
-                if (li.classList.contains('isChildrenCollapsed')) {
+                if (isHierarchyCollapsed(li)) {
                     expandHierarchyNode(li);
                     expandedAny = true;
                     const ownerNode = li.querySelector(':scope > .node');
@@ -4810,7 +4853,10 @@
             if (expandedAny) {
                 // Restore collapsed state of branches off the expansion path that the
                 // broad descendant strip in expandHierarchyNode un-hid (idempotent).
+                // reapplyManualCollapse covers toggleBtn-collapsed branches, which
+                // carry no .isChildrenCollapsed marker.
                 container.querySelectorAll('li.hierarchy.isChildrenCollapsed').forEach(collapseHierarchyNode);
+                reapplyManualCollapse(container);
                 updateCollapseBadges(container);
                 if (showDottedOverlay) redrawDottedOverlay();
             }
@@ -5012,9 +5058,9 @@
                 // delegated clicks to (a) record the manual collapse state by roleId
                 // and (b) re-run the dotted overlay after the slide animation. The
                 // children-collapse control is the .toggleBtn in vertical/hybrid layouts
-                // and a directional edge (e.g. .bottomEdge in the default top layout) in
-                // the others — both route through dabeng's hide/showChildren, which toggle
-                // .isChildrenCollapsed on the clicked node's own .hierarchy.
+                // (toggleVNodes — no .isChildrenCollapsed marker) and a directional edge
+                // (hide/showChildren — sets .isChildrenCollapsed) in the others;
+                // isHierarchyCollapsed() reads both representations.
                 container.addEventListener('click', function(e) {
                     if (!e.target.closest) return;
                     const ctrl = e.target.closest('.toggleBtn, .bottomEdge, .topEdge, .leftEdge, .rightEdge');
@@ -5024,8 +5070,16 @@
                     const roleId = node && node.dataset.roleId;
                     setTimeout(function() {
                         if (roleId && hierarchy) {
-                            if (hierarchy.classList.contains('isChildrenCollapsed')) manuallyCollapsed.add(roleId);
-                            else manuallyCollapsed.delete(roleId);
+                            // Reconcile dabeng's marker class too: toggleVNodes never
+                            // touches it, so it goes stale after a toggleBtn expand of
+                            // a branch that was collapsed via the class-setting paths.
+                            if (isHierarchyCollapsed(hierarchy)) {
+                                hierarchy.classList.add('isChildrenCollapsed');
+                                manuallyCollapsed.add(roleId);
+                            } else {
+                                hierarchy.classList.remove('isChildrenCollapsed');
+                                manuallyCollapsed.delete(roleId);
+                            }
                         }
                         updateCollapseBadges(container);
                         if (showDottedOverlay) redrawDottedOverlay();
@@ -5147,6 +5201,31 @@
             roots.forEach(function(r) { collapseAtDepth(r, 1, maxLevel); });
         }
 
+        // A node's children can be hidden two ways: dabeng's hover-edge path
+        // (hide/showChildren) marks the li with .isChildrenCollapsed, while the
+        // bottom-left +/- toggleBtn in hybrid/vertical layouts (toggleVNodes) only
+        // slides the nodes up and hides the child <ul> — it neither sets NOR clears
+        // that class. The class is therefore unreliable (stale after a toggleBtn
+        // expand of a class-collapsed node); read the DOM state instead: the child
+        // <ul> is .hidden, or — during the collapse animation, before `hidden`
+        // lands on transitionend — the first child node carries .slide-up.
+        function isHierarchyCollapsed(hierarchy) {
+            const childUl = hierarchy.querySelector(':scope > ul.nodes');
+            if (!childUl) return false;
+            if (childUl.classList.contains('hidden')) return true;
+            const firstChild = childUl.querySelector(':scope > li.hierarchy > .node');
+            return !!(firstChild && firstChild.classList.contains('slide-up'));
+        }
+
+        // Keep the hybrid/vertical +/- toggle icon in sync when we collapse or
+        // expand programmatically — dabeng only flips it on its own clicks.
+        function setToggleBtnIcon(hierarchy, collapsed) {
+            const btn = hierarchy.querySelector(':scope > .node > .toggleBtn');
+            if (!btn) return;
+            btn.classList.toggle('oci-plus-square', collapsed);
+            btn.classList.toggle('oci-minus-square', !collapsed);
+        }
+
         // Collapse a single node's children — mirrors what dabeng's hideChildren() does
         // on a manual toggle. Shared by depth-limiting and manual-collapse reapplication.
         function collapseHierarchyNode(hierarchy) {
@@ -5158,6 +5237,13 @@
             if (!childUl.classList.contains('vertical')) {
                 childUl.querySelectorAll('.hierarchy').forEach(function(h) { h.classList.add('isCollapsedDescendant'); });
             }
+            setToggleBtnIcon(hierarchy, true);
+            // Everything below is now hidden — descendant toggles must read "+" so
+            // they're correct if a later one-level expand reveals them.
+            childUl.querySelectorAll('.toggleBtn.oci-minus-square').forEach(function(b) {
+                b.classList.remove('oci-minus-square');
+                b.classList.add('oci-plus-square');
+            });
         }
 
         // Re-collapse, after a fresh render, every node the user had manually collapsed.
@@ -5192,7 +5278,12 @@
                 const card = b.closest('.node-card');
                 if (card) card.classList.remove('has-collapse-badge');
             });
-            container.querySelectorAll('li.hierarchy.isChildrenCollapsed').forEach(function(h) {
+            container.querySelectorAll('li.hierarchy').forEach(function(h) {
+                const collapsed = isHierarchyCollapsed(h);
+                // Dabeng builds vertical +/- toggles with no state icon and only
+                // flips them on its own clicks — normalise them on every pass.
+                setToggleBtnIcon(h, collapsed);
+                if (!collapsed) return;
                 const node = h.querySelector(':scope > .node');
                 if (!node) return;
                 if (node.closest('.hidden')) return;              // inside a collapsed ancestor
@@ -6095,7 +6186,10 @@
                 const bodyH = gh - (showLabel ? LABEL_H : 0);
                 const gTitle = escapeHtml(g.name + ' — ' + metricLabel + ': ' + fmtFull(g.total));
                 html += '<div class="pivot-treemap-group" title="' + gTitle + '" style="left:' + (gx / W * 100) + '%;top:' + (gy / H * 100) + '%;width:' + (gw / W * 100) + '%;height:' + (gh / H * 100) + '%">';
-                if (showLabel) html += '<div class="pivot-treemap-group-label">' + escapeHtml(g.name) + '</div>';
+                if (showLabel) html += '<div class="pivot-treemap-group-label">'
+                    + '<span class="pivot-treemap-group-name">' + escapeHtml(g.name) + '</span>'
+                    + '<span class="pivot-treemap-group-value">' + escapeHtml(fmtShort(g.total)) + '</span>'
+                    + '</div>';
                 html += '<div class="pivot-treemap-group-body">';
                 if (bodyH > 0) {
                     const leafRects = squarifyLayout(g.children.map(c => c.value), 0, 0, gw, bodyH);
