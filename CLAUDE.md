@@ -56,6 +56,7 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 - **pdfjs-dist** (`cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200`, ESM dynamic import + CDN worker via `GlobalWorkerOptions.workerSrc`) — used by `pdf-toolbox.html` for page thumbnails. v4+ is ESM-only, so no SRI is possible on the dynamic import; the exact version pin is the mitigation
 - **fflate** (`cdn.jsdelivr.net/npm/fflate@0.8.3`, SRI-pinned) — used by `pdf-toolbox.html` for the split-to-ZIP export (store-only zipping)
 - **frankfurter.dev API** (`api.frankfurter.dev/v1`) — live and historical ECB exchange rates, used by both currency tools. No API key required.
+- **Open-Meteo APIs** (`marine-api.open-meteo.com`, `api.open-meteo.com`, `geocoding-api.open-meteo.com`) — marine conditions, weather forecast, and place search, used only by `coastal-conditions.html`. No API key required.
 
 ### State Persistence
 
@@ -67,6 +68,7 @@ Four tools persist user state to `localStorage`:
 | `currency-converter.html` | `currencyConverterState` | From/to currencies, amount, selected period |
 | `timezone-compare-app.html` | `world-timeboard-state-v1` | City rows, home timezone, start hour |
 | `loan-calculator.html` | `loanCalculatorState` | Loan inputs (amount, rate, term, start month, extra payment, currency symbol) |
+| `coastal-conditions.html` | `coastalConditionsState` | Selected location (lat/lon/name), favourite spots. A `?lat=&lon=&name=` deep link overrides the saved location |
 | `org-chart.html` | `orgChartUiState` | UI chrome only (sidebar/section collapse state) |
 | `org-chart.html` | `orgChartAutosave:<tabId>` | Per-tab crash-recovery snapshot of unsaved working data (debounced; cleared on save/open; restore offered on next visit for snapshots whose tab is dead, judged via the `orgChartAutosaveHb:<tabId>` heartbeat key; tab id lives in `sessionStorage` as `orgChartTabId`) |
 
@@ -92,7 +94,7 @@ Similarly, `qr-generator.html` has `escapeVCardField()` (escapes `\`, `;`, `,`) 
 
 ### No Back-End
 
-All computation happens in the browser. The only network calls are to the frankfurter.dev API (currency tools) and CDN resources.
+All computation happens in the browser. The only network calls are to the frankfurter.dev API (currency tools), the Open-Meteo APIs (`coastal-conditions.html`), and CDN resources.
 
 ### Hosting Infrastructure
 

@@ -17,7 +17,7 @@
         }
         .container { max-width: 1040px; margin: 0 auto; }
         header { text-align: center; padding: 22px 0 26px; }
-        header h1 { font-size: 2.1rem; font-weight: 700; color: #3A2F28; letter-spacing: -0.5px; }
+        header h1 { font-size: 2.1rem; font-weight: 600; color: #3A2F28; letter-spacing: -0.5px; }
         header p { color: #6B5F54; margin-top: 6px; font-size: 0.98rem; }
 
         /* ── Card ── */
@@ -29,7 +29,7 @@
             box-shadow: 0 20px 60px rgba(58, 47, 40, 0.08);
         }
         .card-title {
-            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
             letter-spacing: 1.2px; color: #4A5D47; margin-bottom: 16px;
         }
 
@@ -54,7 +54,7 @@
 
         /* ── Location panel ── */
         .location-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
-        .panel-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4A5D47; margin-bottom: 6px; }
+        .panel-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; color: #4A5D47; margin-bottom: 6px; }
         .search-wrap { position: relative; }
         .search-input {
             width: 100%; padding: 10px 16px;
@@ -71,16 +71,18 @@
             z-index: 200; display: none; box-shadow: 0 8px 28px rgba(58, 47, 40, 0.08);
         }
         .search-dropdown.open { display: block; }
-        .dd-group { padding: 8px 14px 3px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: #4A5D47; font-weight: 700; }
+        .dd-group { padding: 8px 14px 3px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: #4A5D47; font-weight: 600; }
         .dd-item { padding: 9px 14px; cursor: pointer; font-size: 0.88rem; color: #3A2F28; display: flex; align-items: center; gap: 8px; transition: background 0.1s; }
         .dd-item:hover, .dd-item.hi { background: #FAF8F5; }
         .dd-cc { font-size: 0.72rem; color: #6B5F54; margin-left: auto; }
+        .dd-empty { padding: 12px 14px; font-size: 0.85rem; color: #6B5F54; }
+        .geo-btn { margin-top: 8px; }
 
         /* ── Selected location ── */
         .selected-loc { background: #FAF8F5; border: 1px solid rgba(74, 93, 71, 0.12); border-radius: 10px; padding: 12px 14px; display: none; }
         .selected-loc.vis { display: block; }
         .sel-name-row { display: flex; align-items: center; gap: 8px; }
-        .sel-name { font-size: 1.15rem; font-weight: 700; color: #3A2F28; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sel-name { font-size: 1.15rem; font-weight: 600; color: #3A2F28; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .fav-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; color: #6B5F54; padding: 2px; line-height: 1; flex-shrink: 0; transition: color 0.15s; }
         .fav-btn.is-fav { color: #f59e0b; }
         .fav-btn:hover { color: #fbbf24; }
@@ -90,10 +92,11 @@
         .fav-section { display: none; }
         .fav-section.has { display: block; }
         .fav-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-        .fav-pill { display: inline-flex; align-items: center; gap: 3px; padding: 5px 10px 5px 11px; background: #E8E5DF; color: #4A5D47; border-radius: 20px; font-size: 0.8rem; font-family: inherit; cursor: pointer; transition: background 0.15s; }
+        .fav-pill { display: inline-flex; align-items: center; gap: 3px; padding: 5px 10px 5px 11px; background: #E8E5DF; color: #4A5D47; border-radius: 20px; font-size: 0.8rem; transition: background 0.15s; }
         .fav-pill:hover { background: rgba(74, 93, 71, 0.12); }
+        .fp-name, .fp-rm { background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
         .fp-rm { font-size: 0.78rem; opacity: 0.45; line-height: 1; }
-        .fp-rm:hover { opacity: 1; }
+        .fp-rm:hover, .fp-rm:focus { opacity: 1; }
 
         /* ── Prompt card ── */
         .prompt-card { text-align: center; padding: 36px 24px; }
@@ -109,17 +112,18 @@
         /* ── Error card ── */
         .error-card { background: #fef2f2; border: 1px solid #fecaca; border-radius: 16px; padding: 18px 22px; margin-bottom: 16px; display: none; }
         .error-card.vis { display: block; }
-        .error-title { font-weight: 700; color: #ef5350; margin-bottom: 5px; font-size: 0.9rem; }
+        .error-title { font-weight: 600; color: #ef5350; margin-bottom: 5px; font-size: 0.9rem; }
         .error-card p { color: #b91c1c; font-size: 0.87rem; line-height: 1.5; }
 
         /* ── Conditions header ── */
         .cond-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-        .cond-name { font-size: 1.55rem; font-weight: 700; color: #3A2F28; line-height: 1.2; }
+        .cond-name { font-size: 1.55rem; font-weight: 600; color: #3A2F28; line-height: 1.2; }
         .cond-time { font-size: 0.78rem; color: #6B5F54; margin-top: 3px; }
-        .safety-badge { display: inline-flex; align-items: center; padding: 5px 13px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; flex-shrink: 0; }
+        .safety-badge { display: inline-flex; align-items: center; padding: 5px 13px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; flex-shrink: 0; }
         .sb-calm     { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
         .sb-moderate { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
         .sb-rough    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .sb-nodata   { background: #FAF8F5; color: #6B5F54; border: 1px solid rgba(74, 93, 71, 0.12); }
         /* ── Section headings ── */
         .section-heading { display: flex; align-items: center; gap: 8px; margin: 20px 0 12px; }
         .section-heading:first-child { margin-top: 0; }
@@ -129,13 +133,15 @@
         /* ── Card grids ── */
         .card-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
         .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .card-grid-wx { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
 
         /* ── Tide card ── */
         .moon-icon { font-size: 2.8rem; line-height: 1; margin-bottom: 4px; }
-        .tide-type { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 6px 0 8px; }
+        .tide-type { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 6px 0 8px; }
         .tide-spring { background: #dbeafe; color: #2563eb; border: 1px solid #93c5fd; }
         .tide-neap   { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
         .tide-strength-wrap { width: 80%; height: 6px; background: #E8E5DF; border-radius: 3px; overflow: hidden; margin: 0 auto; }
+        .tide-note { font-size: 0.65rem; color: #6B5F54; opacity: 0.8; line-height: 1.4; margin-top: 8px; }
         .tide-strength-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
         .tide-bar-spring { background: linear-gradient(90deg, #93c5fd, #2563eb); }
         .tide-bar-neap   { background: linear-gradient(90deg, #fcd34d, #d97706); }
@@ -154,8 +160,8 @@
 
         /* ── Inner metric items (reused in cards) ── */
         .m-item { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
-        .m-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.9px; color: #4A5D47; font-weight: 700; margin-bottom: 2px; }
-        .m-value { font-size: 1.95rem; font-weight: 700; color: #3A2F28; line-height: 1.1; }
+        .m-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.9px; color: #4A5D47; font-weight: 600; margin-bottom: 2px; }
+        .m-value { font-size: 1.95rem; font-weight: 600; color: #3A2F28; line-height: 1.1; }
         .m-value.big { font-size: 3.2rem; }
         .m-value.mid { font-size: 1.6rem; }
         .m-unit  { font-size: 0.75rem; color: #6B5F54; }
@@ -199,11 +205,11 @@
         .forecast-scroll::-webkit-scrollbar-thumb { background: rgba(74, 93, 71, 0.3); border-radius: 2px; }
         .f-day { flex-shrink: 0; width: 94px; background: #FAF8F5; border: 1px solid rgba(74, 93, 71, 0.12); border-radius: 12px; padding: 13px 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .f-day.f-today { border-color: #4A5D47; background: #FAF8F5; }
-        .f-dayname { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #6B5F54; }
+        .f-dayname { font-size: 0.73rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6B5F54; }
         .f-date    { font-size: 0.68rem; color: #6B5F54; }
         .f-barwrap { width: 26px; height: 56px; background: #E8E5DF; border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
         .f-bar     { width: 100%; background: linear-gradient(to top, #4A5D47 0%, #8B6F47 100%); border-radius: 6px; min-height: 3px; }
-        .f-wave    { font-size: 0.88rem; font-weight: 700; color: #3A2F28; }
+        .f-wave    { font-size: 0.88rem; font-weight: 600; color: #3A2F28; }
         .f-swell   { font-size: 0.68rem; color: #6B5F54; }
         .f-sst     { font-size: 0.68rem; color: #6B5F54; }
         .f-sst.tc-cold { color: #2563eb; }
@@ -215,6 +221,7 @@
         .f-wicon    { font-size: 1.1rem; line-height: 1.2; }
         .f-temp-range { font-size: 0.7rem; color: #6B5F54; }
         .f-wx-precip  { font-size: 0.65rem; color: #4A5D47; }
+        .f-uv         { font-size: 0.65rem; color: #6B5F54; }
         .f-wind-row { display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 0.68rem; color: #6B5F54; }
         .f-warr     { font-size: 0.8rem; color: rgba(74, 93, 71, 0.6); display: inline-block; }
 
@@ -225,9 +232,10 @@
         .hourly-body { display: none; margin-top: 14px; }
         .hourly-body.open { display: block; }
         .hourly-scroll { overflow-x: auto; }
-        .h-row { display: grid; grid-template-columns: 50px 56px 34px 46px 54px 50px 50px 34px 50px 66px; gap: 0; padding: 7px 4px; border-bottom: 1px solid rgba(74, 93, 71, 0.12); font-size: 0.83rem; align-items: center; min-width: 490px; }
+        .h-row { display: grid; grid-template-columns: 66px 56px 34px 46px 54px 50px 50px 34px 50px 66px; gap: 0; padding: 7px 4px; border-bottom: 1px solid rgba(74, 93, 71, 0.12); font-size: 0.83rem; align-items: center; min-width: 506px; }
+        .h-row.no-sst { grid-template-columns: 66px 56px 34px 46px 54px 50px 34px 50px 66px; min-width: 456px; }
         .h-row:last-child { border-bottom: none; }
-        .h-row.h-head { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; color: #4A5D47; padding-bottom: 9px; }
+        .h-row.h-head { font-size: 0.67rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.9px; color: #4A5D47; padding-bottom: 9px; }
         .h-row.h-now  { background: #FAF8F5; border-radius: 7px; padding-left: 6px; padding-right: 6px; }
         .h-now .h-t   { color: #4A5D47; }
         .h-t   { color: #6B5F54; font-size: 0.78rem; }
@@ -272,9 +280,12 @@
                 <div class="search-wrap">
                     <input type="text" class="search-input" id="searchInput"
                            placeholder="e.g. Nazaré, Gold Coast, Pipeline…"
-                           autocomplete="off" spellcheck="false">
-                    <div class="search-dropdown" id="searchDropdown"></div>
+                           autocomplete="off" spellcheck="false"
+                           role="combobox" aria-expanded="false" aria-controls="searchDropdown"
+                           aria-autocomplete="list" aria-label="Search coastlines worldwide">
+                    <div class="search-dropdown" id="searchDropdown" role="listbox"></div>
                 </div>
+                <button type="button" class="popular-pill geo-btn" id="geoBtn">📍 Use my location</button>
             </div>
             <details class="popular-section">
                 <summary class="panel-label">Popular spots</summary>
@@ -372,6 +383,7 @@
                         <div class="tide-strength-bar" id="tideBar"></div>
                     </div>
                     <div class="m-hint" id="tideHint"></div>
+                    <div class="tide-note">From moon phase — actual range varies by coast; negligible in some seas.</div>
                 </div>
             </div>
         </div>
@@ -380,7 +392,7 @@
             <span class="section-heading-icon">☁️</span>
             <h3>General Weather</h3>
         </div>
-        <div class="card-grid-4">
+        <div class="card-grid-wx">
             <div class="metric-card" id="mAirTemp">
                 <div class="metric-card-title">Air Temperature</div>
                 <div class="card-center">
@@ -414,17 +426,27 @@
                     <div class="m-sub" id="vWindGust"></div>
                 </div>
             </div>
+
+            <div class="metric-card">
+                <div class="metric-card-title">Sun &amp; UV</div>
+                <div class="card-center">
+                    <div class="m-sub" id="vSunrise">🌅 --</div>
+                    <div class="m-sub" id="vSunset">🌇 --</div>
+                    <div class="m-value mid" id="vUVmax" style="margin-top:6px">--</div>
+                    <div class="m-unit">UV max today</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="card" id="forecastCard" style="display:none">
-        <div class="card-title">7-Day Forecast</div>
+        <div class="card-title">8-Day Forecast</div>
         <div class="forecast-scroll" id="forecastDays"></div>
     </div>
 
     <div class="card" id="hourlyCard" style="display:none">
-        <div class="hourly-toggle" id="hourlyToggle">
-            <div class="card-title" style="margin-bottom:0">Today's Hourly Detail</div>
+        <div class="hourly-toggle" id="hourlyToggle" tabindex="0" role="button" aria-expanded="false" aria-controls="hourlyBody">
+            <div class="card-title" style="margin-bottom:0">Next 24 Hours</div>
             <span class="toggle-icon" id="toggleIcon">▼</span>
         </div>
         <div class="hourly-body" id="hourlyBody">
@@ -490,21 +512,30 @@ function degToCompass(d) {
     return dirs[Math.round(((d % 360) + 360) % 360 / 22.5) % 16];
 }
 function douglasScale(h) {
-    if (h == null) return { d: '—', label: 'No data' };
-    if (h < 0.1)  return { d: 0, label: 'Glassy' };
-    if (h < 0.5)  return { d: 1, label: 'Rippled' };
-    if (h < 1.25) return { d: 2, label: 'Wavelets' };
-    if (h < 2.5)  return { d: 3, label: 'Slight' };
-    if (h < 4.0)  return { d: 4, label: 'Moderate' };
-    if (h < 6.0)  return { d: 5, label: 'Rough' };
-    if (h < 9.0)  return { d: 6, label: 'Very Rough' };
-    if (h < 14.0) return { d: 7, label: 'High' };
-    return                { d: 8, label: 'Phenomenal' };
+    if (h == null)  return { d: '—', label: 'No data' };
+    if (h < 0.05) return { d: 0, label: 'Glassy' };
+    if (h < 0.1)  return { d: 1, label: 'Rippled' };
+    if (h < 0.5)  return { d: 2, label: 'Smooth' };
+    if (h < 1.25) return { d: 3, label: 'Slight' };
+    if (h < 2.5)  return { d: 4, label: 'Moderate' };
+    if (h < 4.0)  return { d: 5, label: 'Rough' };
+    if (h < 6.0)  return { d: 6, label: 'Very Rough' };
+    if (h < 9.0)  return { d: 7, label: 'High' };
+    if (h < 14.0) return { d: 8, label: 'Very High' };
+    return                { d: 9, label: 'Phenomenal' };
 }
-function safetyLevel(h) {
-    if (h == null || h < 0.5) return { cls: 'sb-calm',     label: 'Calm' };
-    if (h < 2.0)              return { cls: 'sb-moderate', label: 'Moderate' };
-    return                           { cls: 'sb-rough',    label: 'Rough' };
+// Worst-of rule across wave height and wind; null-safe (no data ≠ calm)
+function safetyLevel(waveH, windSpd, windGusts) {
+    const levels = [];
+    if (waveH    != null) levels.push(waveH   < 0.5 ? 0 : waveH   < 2.0 ? 1 : 2);
+    if (windSpd  != null) levels.push(windSpd < 20  ? 0 : windSpd < 40  ? 1 : 2);
+    if (windGusts != null && windGusts >= 60) levels.push(2);
+    if (!levels.length) return { cls: 'sb-nodata', label: 'No data' };
+    return [
+        { cls: 'sb-calm',     label: 'Calm' },
+        { cls: 'sb-moderate', label: 'Moderate' },
+        { cls: 'sb-rough',    label: 'Rough' }
+    ][Math.max(...levels)];
 }
 function tempClass(c) {
     if (c == null) return '';
@@ -584,52 +615,65 @@ function filterPresets(q) {
     ).slice(0, 10);
 }
 
-function renderDropdown(results, isLocal) {
+function ddOpen(open) {
+    const dd = document.getElementById('searchDropdown');
+    const input = document.getElementById('searchInput');
+    dd.classList.toggle('open', open);
+    input.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) { input.removeAttribute('aria-activedescendant'); dropHi = -1; }
+}
+
+function addDropItem(dd, label, sub, onPick, data) {
+    const item = el('div', 'dd-item');
+    item.setAttribute('role', 'option');
+    item.id = 'ddItem' + dd._items.length;
+    item.appendChild(el('span', null, label));
+    if (sub) item.appendChild(el('span', 'dd-cc', sub));
+    item.addEventListener('mousedown', ev => { ev.preventDefault(); onPick(); });
+    dd.appendChild(item);
+    dd._items.push({ el: item, preset: data });
+}
+
+// presets: curated spot matches; places: geocoder results (null = not searched)
+function renderDropdown(presets, places, opts = {}) {
     const dd = document.getElementById('searchDropdown');
     while (dd.firstChild) dd.removeChild(dd.firstChild);
     dropHi = -1; dd._items = [];
-    if (!results.length) { dd.classList.remove('open'); return; }
+    if (!presets?.length && !places?.length && !opts.error) { ddOpen(false); return; }
 
-    if (isLocal) {
-        // Group presets by region
-        const grouped = {};
-        results.forEach(p => { (grouped[p.region] ??= []).push(p); });
-        Object.entries(grouped).forEach(([region, presets]) => {
-            dd.appendChild(el('div', 'dd-group', region));
-            presets.forEach(p => {
-                const item = el('div', 'dd-item');
-                item.appendChild(el('span', null, p.name));
-                item.appendChild(el('span', 'dd-cc', p.country));
-                item.addEventListener('mousedown', ev => { ev.preventDefault(); selectPreset(p); });
-                dd.appendChild(item);
-                dd._items.push({ el: item, preset: p });
+    if (presets?.length) {
+        if (opts.groupByRegion) {
+            const grouped = {};
+            presets.forEach(p => { (grouped[p.region] ??= []).push(p); });
+            Object.entries(grouped).forEach(([region, ps]) => {
+                dd.appendChild(el('div', 'dd-group', region));
+                ps.forEach(p => addDropItem(dd, p.name, p.country, () => selectPreset(p), p));
             });
-        });
-    } else {
-        // Flat list for geocoding results
-        results.forEach(r => {
-            const item = el('div', 'dd-item');
-            item.appendChild(el('span', null, r.name));
+        } else {
+            dd.appendChild(el('div', 'dd-group', 'Surf spots'));
+            presets.forEach(p => addDropItem(dd, p.name, p.country, () => selectPreset(p), p));
+        }
+    }
+    if (places?.length) {
+        dd.appendChild(el('div', 'dd-group', 'Places'));
+        places.forEach(r => {
             const sub = r.admin1 ? r.admin1 + ', ' + r.country : r.country;
-            item.appendChild(el('span', 'dd-cc', sub));
-            item.addEventListener('mousedown', ev => {
-                ev.preventDefault();
-                selectCoords(r.lat, r.lon, r.name + ', ' + r.country);
-            });
-            dd.appendChild(item);
-            dd._items.push({ el: item, preset: r });
+            addDropItem(dd, r.name, sub, () => selectCoords(r.lat, r.lon, r.name + ', ' + r.country), r);
         });
     }
-    dd.classList.add('open');
+    if (opts.error) dd.appendChild(el('div', 'dd-empty', opts.error));
+    ddOpen(true);
 }
 
 function moveDropHi(delta) {
     const dd = document.getElementById('searchDropdown');
     const items = dd._items || [];
     if (!items.length) return;
-    items.forEach(i => i.el.classList.remove('hi'));
+    items.forEach(i => { i.el.classList.remove('hi'); i.el.removeAttribute('aria-selected'); });
     dropHi = Math.max(0, Math.min(items.length - 1, dropHi + delta));
     items[dropHi].el.classList.add('hi');
+    items[dropHi].el.setAttribute('aria-selected', 'true');
+    document.getElementById('searchInput').setAttribute('aria-activedescendant', items[dropHi].el.id);
     items[dropHi].el.scrollIntoView({ block: 'nearest' });
 }
 
@@ -649,13 +693,17 @@ function renderPopularSpots() {
 function selectCoords(lat, lon, name) {
     state.lat = lat; state.lon = lon; state.name = name;
     saveState();
+    try {
+        const p = new URLSearchParams({ lat: (+lat).toFixed(4), lon: (+lon).toFixed(4), name: name || '' });
+        history.replaceState(null, '', location.pathname + '?' + p.toString());
+    } catch(e) {}
     document.getElementById('selName').textContent   = name;
     document.getElementById('selCoords').textContent =
         fmt(Math.abs(lat),4)+'°'+(lat>=0?'N':'S')+' · '+fmt(Math.abs(lon),4)+'°'+(lon>=0?'E':'W');
     document.getElementById('selectedLoc').classList.add('vis');
     updateFavBtn();
     document.getElementById('searchInput').value = '';
-    document.getElementById('searchDropdown').classList.remove('open');
+    ddOpen(false);
     fetchMarine(lat, lon);
 }
 
@@ -668,6 +716,8 @@ function updateFavBtn() {
     const fav = state.lat != null && isFav(state.lat, state.lon);
     btn.textContent = fav ? '★' : '☆';
     btn.classList.toggle('is-fav', fav);
+    btn.setAttribute('aria-pressed', fav ? 'true' : 'false');
+    btn.setAttribute('aria-label', fav ? 'Remove from favourites' : 'Add to favourites');
 }
 function renderFavs() {
     const sec  = document.getElementById('favSection');
@@ -676,17 +726,20 @@ function renderFavs() {
     if (!state.favourites.length) { sec.classList.remove('has'); return; }
     sec.classList.add('has');
     state.favourites.forEach(f => {
-        const pill = el('button', 'fav-pill');
-        pill.type = 'button';
-        pill.appendChild(el('span', null, f.name));
-        const rm = el('span', 'fp-rm', '×');
-        rm.addEventListener('click', ev => {
-            ev.stopPropagation();
+        const pill = el('span', 'fav-pill');
+        const name = el('button', 'fp-name', f.name);
+        name.type = 'button';
+        name.setAttribute('aria-label', 'Show conditions for ' + f.name);
+        name.addEventListener('click', () => selectCoords(f.lat, f.lon, f.name));
+        pill.appendChild(name);
+        const rm = el('button', 'fp-rm', '×');
+        rm.type = 'button';
+        rm.setAttribute('aria-label', 'Remove ' + f.name + ' from favourites');
+        rm.addEventListener('click', () => {
             state.favourites = state.favourites.filter(x => !(Math.abs(x.lat-f.lat)<0.002 && Math.abs(x.lon-f.lon)<0.002));
             saveState(); renderFavs(); updateFavBtn();
         });
         pill.appendChild(rm);
-        pill.addEventListener('click', () => selectCoords(f.lat, f.lon, f.name));
         wrap.appendChild(pill);
     });
 }
@@ -707,7 +760,7 @@ async function fetchMarine(lat, lon) {
         '&current=' + cv + '&hourly=' + cv + '&daily=' + dv + '&timezone=auto&forecast_days=8';
     const wc = 'temperature_2m,weather_code,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m';
     const wh = 'temperature_2m,weather_code,precipitation,wind_speed_10m,wind_direction_10m';
-    const wd = 'temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant';
+    const wd = 'temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant,sunrise,sunset,uv_index_max';
     const weatherUrl = WEATHER_API + '?latitude=' + lat + '&longitude=' + lon +
         '&current=' + wc + '&hourly=' + wh + '&daily=' + wd + '&timezone=auto&forecast_days=8';
     try {
@@ -737,6 +790,7 @@ async function fetchMarine(lat, lon) {
 function renderConditions(data, weather) {
     const c = data.current || {};
     const u = data.current_units || {};
+    const wc = weather?.current || {};
     document.getElementById('condName').textContent = state.name || '';
     let timeStr = '';
     try { if (c.time) timeStr = 'Updated ' + new Date(c.time).toLocaleString('en', {weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); } catch(e) {}
@@ -744,7 +798,7 @@ function renderConditions(data, weather) {
     const ds = douglasScale(c.wave_height);
     document.getElementById('ssLabel').textContent = ds.label;
     document.getElementById('ssDeg').textContent   = ds.d !== '—' ? '· Douglas ' + ds.d : '';
-    const sl = safetyLevel(c.wave_height);
+    const sl = safetyLevel(c.wave_height, wc.wind_speed_10m, wc.wind_gusts_10m);
     const badge = document.getElementById('safetyBadge');
     badge.textContent = sl.label; badge.className = 'safety-badge ' + sl.cls;
     document.getElementById('vWH').textContent = fmt(c.wave_height);
@@ -765,7 +819,6 @@ function renderConditions(data, weather) {
     setDir('aCD','cCD','vCD', c.ocean_current_direction);
 
     // Weather data
-    const wc = weather?.current || {};
     const airTemp = wc.temperature_2m;
     document.getElementById('vAirTemp').textContent = fmt(airTemp, 1);
     document.getElementById('mAirTemp').className = 'metric-card ' + tempClass(airTemp);
@@ -778,6 +831,13 @@ function renderConditions(data, weather) {
         document.getElementById('aWind').style.transform = 'rotate(' + ((wc.wind_direction_10m + 180) % 360) + 'deg)';
     }
     document.getElementById('vWindGust').textContent = wc.wind_gusts_10m != null ? 'Gusts ' + fmt(wc.wind_gusts_10m, 0) + ' km/h' : '';
+
+    // Sun & UV (today's daily values; sunrise/sunset are location-local ISO strings)
+    const wdl = weather?.daily || {};
+    const sunrise = wdl.sunrise?.[0], sunset = wdl.sunset?.[0], uvMax = wdl.uv_index_max?.[0];
+    document.getElementById('vSunrise').textContent = '🌅 ' + (sunrise ? sunrise.split('T')[1] : '--');
+    document.getElementById('vSunset').textContent  = '🌇 ' + (sunset  ? sunset.split('T')[1]  : '--');
+    document.getElementById('vUVmax').textContent   = uvMax != null ? Math.round(uvMax) : '--';
 
     renderTide();
     document.getElementById('conditionsCard').style.display = '';
@@ -814,11 +874,11 @@ function renderTide() {
     if (isSpring) {
         typeEl.textContent = 'Spring Tide';
         typeEl.className = 'tide-type tide-spring';
-        hintEl.textContent = 'Larger tidal range expected';
+        hintEl.textContent = 'Tidal range near its monthly high';
     } else if (isNeap) {
         typeEl.textContent = 'Neap Tide';
         typeEl.className = 'tide-type tide-neap';
-        hintEl.textContent = 'Smaller tidal range expected';
+        hintEl.textContent = 'Tidal range near its monthly low';
     } else {
         typeEl.textContent = distToSpring < 0.125 ? 'Nearing Spring' : 'Nearing Neap';
         typeEl.className = 'tide-type ' + (distToSpring < 0.125 ? 'tide-spring' : 'tide-neap');
@@ -848,7 +908,7 @@ function setDir(aId, cId, vId, deg, arrowOffset) {
 function renderForecast(data, weather) {
     const d = data.daily;
     if (!d?.time?.length) return;
-    const validWH = d.wave_height_max.filter(v => v != null);
+    const validWH = (d.wave_height_max || []).filter(v => v != null);
     const maxWH   = validWH.length ? Math.max(...validWH) : 1;
     const today   = d.time[0];
     const wd      = weather?.daily || {};
@@ -870,9 +930,9 @@ function renderForecast(data, weather) {
     d.time.forEach((dateStr, i) => {
         const isToday = dateStr === today;
         const dt      = new Date(dateStr + 'T12:00:00');
-        const wh  = d.wave_height_max[i];
-        const dir = d.wave_direction_dominant[i];
-        const sw  = d.swell_wave_height_max[i];
+        const wh  = d.wave_height_max?.[i];
+        const dir = d.wave_direction_dominant?.[i];
+        const sw  = d.swell_wave_height_max?.[i];
         const barH = wh != null ? Math.max(3, Math.round((wh / maxWH) * 52)) : 3;
 
         const day = el('div', 'f-day' + (isToday ? ' f-today' : ''));
@@ -924,6 +984,8 @@ function renderForecast(data, weather) {
                 windRow.appendChild(document.createTextNode(Math.round(wspd) + ' km/h'));
                 day.appendChild(windRow);
             }
+            const uv = wd.uv_index_max?.[i];
+            if (uv != null) day.appendChild(el('div', 'f-uv', 'UV ' + Math.round(uv)));
         }
 
         container.appendChild(day);
@@ -935,25 +997,37 @@ function renderForecast(data, weather) {
 function renderHourly(data, weather) {
     const h = data.hourly;
     if (!h?.time?.length) return;
-    const todayDate = h.time[0].split('T')[0];
-    const idxs = h.time.map((t, i) => t.startsWith(todayDate) ? i : -1).filter(i => i >= 0);
+    // Next 24 hours starting at the location's current hour (API times are location-local)
+    const nowKey = (data.current?.time || '').slice(0, 13); // YYYY-MM-DDTHH
+    let start = h.time.findIndex(t => t.slice(0, 13) >= nowKey);
+    if (start < 0) start = 0;
+    const idxs = [];
+    for (let i = start; i < h.time.length && idxs.length < 24; i++) idxs.push(i);
     if (!idxs.length) return;
-    const nowHour = new Date().getHours();
     const hasSST  = h.sea_surface_temperature?.some(v => v != null);
+    const rowCls  = 'h-row' + (hasSST ? '' : ' no-sst');
     const wh_data = weather?.hourly;
     const scroll  = document.getElementById('hourlyScroll');
     while (scroll.firstChild) scroll.removeChild(scroll.firstChild);
 
     // Header
-    const hdr = el('div', 'h-row h-head');
-    ['Time','Wave','Dir','Per','Swell', hasSST ? 'SST' : '', 'Temp', 'Sky', 'Rain', 'Wind'].forEach(label => hdr.appendChild(el('span', null, label)));
+    const hdr = el('div', rowCls + ' h-head');
+    const cols = ['Time','Wave','Dir','Per','Swell'];
+    if (hasSST) cols.push('SST');
+    cols.push('Temp','Sky','Rain','Wind');
+    cols.forEach(label => hdr.appendChild(el('span', null, label)));
     scroll.appendChild(hdr);
 
     // Data rows
-    idxs.forEach(i => {
-        const t   = h.time[i].split('T')[1]?.slice(0, 5) || '';
-        const hr  = parseInt(t) || 0;
-        const isNow = Math.abs(hr - nowHour) <= 1;
+    let prevDate = null;
+    idxs.forEach((i, rowIdx) => {
+        const [dateStr, timePart] = h.time[i].split('T');
+        let t = timePart?.slice(0, 5) || '';
+        if (prevDate && dateStr !== prevDate) {
+            t = new Date(dateStr + 'T12:00:00').toLocaleDateString('en', { weekday: 'short' }) + ' ' + t;
+        }
+        prevDate = dateStr;
+        const isNow = rowIdx === 0;
         const wv  = h.wave_height[i];
         const wd  = h.wave_direction[i];
         const wp  = h.wave_period[i];
@@ -969,7 +1043,7 @@ function renderHourly(data, weather) {
         const wSpd     = wxIdx >= 0 ? wh_data.wind_speed_10m?.[wxIdx]    : null;
         const wDir     = wxIdx >= 0 ? wh_data.wind_direction_10m?.[wxIdx]: null;
 
-        const row = el('div', 'h-row' + (isNow ? ' h-now' : ''));
+        const row = el('div', rowCls + (isNow ? ' h-now' : ''));
         row.appendChild(el('span', 'h-t', t));
         row.appendChild(el('span', wv != null ? 'h-v' : 'h-nil', wv != null ? wv.toFixed(1) + 'm' : '--'));
 
@@ -985,7 +1059,7 @@ function renderHourly(data, weather) {
 
         row.appendChild(el('span', wp != null ? 'h-v' : 'h-nil', wp != null ? Math.round(wp) + 's' : '--'));
         row.appendChild(el('span', sh != null ? 'h-v' : 'h-nil', sh != null ? sh.toFixed(1) + 'm' : '--'));
-        row.appendChild(el('span', hasSST ? (sst != null ? 'h-v' : 'h-nil') : 'h-nil', sst != null ? sst.toFixed(1) + '°' : (hasSST ? '--' : '')));
+        if (hasSST) row.appendChild(el('span', sst != null ? 'h-v' : 'h-nil', sst != null ? sst.toFixed(1) + '°' : '--'));
 
         // Weather columns
         row.appendChild(el('span', airTemp != null ? 'h-v' : 'h-nil', airTemp != null ? Math.round(airTemp) + '°' : '--'));
@@ -1028,19 +1102,25 @@ let debounceTimer = null;
 searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim();
     clearTimeout(debounceTimer);
+    const local = filterPresets(q);
     if (q.length < 2) {
-        const local = filterPresets(q);
         dropResults = local;
-        renderDropdown(local, true);
+        renderDropdown(local, null, { groupByRegion: true });
         return;
     }
+    // Show matching curated spots immediately; geocoder places merge in below them
+    dropResults = local;
+    renderDropdown(local, null);
     debounceTimer = setTimeout(async () => {
         try {
             const results = await searchGeo(q);
-            dropResults = results;
-            renderDropdown(results, false);
+            dropResults = [...local, ...results];
+            renderDropdown(local, results);
         } catch(e) {
-            if (e.name !== 'AbortError') console.error(e);
+            if (e.name !== 'AbortError') {
+                dropResults = local;
+                renderDropdown(local, null, { error: 'Search unavailable — check your connection' });
+            }
         }
     }, 300);
 });
@@ -1055,9 +1135,9 @@ searchInput.addEventListener('keydown', e => {
             if (pick.lat != null) selectCoords(pick.lat, pick.lon, pick.name + ', ' + pick.country);
             else selectPreset(pick);
         }
-    } else if (e.key === 'Escape') { searchDropdown.classList.remove('open'); }
+    } else if (e.key === 'Escape') { ddOpen(false); }
 });
-searchInput.addEventListener('blur', () => setTimeout(() => searchDropdown.classList.remove('open'), 160));
+searchInput.addEventListener('blur', () => setTimeout(() => ddOpen(false), 160));
 
 document.getElementById('favToggle').addEventListener('click', () => {
     if (state.lat == null) return;
@@ -1069,13 +1149,46 @@ document.getElementById('favToggle').addEventListener('click', () => {
     saveState(); renderFavs(); updateFavBtn();
 });
 
-document.getElementById('hourlyToggle').addEventListener('click', () => {
+const hourlyToggleEl = document.getElementById('hourlyToggle');
+function toggleHourly() {
     const body = document.getElementById('hourlyBody');
     const icon = document.getElementById('toggleIcon');
-    icon.classList.toggle('open', body.classList.toggle('open'));
+    const open = body.classList.toggle('open');
+    icon.classList.toggle('open', open);
+    hourlyToggleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+hourlyToggleEl.addEventListener('click', toggleHourly);
+hourlyToggleEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleHourly(); }
 });
 
-if (state.lat != null && state.lon != null) {
+document.getElementById('geoBtn').addEventListener('click', () => {
+    if (!navigator.geolocation) { showError('Geolocation is not supported by this browser.'); return; }
+    hideError(); setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+        pos => selectCoords(+pos.coords.latitude.toFixed(4), +pos.coords.longitude.toFixed(4), 'My location'),
+        err => { setLoading(false); showError('Could not get your location — ' + (err?.message || 'permission denied or unavailable')); },
+        { timeout: 12000, maximumAge: 300000 }
+    );
+});
+
+// ?lat=&lon=&name= deep link takes precedence over saved state
+function parseDeepLink() {
+    try {
+        const p = new URLSearchParams(location.search);
+        if (!p.has('lat') || !p.has('lon')) return null;
+        const lat = parseFloat(p.get('lat')), lon = parseFloat(p.get('lon'));
+        if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+            return { lat, lon, name: (p.get('name') || '').trim() || lat.toFixed(2) + '°, ' + lon.toFixed(2) + '°' };
+        }
+    } catch(e) {}
+    return null;
+}
+
+const deepLink = parseDeepLink();
+if (deepLink) {
+    selectCoords(deepLink.lat, deepLink.lon, deepLink.name);
+} else if (state.lat != null && state.lon != null) {
     document.getElementById('selName').textContent   = state.name || '';
     document.getElementById('selCoords').textContent =
         fmt(Math.abs(state.lat),4)+'°'+(state.lat>=0?'N':'S')+' · '+fmt(Math.abs(state.lon),4)+'°'+(state.lon>=0?'E':'W');
