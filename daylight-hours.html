@@ -204,6 +204,46 @@
         .stat-pill.today    { background: #E8E5DF; color: #4A5D47; }
         .stat-label { opacity: 0.7; font-weight: 400; }
 
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            font-size: 0.78rem;
+            color: #6B5F54;
+        }
+        .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+        .legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            border: 1px solid rgba(58, 47, 40, 0.15);
+        }
+        .swatch-day      { background: #fbbf24; }
+        .swatch-twilight { background: #d1580f; }
+        .swatch-night    { background: #0d1b4b; }
+
+        .deltas {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .delta-title { font-size: 0.78rem; color: #6B5F54; margin-right: 4px; }
+        .delta-chip {
+            padding: 5px 12px;
+            border-radius: 16px;
+            background: #F3F1EC;
+            font-size: 0.78rem;
+            color: #6B5F54;
+            display: inline-flex;
+            gap: 5px;
+        }
+        .delta-value { font-weight: 600; }
+        .delta-value.pos { color: #4A5D47; }
+        .delta-value.neg { color: #92400e; }
+
         .notice {
             font-size: 0.76rem;
             color: #9ca3af;
@@ -251,7 +291,14 @@
             <div class="tooltip" id="tooltip"></div>
         </div>
 
+        <div class="legend">
+            <span class="legend-item"><span class="legend-swatch swatch-day"></span>Daylight</span>
+            <span class="legend-item"><span class="legend-swatch swatch-twilight"></span>Civil twilight</span>
+            <span class="legend-item"><span class="legend-swatch swatch-night"></span>Night</span>
+        </div>
+
         <div class="stats" id="stats"></div>
+        <div class="deltas" id="deltas"></div>
         <p class="notice">Times shown in standard time (DST not applied) · NOAA simplified solar algorithm</p>
     </div>
 
@@ -520,8 +567,9 @@ const COUNTRY_NAMES = {
 
 // ─── Solar calculation (NOAA simplified) ─────────────────────────────────────
 function getDayOfYear(date) {
-    const start = new Date(date.getFullYear(), 0, 0);
-    return Math.floor((date - start) / 86400000);
+    // UTC arithmetic: immune to the DST hour that would make floor() drop a day
+    return Math.round((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+                     - Date.UTC(date.getFullYear(), 0, 1)) / 86400000) + 1;
 }
 
 function solarCalc(doy, lat, lon, utcOffset) {
@@ -539,21 +587,42 @@ function solarCalc(doy, lat, lon, utcOffset) {
         - 0.002697 * Math.cos(3*g) + 0.001480 * Math.sin(3*g);
 
     const latRad = lat * Math.PI / 180;
-    const cosHA = Math.cos(90.833 * Math.PI / 180)
-                / (Math.cos(latRad) * Math.cos(decl))
-                - Math.tan(latRad) * Math.tan(decl);
-
-    if (cosHA >= 1)  return { polarNight: true };
-    if (cosHA <= -1) return { midnightSun: true };
-
-    const ha = Math.acos(cosHA);
     const solarNoon = 720 - 4 * lon - eqtime;
-    const haDeg = ha * 180 / Math.PI;
 
-    return {
-        sunrise: solarNoon - 4 * haDeg + utcOffset * 60,
-        sunset:  solarNoon + 4 * haDeg + utcOffset * 60,
-    };
+    function cosHA(zenithDeg) {
+        return Math.cos(zenithDeg * Math.PI / 180)
+             / (Math.cos(latRad) * Math.cos(decl))
+             - Math.tan(latRad) * Math.tan(decl);
+    }
+
+    function times(cosha) {
+        const haDeg = Math.acos(cosha) * 180 / Math.PI;
+        return [
+            solarNoon - 4 * haDeg + utcOffset * 60,
+            solarNoon + 4 * haDeg + utcOffset * 60,
+        ];
+    }
+
+    const cosSun = cosHA(90.833); // official sunrise/sunset
+    const cosCiv = cosHA(96);     // civil dawn/dusk (sun 6° below horizon)
+
+    if (cosSun >= 1) {
+        // Sun never rises; civil twilight may still brighten midday
+        if (cosCiv < 1) {
+            const [dawn, dusk] = times(cosCiv);
+            return { polarNight: true, dawn, dusk };
+        }
+        return { polarNight: true, dawn: null, dusk: null };
+    }
+    if (cosSun <= -1) return { midnightSun: true };
+
+    const [sunrise, sunset] = times(cosSun);
+    if (cosCiv <= -1) {
+        // White nights: civil twilight never ends, no true night
+        return { sunrise, sunset, dawn: null, dusk: null };
+    }
+    const [dawn, dusk] = times(cosCiv);
+    return { sunrise, sunset, dawn, dusk };
 }
 
 function computeYear(year, lat, lon, utcOffset) {
@@ -597,12 +666,12 @@ const SOLAR_EVENTS = [
 ];
 
 // ─── Canvas drawing ───────────────────────────────────────────────────────────
-const C_NIGHT  = '#0d1b4b';
-const C_DAY    = '#fbbf24';
+const C_NIGHT    = '#0d1b4b';
+const C_DAY      = '#fbbf24';
+const C_TWILIGHT = '#d1580f'; // civil twilight band — hex duplicated in .legend-swatch CSS
 const C_GRID   = 'rgba(255,255,255,0.11)';
 const C_TODAY  = '#f472b6';
 const C_EVENT  = 'rgba(255,255,255,0.22)';
-const TWILIGHT = 28; // minutes
 const PAD = { L:46, R:14, T:18, B:30 };
 
 let offscreen = null;
@@ -634,7 +703,7 @@ function renderBase(ctx, W, H, yearData, year, todayDoy) {
     const cH = H - PAD.T - PAD.B;
     const dayPx = cW / days;
     const minPx = cH / 1440;
-    const twPx  = TWILIGHT * minPx;
+    const yOf = m => PAD.T + Math.max(0, Math.min(1440, m)) * minPx;
 
     ctx.clearRect(0, 0, W, H);
 
@@ -653,45 +722,35 @@ function renderBase(ctx, W, H, yearData, year, todayDoy) {
         const x = PAD.L + d * dayPx;
         const w = dayPx + 0.6; // slight overlap prevents sub-pixel gaps
 
-        if (r.polarNight) continue;
-
         if (r.midnightSun) {
             ctx.fillStyle = C_DAY;
             ctx.fillRect(x, PAD.T, w, cH);
             continue;
         }
 
-        const sr = Math.max(0, Math.min(1440, r.sunrise));
-        const ss = Math.max(0, Math.min(1440, r.sunset));
-        const srY = PAD.T + sr * minPx;
-        const ssY = PAD.T + ss * minPx;
+        if (r.polarNight) {
+            // Midday civil-twilight window, if any; otherwise night shows through
+            if (r.dawn != null) {
+                const t0 = yOf(r.dawn), t1 = yOf(r.dusk);
+                if (t1 > t0) { ctx.fillStyle = C_TWILIGHT; ctx.fillRect(x, t0, w, t1 - t0); }
+            }
+            continue;
+        }
 
-        // Solid daylight band
-        const bTop = srY + twPx;
-        const bBot = ssY - twPx;
-        if (bBot > bTop) {
+        // Civil twilight band; the day band overpaints its middle
+        ctx.fillStyle = C_TWILIGHT;
+        if (r.dawn == null) {
+            ctx.fillRect(x, PAD.T, w, cH); // white nights: twilight fills all non-day
+        } else {
+            const t0 = yOf(r.dawn), t1 = yOf(r.dusk);
+            if (t1 > t0) ctx.fillRect(x, t0, w, t1 - t0);
+        }
+
+        const srY = yOf(r.sunrise);
+        const ssY = yOf(r.sunset);
+        if (ssY > srY) {
             ctx.fillStyle = C_DAY;
-            ctx.fillRect(x, bTop, w, bBot - bTop);
-        }
-
-        // Sunrise twilight gradient
-        const sr0 = Math.max(PAD.T, srY - twPx);
-        const sr1 = Math.min(PAD.T + cH, srY + twPx);
-        if (sr1 > sr0) {
-            const g = ctx.createLinearGradient(0, sr0, 0, sr1);
-            g.addColorStop(0, C_NIGHT); g.addColorStop(1, C_DAY);
-            ctx.fillStyle = g;
-            ctx.fillRect(x, sr0, w, sr1 - sr0);
-        }
-
-        // Sunset twilight gradient
-        const ss0 = Math.max(PAD.T, ssY - twPx);
-        const ss1 = Math.min(PAD.T + cH, ssY + twPx);
-        if (ss1 > ss0) {
-            const g = ctx.createLinearGradient(0, ss0, 0, ss1);
-            g.addColorStop(0, C_DAY); g.addColorStop(1, C_NIGHT);
-            ctx.fillStyle = g;
-            ctx.fillRect(x, ss0, w, ss1 - ss0);
+            ctx.fillRect(x, srY, w, ssY - srY);
         }
     }
     ctx.restore();
@@ -835,6 +894,71 @@ function renderStats(container, yearData, year, todayDoy) {
     }
 }
 
+// ─── Day-length deltas ────────────────────────────────────────────────────────
+function durationOfRecord(r) {
+    if (r.polarNight)  return 0;
+    if (r.midnightSun) return 1440;
+    return r.sunset - r.sunrise;
+}
+
+function daylightDurationOn(date, lat, lon, utcOffset) {
+    return durationOfRecord(solarCalc(getDayOfYear(date), lat, lon, utcOffset));
+}
+
+function shiftDate(base, days, months) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    // Jan 31 + 1 month overflows to Mar 3 — standard setMonth behaviour, accepted
+    if (months) d.setMonth(d.getMonth() + months);
+    if (days)   d.setDate(d.getDate() + days);
+    return d;
+}
+
+function formatDelta(mins) {
+    const m = Math.round(mins);
+    if (m === 0) return '±0 min';
+    return (m > 0 ? '+' : '−') + Math.abs(m) + ' min';
+}
+
+function renderDeltas(container, lat, lon, utcOffset) {
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    const today = new Date();
+    const dur   = d => daylightDurationOn(d, lat, lon, utcOffset);
+    const base  = dur(today);
+
+    // Sign is always "later minus earlier": positive = daylight increasing
+    const chips = [
+        ['vs 1 month ago', base - dur(shiftDate(today, 0, -1))],
+        ['vs 1 week ago',  base - dur(shiftDate(today, -7, 0))],
+        ['vs yesterday',   base - dur(shiftDate(today, -1, 0))],
+        ['tomorrow',       dur(shiftDate(today, 1, 0)) - base],
+        ['in 1 week',      dur(shiftDate(today, 7, 0)) - base],
+        ['in 1 month',     dur(shiftDate(today, 0, 1)) - base],
+    ];
+
+    const title = document.createElement('span');
+    title.className = 'delta-title';
+    title.textContent = 'Daylight change:';
+    container.appendChild(title);
+
+    chips.forEach(([labelText, delta]) => {
+        const chip = document.createElement('span');
+        chip.className = 'delta-chip';
+
+        const lbl = document.createElement('span');
+        lbl.textContent = labelText;
+
+        const val = document.createElement('span');
+        const m = Math.round(delta);
+        val.className = 'delta-value' + (m > 0 ? ' pos' : m < 0 ? ' neg' : '');
+        val.textContent = formatDelta(delta);
+
+        chip.appendChild(lbl);
+        chip.appendChild(val);
+        container.appendChild(chip);
+    });
+}
+
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 function buildTooltip(tooltip, dayIdx, yearData, year) {
     while (tooltip.firstChild) tooltip.removeChild(tooltip.firstChild);
@@ -863,12 +987,26 @@ function buildTooltip(tooltip, dayIdx, yearData, year) {
 
     if (r.polarNight) {
         addRow('', 'Polar night');
+        if (r.dawn != null) {
+            addRow('Dawn', minToHHMM(r.dawn));
+            addRow('Dusk', minToHHMM(r.dusk));
+        }
     } else if (r.midnightSun) {
         addRow('', 'Midnight sun');
     } else {
+        if (r.dawn != null) addRow('Dawn', minToHHMM(r.dawn));
         addRow('Sunrise', minToHHMM(r.sunrise));
         addRow('Sunset',  minToHHMM(r.sunset));
+        if (r.dusk != null) addRow('Dusk', minToHHMM(r.dusk));
         addRow('Daylight', minToDuration(r.sunset - r.sunrise));
+        if (r.dawn == null) addRow('', 'No true night');
+    }
+
+    const todayRec = yearData[TODAY_DOY - 1];
+    if (todayRec && dayIdx !== TODAY_DOY - 1) {
+        const m = Math.round(durationOfRecord(r) - durationOfRecord(todayRec));
+        addRow('vs today', m === 0 ? '±0 min'
+            : Math.abs(m) + ' min ' + (m > 0 ? 'longer' : 'shorter'));
     }
 }
 
@@ -964,6 +1102,7 @@ function loadCity(city) {
 
     drawChart(canvas, currentYearData, YEAR, TODAY_DOY);
     renderStats(stats, currentYearData, YEAR, TODAY_DOY);
+    renderDeltas(document.getElementById('deltas'), city[2], city[3], city[4]);
 
     try { localStorage.setItem('daylightCity', JSON.stringify(city)); } catch(e) { /* quota */ }
 }
