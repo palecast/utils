@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Toolbox</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #FAF8F5;
+            --surface: #FFFFFF;
+            --text: #3A2F28;
+            --text-muted: #6B5F54;
+            --accent: #4A5D47;
+            --accent-hover: #3D4E3B;
+            --border: rgba(74, 93, 71, 0.12);
+            --tint: rgba(232, 229, 223, 0.4);
+            --pill-bg: #E8E5DF;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                         Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        body.drag-active { user-select: none; }
+
+        header {
+            position: sticky; top: 0; z-index: 50;
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo-box {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--accent); color: var(--bg);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px;
+        }
+        .brand-title { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+        .brand-sub { font-size: 12px; color: var(--text-muted); }
+        .header-note { font-size: 12px; color: var(--text-muted); }
+
+        main {
+            flex: 1;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .loading-bar {
+            display: none;
+            height: 3px;
+            border-radius: 2px;
+            background: var(--border);
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .loading-bar::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: loadSlide 1.4s ease-in-out infinite;
+        }
+        @keyframes loadSlide {
+            from { transform: translateX(-150%); }
+            to   { transform: translateX(350%); }
+        }
+
+        .banner {
+            display: none;
+            align-items: baseline;
+            gap: 12px;
+            padding: 15px 22px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .banner.show { display: flex; }
+        .banner.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #c33;
+            color: #c33;
+        }
+        .banner.warn {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+        .banner-close {
+            margin-left: auto;
+            border: none; background: none;
+            color: inherit; font-size: 18px; line-height: 1;
+            cursor: pointer;
+        }
+
+        /* ------- Empty-state drop zone ------- */
+        #empty-drop {
+            border: 2px dashed rgba(74, 93, 71, 0.3);
+            border-radius: 16px;
+            background: var(--tint);
+            padding: 72px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        #empty-drop.dragover { border-color: var(--accent); background: rgba(232, 229, 223, 0.7); }
+        #empty-drop h2 { font-size: 1.4rem; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+        #empty-drop .sub { font-size: 1rem; color: var(--text-muted); margin-bottom: 20px; }
+        #empty-drop .privacy { font-size: 0.85rem; font-weight: 300; color: var(--text-muted); }
+
+        /* ------- Toolbar ------- */
+        .toolbar {
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(58, 47, 40, 0.08);
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        .toolbar .spacer { flex: 1; }
+        .sel-count { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #FFFFFF;
+            font: 600 14px 'Inter', sans-serif;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn:active:not(:disabled) { transform: translateY(0); }
+        .btn.outline {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--accent);
+        }
+        .btn.outline:hover:not(:disabled) { background: var(--tint); transform: none; }
+        .btn.danger-outline {
+            background: var(--surface);
+            border: 1px solid #fecaca;
+            color: #e74c3c;
+        }
+        .btn.danger-outline:hover:not(:disabled) { background: #fef2f2; transform: none; }
+        .btn:disabled { opacity: 0.45; cursor: default; }
+
+        /* ------- Source legend ------- */
+        .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .src-pill {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: var(--pill-bg);
+            color: var(--accent);
+            font-size: 0.85rem;
+            max-width: 100%;
+        }
+        .src-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+        .src-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .src-count { color: var(--text-muted); white-space: nowrap; }
+        .src-remove {
+            border: none; background: none;
+            color: var(--text-muted); font-size: 14px; line-height: 1;
+            cursor: pointer; padding: 0 2px;
+        }
+        .src-remove:hover { color: #e74c3c; }
+
+        /* ------- Page grid ------- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+        }
+        .tile {
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(58, 47, 40, 0.04);
+            overflow: hidden;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+        .tile.selected { box-shadow: 0 0 0 2px var(--accent), 0 2px 8px rgba(58, 47, 40, 0.08); }
+        .tile.dragging {
+            opacity: 0.9;
+            transform: scale(1.02);
+            box-shadow: 0 20px 60px rgba(58, 47, 40, 0.2);
+            z-index: 5;
+        }
+        .tile-color { height: 4px; }
+        .tile-check {
+            position: absolute; top: 10px; left: 8px;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--accent); color: #FFFFFF;
+            font-size: 12px;
+            display: none; align-items: center; justify-content: center;
+        }
+        .tile.selected .tile-check { display: flex; }
+        .tile-actions {
+            position: absolute; top: 8px; right: 8px;
+            display: flex; gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .tile:hover .tile-actions { opacity: 1; }
+        @media (hover: none) { .tile-actions { opacity: 1; } }
+        .tile-btn {
+            width: 26px; height: 26px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.92);
+            color: var(--accent);
+            font-size: 13px; line-height: 1;
+            cursor: pointer;
+        }
+        .tile-btn:hover { background: var(--tint); }
+        .tile-thumb {
+            height: 190px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--tint);
+            padding: 10px;
+        }
+        .tile-thumb canvas {
+            max-width: 100%; max-height: 100%;
+            background: #FFFFFF;
+            box-shadow: 0 1px 4px rgba(58, 47, 40, 0.15);
+        }
+        .tile-pending { font-size: 12px; color: var(--text-muted); animation: pendingPulse 1.4s ease-in-out infinite; }
+        @keyframes pendingPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        .tile-meta {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 10px;
+            border-top: 1px solid var(--border);
+            font-size: 11px; color: var(--text-muted);
+        }
+        .tile-handle {
+            cursor: grab;
+            touch-action: none;
+            font-size: 14px;
+            padding: 2px 4px; margin: -2px 0;
+            color: var(--text-muted);
+            user-select: none;
+        }
+        body.drag-active .tile-handle { cursor: grabbing; }
+        .tile-pos { font-weight: 600; color: var(--text); }
+        .tile-src {
+            margin-left: auto;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            max-width: 60%;
+        }
+
+        #drop-strip {
+            border: 2px dashed rgba(74, 93, 71, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        #drop-strip.dragover { border-color: var(--accent); background: var(--tint); }
+
+        footer {
+            padding: 32px 24px;
+            text-align: center;
+            font: 300 0.875rem 'Inter', sans-serif;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.3);
+        }
+        footer a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; margin-left: 8px; }
+        footer a:hover { color: var(--text); }
+
+        @media (max-width: 768px) {
+            main { padding: 12px; }
+            .header-note { display: none; }
+            .grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+            .tile-thumb { height: 150px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo-box">PDF</div>
+            <div>
+                <div class="brand-title">PDF Toolbox</div>
+                <div class="brand-sub">Merge, split, reorder &amp; rotate PDF pages</div>
+            </div>
+        </div>
+        <div class="header-note">Everything runs locally in your browser — files are never uploaded.</div>
+    </header>
+
+    <main>
+        <div class="banner error" id="banner-error" role="alert">
+            <span id="banner-error-msg"></span>
+            <button class="banner-close" id="banner-error-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="banner warn" id="banner-warn" role="status">
+            <span id="banner-warn-msg"></span>
+            <button class="banner-close" id="banner-warn-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="loading-bar" id="loading-bar"></div>
+
+        <div id="empty-drop">
+            <h2>Drop PDF files here</h2>
+            <div class="sub">or click to browse</div>
+            <div class="privacy">Merging, splitting, reordering and rotating all happen in your browser — files are never uploaded.</div>
+        </div>
+        <input type="file" id="file-input" accept=".pdf,application/pdf" multiple hidden>
+
+        <div id="workspace" style="display: none;">
+            <div class="toolbar">
+                <button class="btn outline" id="btn-add">Add PDFs</button>
+                <button class="btn outline" id="btn-select-all">Select all</button>
+                <span class="sel-count" id="sel-count"></span>
+                <span class="spacer"></span>
+                <button class="btn outline" id="btn-rotate-left" disabled title="Rotate selected pages 90° counter-clockwise">⟲ Rotate left</button>
+                <button class="btn outline" id="btn-rotate-right" disabled title="Rotate selected pages 90° clockwise">⟳ Rotate right</button>
+                <button class="btn danger-outline" id="btn-delete" disabled title="Remove selected pages">Delete</button>
+                <span class="spacer"></span>
+                <button class="btn outline" id="btn-extract" disabled title="Save the selected pages as a new PDF">Extract selected</button>
+                <button class="btn outline" id="btn-split" title="Save every page as a single-page PDF inside a ZIP">Split to ZIP</button>
+                <button class="btn" id="btn-download" title="Save all pages, in this order, as one PDF">Download PDF</button>
+            </div>
+
+            <div class="legend" id="legend"></div>
+            <div class="grid" id="grid"></div>
+            <div id="drop-strip">＋ Add more PDFs — drop files anywhere or click</div>
+        </div>
+    </main>
+
+    <footer>
+        No ads, no tracking, no data leaves your browser.
+        <a href="/disclaimer.html">Disclaimer &amp; Terms</a>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"
+            integrity="sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.3/umd/index.js"
+            integrity="sha384-ETfVLWAUsU3zp3SpnQsPDbAyrF6jYv2w8aNYo6KtY2JuyxXhzYLOL7e0ATbLSIHP"
+            crossorigin="anonymous"></script>
+    <script type="module">
+        // ------- Library bootstrap -------
+        // pdfjs-dist v4+ ships ESM-only builds, hence the dynamic import; a static
+        // import that failed (offline, CDN down) would kill this whole module with
+        // no user-visible error. No SRI on dynamic import — version pin instead.
+        const PDFJS_VERSION = '6.1.200';
+        const PDFJS_BASE = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}`;
+        let pdfjsLib = null;
+        try {
+            pdfjsLib = await import(`${PDFJS_BASE}/build/pdf.min.mjs`);
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_BASE}/build/pdf.worker.min.mjs`;
+        } catch (err) {
+            pdfjsLib = null;
+        }
+        const libsOk = !!(pdfjsLib && window.PDFLib && window.fflate);
+        if (!libsOk) {
+            showBanner('error', 'Could not load the PDF libraries from the CDN. Check your connection and reload the page.');
+        }
+
+        // ------- State -------
+        const state = {
+            sources: [],   // { id, name, bytes, pdfjsDoc, pageCount, colorIndex }
+            pages: [],     // { id, sourceId, pageIndex, rotationDelta, selected, canvas } — array order = workspace order
+        };
+        let nextSourceId = 1;
+        let nextPageId = 1;
+        let nextColorIndex = 0;
+        let lastClickIdx = -1;
+        let exporting = false;
+
+        const SOURCE_COLORS = ['#4A5D47', '#8B6F47', '#5B7A8C', '#9C6B5E', '#7A7A4D', '#6B6B7A'];
+        const LARGE_TOTAL_BYTES = 200 * 1024 * 1024;
+        const THUMB_WIDTH = 160;          // CSS px target for thumbnail canvases
+        const THUMB_WIDTH_MANY = 120;     // used once the workspace exceeds MANY_PAGES
+        const MANY_PAGES = 200;
+
+        const emptyDrop = document.getElementById('empty-drop');
+        const workspace = document.getElementById('workspace');
+        const dropStrip = document.getElementById('drop-strip');
+        const fileInput = document.getElementById('file-input');
+        const gridEl = document.getElementById('grid');
+        const legendEl = document.getElementById('legend');
+        const selCountEl = document.getElementById('sel-count');
+        const btnAdd = document.getElementById('btn-add');
+        const btnSelectAll = document.getElementById('btn-select-all');
+        const btnRotateLeft = document.getElementById('btn-rotate-left');
+        const btnRotateRight = document.getElementById('btn-rotate-right');
+        const btnDelete = document.getElementById('btn-delete');
+        const btnExtract = document.getElementById('btn-extract');
+        const btnSplit = document.getElementById('btn-split');
+        const btnDownload = document.getElementById('btn-download');
+
+        const sourceById = id => state.sources.find(s => s.id === id);
+        const pageById = id => state.pages.find(p => p.id === id);
+        const selectedPages = () => state.pages.filter(p => p.selected);
+
+        // ------- Banners & loading -------
+        function showBanner(kind, message) {
+            document.getElementById(`banner-${kind}-msg`).textContent = message;
+            document.getElementById(`banner-${kind}`).classList.add('show');
+        }
+        function hideBanner(kind) {
+            document.getElementById(`banner-${kind}`).classList.remove('show');
+        }
+        document.getElementById('banner-error-close').addEventListener('click', () => hideBanner('error'));
+        document.getElementById('banner-warn-close').addEventListener('click', () => hideBanner('warn'));
+
+        let busyCount = 0;
+        function shimmer(on) {
+            busyCount += on ? 1 : -1;
+            document.getElementById('loading-bar').style.display = busyCount > 0 ? 'block' : 'none';
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ------- File ingest -------
+        const isPdfFile = f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+
+        async function addFiles(fileList) {
+            if (!libsOk) {
+                showBanner('error', 'Could not load the PDF libraries from the CDN. Check your connection and reload the page.');
+                return;
+            }
+            const files = [...fileList];
+            if (!files.length) return;
+            hideBanner('error');
+            const problems = [];
+            const notPdf = files.filter(f => !isPdfFile(f));
+            if (notPdf.length) {
+                problems.push(`Skipped (not PDF): ${notPdf.map(f => f.name).join(', ')}.`);
+            }
+            shimmer(true);
+            try {
+                for (const f of files.filter(isPdfFile)) {
+                    try {
+                        await loadSource(f);
+                    } catch (err) {
+                        if (err && err.name === 'PasswordException') {
+                            problems.push(`${f.name} is password-protected — remove the password and try again.`);
+                        } else {
+                            problems.push(`${f.name} could not be read — it may be corrupt.`);
+                        }
+                    }
+                }
+            } finally {
+                shimmer(false);
+            }
+            if (problems.length) showBanner('error', problems.join(' '));
+            const totalBytes = state.sources.reduce((sum, s) => sum + s.bytes.length, 0);
+            if (totalBytes > LARGE_TOTAL_BYTES) {
+                showBanner('warn', 'Very large files loaded — exporting may be slow or fail on this device.');
+            }
+        }
+
+        async function loadSource(file) {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            // pdf.js transfers (detaches) the buffer it is given — hand it a copy,
+            // the original stays intact for pdf-lib at export time.
+            const pdfjsDoc = await pdfjsLib.getDocument({
+                data: bytes.slice(),
+                cMapUrl: `${PDFJS_BASE}/cmaps/`,
+                cMapPacked: true,
+                standardFontDataUrl: `${PDFJS_BASE}/standard_fonts/`,
+            }).promise;
+            const source = {
+                id: nextSourceId++,
+                name: file.name,
+                bytes,
+                pdfjsDoc,
+                pageCount: pdfjsDoc.numPages,
+                colorIndex: nextColorIndex++ % SOURCE_COLORS.length,
+            };
+            state.sources.push(source);
+            const newPages = [];
+            for (let i = 0; i < source.pageCount; i++) {
+                newPages.push({
+                    id: nextPageId++,
+                    sourceId: source.id,
+                    pageIndex: i,
+                    rotationDelta: 0,
+                    selected: false,
+                    canvas: null,
+                });
+            }
+            state.pages.push(...newPages);
+            renderAll();
+            enqueueThumbs(newPages);
+        }
+
+        function removeSource(id) {
+            const src = sourceById(id);
+            if (!src) return;
+            src.pdfjsDoc.destroy();
+            state.sources = state.sources.filter(s => s.id !== id);
+            state.pages = state.pages.filter(p => p.sourceId !== id);
+            lastClickIdx = -1;
+            renderAll();
+        }
+
+        // ------- Thumbnail rendering (sequential queue) -------
+        const renderQueue = [];
+        let queueRunning = false;
+
+        function enqueueThumbs(pages) {
+            renderQueue.push(...pages);
+            pumpQueue();
+        }
+
+        async function pumpQueue() {
+            if (queueRunning) return;
+            queueRunning = true;
+            shimmer(true);
+            try {
+                while (renderQueue.length) {
+                    const page = renderQueue.shift();
+                    if (!state.pages.includes(page)) continue;   // deleted while queued
+                    try {
+                        await renderThumb(page);
+                    } catch (err) {
+                        // leave the placeholder; the page is still fully usable
+                    }
+                }
+            } finally {
+                queueRunning = false;
+                shimmer(false);
+            }
+        }
+
+        async function renderThumb(p) {
+            const src = sourceById(p.sourceId);
+            if (!src) return;
+            const pdfPage = await src.pdfjsDoc.getPage(p.pageIndex + 1);
+            const base = pdfPage.getViewport({ scale: 1 });
+            const targetWidth = state.pages.length > MANY_PAGES ? THUMB_WIDTH_MANY : THUMB_WIDTH;
+            const scale = targetWidth * Math.min(window.devicePixelRatio || 1, 1.5) / base.width;
+            const viewport = pdfPage.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(viewport.width);
+            canvas.height = Math.ceil(viewport.height);
+            await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            pdfPage.cleanup();
+            p.canvas = canvas;
+            updateTileThumb(p);
+        }
+
+        // Rotation never re-renders via pdf.js — it redraws the cached upright canvas.
+        function thumbContent(p) {
+            if (!p.canvas) {
+                const pending = document.createElement('div');
+                pending.className = 'tile-pending';
+                pending.textContent = 'p.' + (p.pageIndex + 1);
+                return pending;
+            }
+            if (!p.rotationDelta) return p.canvas;
+            const src = p.canvas;
+            const rotated = document.createElement('canvas');
+            const swap = p.rotationDelta === 90 || p.rotationDelta === 270;
+            rotated.width = swap ? src.height : src.width;
+            rotated.height = swap ? src.width : src.height;
+            const ctx = rotated.getContext('2d');
+            ctx.translate(rotated.width / 2, rotated.height / 2);
+            ctx.rotate(p.rotationDelta * Math.PI / 180);
+            ctx.drawImage(src, -src.width / 2, -src.height / 2);
+            return rotated;
+        }
+
+        function updateTileThumb(p) {
+            const tile = gridEl.querySelector(`[data-page-id="${p.id}"]`);
+            if (!tile) return;
+            const thumb = tile.querySelector('.tile-thumb');
+            thumb.textContent = '';
+            thumb.appendChild(thumbContent(p));
+        }
+
+        // ------- Rendering -------
+        function renderAll() {
+            renderGrid();
+            renderLegend();
+            updateToolbar();
+            const hasPages = state.pages.length > 0;
+            emptyDrop.style.display = hasPages ? 'none' : 'block';
+            workspace.style.display = hasPages ? 'block' : 'none';
+        }
+
+        function renderGrid() {
+            gridEl.textContent = '';
+            state.pages.forEach((p, i) => gridEl.appendChild(createTile(p, i + 1)));
+        }
+
+        function createTile(p, pos) {
+            const src = sourceById(p.sourceId);
+            const tile = document.createElement('div');
+            tile.className = 'tile' + (p.selected ? ' selected' : '');
+            tile.dataset.pageId = p.id;
+
+            const strip = document.createElement('div');
+            strip.className = 'tile-color';
+            strip.style.background = SOURCE_COLORS[src.colorIndex];
+            tile.appendChild(strip);
+
+            const check = document.createElement('div');
+            check.className = 'tile-check';
+            check.textContent = '✓';
+            tile.appendChild(check);
+
+            const actions = document.createElement('div');
+            actions.className = 'tile-actions';
+            const rotateBtn = document.createElement('button');
+            rotateBtn.className = 'tile-btn';
+            rotateBtn.textContent = '⟳';
+            rotateBtn.title = 'Rotate this page 90° clockwise';
+            rotateBtn.addEventListener('click', e => { e.stopPropagation(); rotatePages([p], 90); });
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'tile-btn';
+            deleteBtn.textContent = '✕';
+            deleteBtn.title = 'Remove this page';
+            deleteBtn.addEventListener('click', e => { e.stopPropagation(); deletePages([p]); });
+            actions.append(rotateBtn, deleteBtn);
+            tile.appendChild(actions);
+
+            const thumb = document.createElement('div');
+            thumb.className = 'tile-thumb';
+            thumb.appendChild(thumbContent(p));
+            tile.appendChild(thumb);
+
+            const meta = document.createElement('div');
+            meta.className = 'tile-meta';
+            const handle = document.createElement('span');
+            handle.className = 'tile-handle';
+            handle.textContent = '⠿';
+            handle.title = 'Drag to reorder';
+            const posEl = document.createElement('span');
+            posEl.className = 'tile-pos';
+            posEl.textContent = pos;
+            const srcEl = document.createElement('span');
+            srcEl.className = 'tile-src';
+            srcEl.textContent = `${src.name} · p.${p.pageIndex + 1}`;
+            srcEl.title = srcEl.textContent;
+            meta.append(handle, posEl, srcEl);
+            tile.appendChild(meta);
+
+            tile.addEventListener('click', e => onTileClick(p, e));
+            attachTileDrag(handle, tile);
+            return tile;
+        }
+
+        function renderLegend() {
+            legendEl.textContent = '';
+            state.sources.forEach(src => {
+                const pill = document.createElement('span');
+                pill.className = 'src-pill';
+                const dot = document.createElement('span');
+                dot.className = 'src-dot';
+                dot.style.background = SOURCE_COLORS[src.colorIndex];
+                const name = document.createElement('span');
+                name.className = 'src-name';
+                name.textContent = src.name;
+                name.title = src.name;
+                const count = document.createElement('span');
+                count.className = 'src-count';
+                const remaining = state.pages.filter(p => p.sourceId === src.id).length;
+                count.textContent = `${remaining}/${src.pageCount} pages`;
+                const remove = document.createElement('button');
+                remove.className = 'src-remove';
+                remove.textContent = '×';
+                remove.title = `Remove ${src.name} and all its pages`;
+                remove.setAttribute('aria-label', remove.title);
+                remove.addEventListener('click', () => removeSource(src.id));
+                pill.append(dot, name, count, remove);
+                legendEl.appendChild(pill);
+            });
+        }
+
+        function updateToolbar() {
+            const total = state.pages.length;
+            const sel = selectedPages().length;
+            selCountEl.textContent = sel ? `${sel} of ${total} selected` : `${total} page${total === 1 ? '' : 's'}`;
+            btnSelectAll.textContent = total > 0 && sel === total ? 'Select none' : 'Select all';
+            [btnRotateLeft, btnRotateRight, btnDelete, btnExtract].forEach(b => { b.disabled = sel === 0 || exporting; });
+            btnDownload.disabled = total === 0 || exporting;
+            btnSplit.disabled = total === 0 || exporting;
+            btnAdd.disabled = exporting;
+        }
+
+        function refreshSelectionUI() {
+            gridEl.querySelectorAll('.tile').forEach(el => {
+                el.classList.toggle('selected', pageById(+el.dataset.pageId).selected);
+            });
+            updateToolbar();
+        }
+
+        // ------- Selection -------
+        function onTileClick(p, e) {
+            if (suppressClick) { suppressClick = false; return; }
+            const idx = state.pages.indexOf(p);
+            if (e.shiftKey && lastClickIdx >= 0 && lastClickIdx < state.pages.length) {
+                const [a, b] = [Math.min(lastClickIdx, idx), Math.max(lastClickIdx, idx)];
+                for (let i = a; i <= b; i++) state.pages[i].selected = true;
+            } else {
+                p.selected = !p.selected;
+                lastClickIdx = idx;
+            }
+            refreshSelectionUI();
+        }
+
+        btnSelectAll.addEventListener('click', () => {
+            const all = state.pages.length > 0 && selectedPages().length === state.pages.length;
+            state.pages.forEach(p => { p.selected = !all; });
+            refreshSelectionUI();
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPages().length) {
+                e.preventDefault();
+                deletePages(selectedPages());
+            } else if (e.key === 'Escape') {
+                state.pages.forEach(p => { p.selected = false; });
+                refreshSelectionUI();
+            }
+        });
+
+        // ------- Page operations -------
+        function rotatePages(pages, delta) {
+            pages.forEach(p => {
+                p.rotationDelta = (p.rotationDelta + delta + 360) % 360;
+                updateTileThumb(p);
+            });
+        }
+
+        function deletePages(pages) {
+            const ids = new Set(pages.map(p => p.id));
+            state.pages = state.pages.filter(p => !ids.has(p.id));
+            state.sources = state.sources.filter(src => {
+                if (state.pages.some(p => p.sourceId === src.id)) return true;
+                src.pdfjsDoc.destroy();
+                return false;
+            });
+            lastClickIdx = -1;
+            renderAll();
+        }
+
+        btnRotateLeft.addEventListener('click', () => rotatePages(selectedPages(), 270));
+        btnRotateRight.addEventListener('click', () => rotatePages(selectedPages(), 90));
+        btnDelete.addEventListener('click', () => deletePages(selectedPages()));
+
+        // ------- Drag to reorder -------
+        // Same pointer-capture pattern as timezone-compare's row drag: never
+        // relocate the captured element mid-drag (that releases pointer capture
+        // and aborts the drag) — move its siblings past it instead, re-measuring
+        // after each swap. Extended to 2D: "before/after" follows the grid's
+        // row-major flow order.
+        let dragCtx = null;
+        let suppressClick = false;
+
+        function attachTileDrag(handle, tile) {
+            handle.addEventListener('pointerdown', e => {
+                if (dragCtx || !e.isPrimary || e.button !== 0) return;
+                if (state.pages.length < 2) return;
+                e.preventDefault();
+                try { handle.setPointerCapture(e.pointerId); } catch (_) { return; }
+                dragCtx = { tile, pointerId: e.pointerId, moved: false, startX: e.clientX, startY: e.clientY };
+            });
+            handle.addEventListener('pointermove', onDragMove);
+            handle.addEventListener('pointerup', () => endDrag(true));
+            handle.addEventListener('pointercancel', () => endDrag(false));
+            handle.addEventListener('lostpointercapture', () => endDrag(false));
+        }
+
+        const pointerBefore = (e, r) => e.clientY < r.top || (e.clientY <= r.bottom && e.clientX < r.left + r.width / 2);
+        const pointerAfter = (e, r) => e.clientY > r.bottom || (e.clientY >= r.top && e.clientX > r.left + r.width / 2);
+
+        function onDragMove(e) {
+            if (!dragCtx || e.pointerId !== dragCtx.pointerId) return;
+            if (!dragCtx.moved) {
+                if (Math.hypot(e.clientX - dragCtx.startX, e.clientY - dragCtx.startY) < 6) return;
+                dragCtx.moved = true;
+                dragCtx.tile.classList.add('dragging');
+                document.body.classList.add('drag-active');
+            }
+            const tile = dragCtx.tile;
+            let guard = state.pages.length * 2;
+            for (;;) {
+                if (guard-- <= 0) break;
+                const prev = tile.previousElementSibling;
+                if (prev && pointerBefore(e, prev.getBoundingClientRect())) {
+                    gridEl.insertBefore(prev, tile.nextElementSibling);
+                    continue;
+                }
+                const next = tile.nextElementSibling;
+                if (next && pointerAfter(e, next.getBoundingClientRect())) {
+                    gridEl.insertBefore(next, tile);
+                    continue;
+                }
+                break;
+            }
+        }
+
+        function endDrag(commit) {
+            if (!dragCtx) return;
+            const { tile, moved } = dragCtx;
+            dragCtx = null;
+            tile.classList.remove('dragging');
+            document.body.classList.remove('drag-active');
+            if (!moved) return;                    // plain click on the handle — let it bubble
+            suppressClick = true;
+            setTimeout(() => { suppressClick = false; }, 0);
+            if (commit) {
+                state.pages = [...gridEl.querySelectorAll(':scope > .tile')].map(el => pageById(+el.dataset.pageId));
+                lastClickIdx = -1;
+            }
+            renderGrid();   // commit: fresh position numbers; abort: restores order from state
+        }
+
+        // ------- Export -------
+        async function buildPdfFromPages(pages, docCache) {
+            const out = await PDFLib.PDFDocument.create();
+            const cache = docCache || new Map();
+            const sourceIds = [...new Set(pages.map(p => p.sourceId))];
+            for (const sid of sourceIds) {
+                if (!cache.has(sid)) {
+                    cache.set(sid, await PDFLib.PDFDocument.load(sourceById(sid).bytes));
+                }
+            }
+            const copied = new Map();
+            for (const sid of sourceIds) {
+                const indices = pages.filter(p => p.sourceId === sid).map(p => p.pageIndex);
+                const copies = await out.copyPages(cache.get(sid), indices);
+                indices.forEach((idx, i) => copied.set(sid + ':' + idx, copies[i]));
+            }
+            for (const p of pages) {
+                const page = copied.get(p.sourceId + ':' + p.pageIndex);
+                if (p.rotationDelta) {
+                    const base = page.getRotation().angle;   // can be negative in the source
+                    page.setRotation(PDFLib.degrees((((base + p.rotationDelta) % 360) + 360) % 360));
+                }
+                out.addPage(page);
+            }
+            return await out.save();
+        }
+
+        const baseName = () => state.sources.length === 1
+            ? state.sources[0].name.replace(/\.pdf$/i, '') || 'document'
+            : null;
+
+        async function withBusy(fn) {
+            exporting = true;
+            updateToolbar();
+            shimmer(true);
+            try {
+                await fn();
+            } catch (err) {
+                showBanner('error', `Export failed: ${err.message || err}`);
+            } finally {
+                exporting = false;
+                shimmer(false);
+                updateToolbar();
+            }
+        }
+
+        btnDownload.addEventListener('click', () => withBusy(async () => {
+            const bytes = await buildPdfFromPages(state.pages);
+            const name = baseName() ? `${baseName()}-edited.pdf` : 'merged.pdf';
+            downloadBlob(new Blob([bytes], { type: 'application/pdf' }), name);
+        }));
+
+        btnExtract.addEventListener('click', () => withBusy(async () => {
+            const pages = selectedPages();
+            if (!pages.length) return;
+            const bytes = await buildPdfFromPages(pages);
+            const name = baseName() ? `${baseName()}-extract.pdf` : 'extracted-pages.pdf';
+            downloadBlob(new Blob([bytes], { type: 'application/pdf' }), name);
+        }));
+
+        btnSplit.addEventListener('click', () => withBusy(async () => {
+            const cache = new Map();
+            const files = {};
+            for (let i = 0; i < state.pages.length; i++) {
+                files[`page-${String(i + 1).padStart(3, '0')}.pdf`] = await buildPdfFromPages([state.pages[i]], cache);
+            }
+            // level 0 (store): PDFs are already compressed, deflating them again just burns CPU
+            const zipped = fflate.zipSync(files, { level: 0 });
+            const name = baseName() ? `${baseName()}-pages.zip` : 'split-pages.zip';
+            downloadBlob(new Blob([zipped], { type: 'application/zip' }), name);
+        }));
+
+        // ------- File pickers & drop targets -------
+        emptyDrop.addEventListener('click', () => fileInput.click());
+        dropStrip.addEventListener('click', () => fileInput.click());
+        btnAdd.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+            addFiles(fileInput.files);
+            fileInput.value = '';   // allow re-adding the same file
+        });
+
+        const dragHasFiles = e => e.dataTransfer && e.dataTransfer.types
+            && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') !== -1;
+
+        window.addEventListener('dragover', e => {
+            if (!dragHasFiles(e)) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            emptyDrop.classList.add('dragover');
+            dropStrip.classList.add('dragover');
+        });
+        window.addEventListener('dragleave', e => {
+            if (e.relatedTarget) return;   // still inside the window
+            emptyDrop.classList.remove('dragover');
+            dropStrip.classList.remove('dragover');
+        });
+        window.addEventListener('drop', e => {
+            emptyDrop.classList.remove('dragover');
+            dropStrip.classList.remove('dragover');
+            if (!dragHasFiles(e)) return;
+            e.preventDefault();
+            addFiles(e.dataTransfer.files);
+        });
+
+        window.addEventListener('beforeunload', e => {
+            if (state.pages.length) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // Dev/test hook — used by the verification steps, not by the UI
+        window.__pdfToolbox = { state, buildPdfFromPages, addFiles };
+    </script>
+</body>
+</html>

@@ -52,6 +52,9 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 - **OrgChart (Dabeng)** (`cdn.jsdelivr.net/npm/orgchart@5`) + **jQuery 3.7.1** — used by `org-chart.html` for the tree visualization
 - **html2canvas** (`cdn.jsdelivr.net/npm/html2canvas@1.4.1`) — used by `org-chart.html` for PNG export/print
 - **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx`) — used by `org-chart.html` for Excel import/export
+- **pdf-lib** (`cdn.jsdelivr.net/npm/pdf-lib@1.17.1`, SRI-pinned) — used by `pdf-toolbox.html` for PDF assembly (merge/split/rotate/extract)
+- **pdfjs-dist** (`cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200`, ESM dynamic import + CDN worker via `GlobalWorkerOptions.workerSrc`) — used by `pdf-toolbox.html` for page thumbnails. v4+ is ESM-only, so no SRI is possible on the dynamic import; the exact version pin is the mitigation
+- **fflate** (`cdn.jsdelivr.net/npm/fflate@0.8.3`, SRI-pinned) — used by `pdf-toolbox.html` for the split-to-ZIP export (store-only zipping)
 - **frankfurter.dev API** (`api.frankfurter.dev/v1`) — live and historical ECB exchange rates, used by both currency tools. No API key required.
 
 ### State Persistence

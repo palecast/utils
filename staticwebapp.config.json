@@ -61,6 +61,10 @@
       "rewrite": "/org-chart-guide.html"
     },
     {
+      "route": "/pdf-toolbox",
+      "rewrite": "/pdf-toolbox.html"
+    },
+    {
       "route": "/disclaimer",
       "rewrite": "/disclaimer.html"
     },
@@ -142,6 +146,11 @@
     {
       "route": "/org-chart-guide.html",
       "redirect": "/org-chart-guide",
+      "statusCode": 301
+    },
+    {
+      "route": "/pdf-toolbox.html",
+      "redirect": "/pdf-toolbox",
       "statusCode": 301
     },
     {
