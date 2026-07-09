@@ -518,10 +518,16 @@
             enqueueThumbs(newPages);
         }
 
+        // pdf.js v4+ removed PDFDocumentProxy.destroy() — teardown lives on the
+        // loading task. Cleanup failure must never block removing pages.
+        function destroySource(src) {
+            try { src.pdfjsDoc.loadingTask.destroy().catch(() => {}); } catch (_) {}
+        }
+
         function removeSource(id) {
             const src = sourceById(id);
             if (!src) return;
-            src.pdfjsDoc.destroy();
+            destroySource(src);
             state.sources = state.sources.filter(s => s.id !== id);
             state.pages = state.pages.filter(p => p.sourceId !== id);
             lastClickIdx = -1;
@@ -764,7 +770,7 @@
             state.pages = state.pages.filter(p => !ids.has(p.id));
             state.sources = state.sources.filter(src => {
                 if (state.pages.some(p => p.sourceId === src.id)) return true;
-                src.pdfjsDoc.destroy();
+                destroySource(src);
                 return false;
             });
             lastClickIdx = -1;
