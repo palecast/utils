@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- CSP: org data must never leave the browser — network access is limited to
+         same-origin, the SRI-pinned jsDelivr libraries, and Google Fonts. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; frame-src 'self' blob: data:; base-uri 'none'; form-action 'self'; object-src 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Org Chart Designer</title>
     <style>
@@ -2204,13 +2207,13 @@
         <p class="subtree-hint">Click a badge to drill down &middot; double-click a card to locate it in the main chart</p>
     </dialog>
 
-    <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/orgchart@5/dist/js/jquery.orgchart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.5.2/dist/css/tabulator.min.css" rel="stylesheet" integrity="sha384-7L13yWDATAJeK/mNTrYjb3Z8l08N1iGKbO9mSeSdlqR91llnpd0c4Y8wPznKlHCh" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.5.2/dist/js/tabulator.min.js" integrity="sha384-ZlfxHB5fIn8MOAuKJe8YBMi7snQXYvhy+0b3K4rGBBY2UvrJwho2jciJ5NKt0WtC" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orgchart@5.0.0/dist/css/jquery.orgchart.min.css" integrity="sha384-T4sPgnNx4f/LzxonWeMvWoIW19/ojSzXaSLZhYDNcEV/QNCPMK8jJ/FY8Bu4KW7N" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/orgchart@5.0.0/dist/js/jquery.orgchart.min.js" integrity="sha384-gH0HlYRMbylc1gzzV9u2f8oTmgxfFj/gF07PRaFcQdut9xO+OhFG+kBRGnVYFU7U" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
     <script>
         // --- Data model ---
         let roles = [];
@@ -7446,14 +7449,15 @@
         // the dabeng orgchart stylesheet. The latter is a cross-origin <link>, so
         // cssRules access would throw — fetch the text instead (jsDelivr sends
         // CORS headers) and cache it for subsequent exports.
-        const ORGCHART_CSS_URL = 'https://cdn.jsdelivr.net/npm/orgchart@5/dist/css/jquery.orgchart.min.css';
+        const ORGCHART_CSS_URL = 'https://cdn.jsdelivr.net/npm/orgchart@5.0.0/dist/css/jquery.orgchart.min.css';
+        const ORGCHART_CSS_SRI = 'sha384-T4sPgnNx4f/LzxonWeMvWoIW19/ojSzXaSLZhYDNcEV/QNCPMK8jJ/FY8Bu4KW7N'; // must match the <link> tag's integrity
         let _exportCssCache = null;
         async function getChartCssForExport() {
             if (_exportCssCache) return _exportCssCache;
             const pageCss = document.querySelector('style').textContent;
             let libCss = '';
             try {
-                const resp = await fetch(ORGCHART_CSS_URL);
+                const resp = await fetch(ORGCHART_CSS_URL, { integrity: ORGCHART_CSS_SRI });
                 if (resp.ok) libCss = await resp.text();
             } catch (e) { /* offline — handled below */ }
             if (!libCss) {

@@ -48,10 +48,10 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 - **Chart.js** (`cdn.jsdelivr.net/npm/chart.js`) — used by `currency-converter.html`, `ccy-tracker.html`, and `loan-calculator.html`
 - **qrcode-generator** (`cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4`, SRI-pinned) — used by `qr-generator.html` (UTF-8-correct QR encoding)
 - **DM Serif Display, Work Sans** (Google Fonts) — used only by `ccy-tracker.html` (intentional design exception)
-- **Tabulator** (`cdn.jsdelivr.net/npm/tabulator-tables@6`) — used by `org-chart.html` for the table/grid view
-- **OrgChart (Dabeng)** (`cdn.jsdelivr.net/npm/orgchart@5`) + **jQuery 3.7.1** — used by `org-chart.html` for the tree visualization
-- **html2canvas** (`cdn.jsdelivr.net/npm/html2canvas@1.4.1`) — used by `org-chart.html` for PNG export/print
-- **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx`) — used by `org-chart.html` for Excel import/export
+- **Tabulator** (`cdn.jsdelivr.net/npm/tabulator-tables@6.5.2`, SRI-pinned) — used by `org-chart.html` for the table/grid view
+- **OrgChart (Dabeng)** (`cdn.jsdelivr.net/npm/orgchart@5.0.0`, SRI-pinned) + **jQuery 3.7.1** (SRI-pinned) — used by `org-chart.html` for the tree visualization. The SVG export re-fetches the orgchart CSS at runtime with the same integrity hash (`ORGCHART_CSS_SRI` must match the `<link>` tag)
+- **html2canvas** (`cdn.jsdelivr.net/npm/html2canvas@1.4.1`, SRI-pinned) — used by `org-chart.html` for PNG export/print
+- **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx@0.18.5`, SRI-pinned; the npm package is frozen at 0.18.5) — used by `org-chart.html` for Excel import/export
 - **pdf-lib** (`cdn.jsdelivr.net/npm/pdf-lib@1.17.1`, SRI-pinned) — used by `pdf-toolbox.html` for PDF assembly (merge/split/rotate/extract)
 - **pdfjs-dist** (`cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200`, ESM dynamic import + CDN worker via `GlobalWorkerOptions.workerSrc`) — used by `pdf-toolbox.html` for page thumbnails. v4+ is ESM-only, so no SRI is possible on the dynamic import; the exact version pin is the mitigation
 - **fflate** (`cdn.jsdelivr.net/npm/fflate@0.8.3`, SRI-pinned) — used by `pdf-toolbox.html` for the split-to-ZIP export (store-only zipping)
@@ -91,6 +91,8 @@ function escapeHtml(str) {
 ```
 
 Similarly, `qr-generator.html` has `escapeVCardField()` (escapes `\`, `;`, `,`) and `escapeWiFiString()` (escapes `\`, `;`, `,`, `:`, `"`) for format-specific output.
+
+`org-chart.html` carries a Content-Security-Policy `<meta>` tag guaranteeing org data cannot leave the browser: network access is limited to same-origin, the SRI-pinned jsDelivr libraries, and Google Fonts (`connect-src 'self' cdn.jsdelivr.net`). When changing its CDN dependencies or adding network calls, update both the CSP and the SRI hashes.
 
 ### No Back-End
 
