@@ -65,6 +65,14 @@
       "rewrite": "/pdf-toolbox.html"
     },
     {
+      "route": "/dc-room-viewer",
+      "rewrite": "/dc-room-viewer.html"
+    },
+    {
+      "route": "/dc-room-viewer-guide",
+      "rewrite": "/dc-room-viewer-guide.html"
+    },
+    {
       "route": "/disclaimer",
       "rewrite": "/disclaimer.html"
     },
@@ -151,6 +159,16 @@
     {
       "route": "/pdf-toolbox.html",
       "redirect": "/pdf-toolbox",
+      "statusCode": 301
+    },
+    {
+      "route": "/dc-room-viewer.html",
+      "redirect": "/dc-room-viewer",
+      "statusCode": 301
+    },
+    {
+      "route": "/dc-room-viewer-guide.html",
+      "redirect": "/dc-room-viewer-guide",
       "statusCode": 301
     },
     {

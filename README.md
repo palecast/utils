@@ -29,6 +29,9 @@ Split a bill between any number of people, with support for individual non-share
 ### 🏢 Org Chart
 Design and model org structures. Import/export Excel/CSV, filter by department or role, color-code nodes, and visualize hierarchies as a tree or table. Compare snapshots, merge delegated edits back in, and export to print, PNG, SVG, or PowerPoint SmartArt. Has its own [how-to guide](https://www.duplessis.uk/org-chart-guide).
 
+### 🗄️ DC Room Viewer
+Design and visualise data-centre room layouts to scale: place racks, PDUs and cooling from a component library onto a tile grid, draw walls, doors, cages and containment, colour equipment by customer or power draw, and export to PNG or PDF. Rooms and component libraries are plain JSON files. Has its own [how-to guide](https://www.duplessis.uk/dc-room-viewer-guide).
+
 ### ☀️ Daylight Hours
 Visualize sunrise and sunset for every day of the year for any city, as a ribbon chart with hover details.
 

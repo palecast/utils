@@ -29,6 +29,7 @@ npx serve .
 - Each `*.html` — A standalone utility with no external file dependencies (except CDN links)
 - `disclaimer.html` — Shared terms/disclaimer page linked from tool footers
 - `org-chart-guide.html` — Static how-to guide for the Org Chart tool, linked from its header Help button
+- `dc-room-viewer-guide.html` — Static how-to guide for the DC Room Viewer tool, linked from its header Help button
 - `dc-inventory.html` — **Obsolete**: unmaintained, deliberately absent from `index.html` (role-gated in `staticwebapp.config.json`); do not extend
 
 ### Visual Design Conventions
@@ -52,7 +53,8 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 - **OrgChart (Dabeng)** (`cdn.jsdelivr.net/npm/orgchart@5.0.0`, SRI-pinned) + **jQuery 3.7.1** (SRI-pinned) — used by `org-chart.html` for the tree visualization. The SVG export re-fetches the orgchart CSS at runtime with the same integrity hash (`ORGCHART_CSS_SRI` must match the `<link>` tag)
 - **html2canvas** (`cdn.jsdelivr.net/npm/html2canvas@1.4.1`, SRI-pinned) — used by `org-chart.html` for PNG export/print
 - **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx@0.18.5`, SRI-pinned; the npm package is frozen at 0.18.5) — used by `org-chart.html` for Excel import/export
-- **pdf-lib** (`cdn.jsdelivr.net/npm/pdf-lib@1.17.1`, SRI-pinned) — used by `pdf-toolbox.html` for PDF assembly (merge/split/rotate/extract)
+- **pdf-lib** (`cdn.jsdelivr.net/npm/pdf-lib@1.17.1`, SRI-pinned) — used by `pdf-toolbox.html` for PDF assembly (merge/split/rotate/extract) and by `dc-room-viewer.html` for PDF export (embeds the rendered PNG on an A3 page)
+- **Konva** (`cdn.jsdelivr.net/npm/konva@10.3.0`, SRI-pinned) — used by `dc-room-viewer.html` as its canvas engine (stage, layers, selection/transform, export raster)
 - **pdfjs-dist** (`cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200`, ESM dynamic import + CDN worker via `GlobalWorkerOptions.workerSrc`) — used by `pdf-toolbox.html` for page thumbnails. v4+ is ESM-only, so no SRI is possible on the dynamic import; the exact version pin is the mitigation
 - **fflate** (`cdn.jsdelivr.net/npm/fflate@0.8.3`, SRI-pinned) — used by `pdf-toolbox.html` for the split-to-ZIP export (store-only zipping)
 - **frankfurter.dev API** (`api.frankfurter.dev/v1`) — live and historical ECB exchange rates, used by both currency tools. No API key required.
@@ -71,8 +73,10 @@ Four tools persist user state to `localStorage`:
 | `coastal-conditions.html` | `coastalConditionsState` | Selected location (lat/lon/name), favourite spots. A `?lat=&lon=&name=` deep link overrides the saved location |
 | `org-chart.html` | `orgChartUiState` | UI chrome only (sidebar/section collapse state) |
 | `org-chart.html` | `orgChartAutosave:<tabId>` | Per-tab crash-recovery snapshot of unsaved working data (debounced; cleared on save/open; restore offered on next visit for snapshots whose tab is dead, judged via the `orgChartAutosaveHb:<tabId>` heartbeat key; tab id lives in `sessionStorage` as `orgChartTabId`) |
+| `dc-room-viewer.html` | `dcRoomViewerUiState` | UI chrome only (sidebar/section collapse state) |
+| `dc-room-viewer.html` | `dcRoomAutosave:<tabId>` | Per-tab crash-recovery snapshot of the unsaved room document (same heartbeat scheme as org-chart, via `dcRoomAutosaveHb:<tabId>` and `sessionStorage` `dcRoomTabId`) |
 
-`org-chart.html` also uses a `BroadcastChannel` (`org-chart-tabs`) to warn when the same file appears to be open in more than one tab.
+`org-chart.html` also uses a `BroadcastChannel` (`org-chart-tabs`) to warn when the same file appears to be open in more than one tab; `dc-room-viewer.html` does the same on `dc-room-tabs`.
 
 `cost-splitter.html` and `days-between.html` do **not** persist state.
 
@@ -92,7 +96,7 @@ function escapeHtml(str) {
 
 Similarly, `qr-generator.html` has `escapeVCardField()` (escapes `\`, `;`, `,`) and `escapeWiFiString()` (escapes `\`, `;`, `,`, `:`, `"`) for format-specific output.
 
-`org-chart.html` carries a Content-Security-Policy `<meta>` tag guaranteeing org data cannot leave the browser: network access is limited to same-origin, the SRI-pinned jsDelivr libraries, and Google Fonts (`connect-src 'self' cdn.jsdelivr.net`). When changing its CDN dependencies or adding network calls, update both the CSP and the SRI hashes.
+`org-chart.html` carries a Content-Security-Policy `<meta>` tag guaranteeing org data cannot leave the browser: network access is limited to same-origin, the SRI-pinned jsDelivr libraries, and Google Fonts (`connect-src 'self' cdn.jsdelivr.net`). `dc-room-viewer.html` carries a similar (slightly tighter, `connect-src 'self'`) CSP. When changing either tool's CDN dependencies or adding network calls, update both the CSP and the SRI hashes.
 
 ### No Back-End
 

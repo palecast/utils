@@ -1,0 +1,116 @@
+{
+  "format": "dc-room",
+  "version": 1,
+  "meta": {
+    "name": "Test Hall 1",
+    "site": "Test Site",
+    "notes": "Hand-authored fixture covering every object type.",
+    "created": "2026-07-17T09:00:00.000Z",
+    "modified": "2026-07-17T09:00:00.000Z"
+  },
+  "room": {
+    "width": 12000,
+    "depth": 9000,
+    "grid": { "pitch": 600, "originX": 0, "originY": 0, "show": true, "snap": true },
+    "wallThickness": 200
+  },
+  "defs": {
+    "rack-600x1200": {
+      "id": "rack-600x1200",
+      "name": "Rack 600×1200",
+      "category": "rack",
+      "footprint": { "w": 600, "d": 1200 },
+      "visual": { "fill": "#5B7A9D", "stroke": "#3A4A5D", "shortCode": "R", "front": "south" },
+      "resizable": false,
+      "metadata": { "uSpace": 42 },
+      "metadataSchema": [
+        { "key": "rackId", "label": "Rack ID", "type": "string" },
+        { "key": "customer", "label": "Customer", "type": "string" },
+        { "key": "capacityKw", "label": "Capacity (kW)", "type": "number" },
+        { "key": "uSpace", "label": "U space", "type": "number" }
+      ]
+    },
+    "pdu-600x1070": {
+      "id": "pdu-600x1070",
+      "name": "PDU cabinet",
+      "category": "pdu",
+      "footprint": { "w": 600, "d": 1070 },
+      "visual": { "fill": "#8B6F47", "stroke": "#6B5F54", "shortCode": "P", "front": "south" },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        { "key": "pduId", "label": "PDU ID", "type": "string" },
+        { "key": "feed", "label": "Feed (A/B)", "type": "string" },
+        { "key": "capacityKw", "label": "Capacity (kW)", "type": "number" }
+      ]
+    },
+    "crac-1800x900": {
+      "id": "crac-1800x900",
+      "name": "CRAC unit",
+      "category": "cooling",
+      "footprint": { "w": 1800, "d": 900 },
+      "visual": { "fill": "#5F8D87", "stroke": "#3F6D67", "shortCode": "AC", "front": "south" },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        { "key": "unitId", "label": "Unit ID", "type": "string" },
+        { "key": "coolingKw", "label": "Cooling (kW)", "type": "number" }
+      ]
+    }
+  },
+  "objects": [
+    { "id": "c-acme", "type": "cage", "kind": "cage", "name": "Acme cage",
+      "points": [[1200, 600], [7800, 600], [7800, 4200], [1200, 4200]], "autoCapture": true },
+    { "id": "z-cold1", "type": "zone", "kind": "cold-aisle", "name": "Cold aisle 1",
+      "points": [[1200, 4800], [4800, 4800], [4800, 5400], [1200, 5400]] },
+    { "id": "z-restricted1", "type": "zone", "kind": "restricted", "name": "Restricted",
+      "points": [[9600, 0], [12000, 0], [12000, 2400], [9600, 2400]] },
+    { "id": "o-w1", "type": "wall", "points": [[9000, 0], [9000, 5400], [12000, 5400]], "thickness": 150 },
+    { "id": "o-d1", "type": "door", "x": 9000, "y": 2700, "width": 900, "rotation": 90,
+      "hinge": "left", "swing": "in", "swingAngle": 90 },
+    { "id": "o-col1", "type": "column", "x": 6000, "y": 3000, "w": 400, "d": 400, "shape": "rect" },
+    { "id": "o-col2", "type": "column", "x": 6000, "y": 6600, "w": 400, "d": 400, "shape": "round" },
+    { "id": "o-r1", "type": "equipment", "defId": "rack-600x1200", "x": 1500, "y": 1800,
+      "rotation": 0, "label": "A01", "groupId": "g-row-a", "cageId": "c-acme",
+      "metadata": { "rackId": "A01", "customer": "Acme", "capacityKw": 4, "uSpace": 42 } },
+    { "id": "o-r2", "type": "equipment", "defId": "rack-600x1200", "x": 2100, "y": 1800,
+      "rotation": 0, "label": "A02", "groupId": "g-row-a", "cageId": "c-acme",
+      "metadata": { "rackId": "A02", "customer": "Acme", "capacityKw": 6, "uSpace": 42 } },
+    { "id": "o-r3", "type": "equipment", "defId": "rack-600x1200", "x": 2700, "y": 1800,
+      "rotation": 0, "label": "A03", "groupId": "g-row-a", "cageId": "c-acme",
+      "metadata": { "rackId": "A03", "customer": "Globex", "capacityKw": 8, "uSpace": 42 } },
+    { "id": "o-r4", "type": "equipment", "defId": "rack-600x1200", "x": 3300, "y": 1800,
+      "rotation": 0, "label": "A04", "groupId": "g-row-a", "cageId": "c-acme",
+      "metadata": { "rackId": "A04", "customer": "Globex", "capacityKw": 12, "uSpace": 42 } },
+    { "id": "o-p1", "type": "equipment", "defId": "pdu-600x1070", "x": 4500, "y": 1800,
+      "rotation": 0, "label": "PDU-A", "cageId": "c-acme",
+      "metadata": { "pduId": "PDU-A", "feed": "A", "capacityKw": 60 } },
+    { "id": "o-ac1", "type": "equipment", "defId": "crac-1800x900", "x": 2100, "y": 8250,
+      "rotation": 0, "label": "AC-01",
+      "metadata": { "unitId": "AC-01", "coolingKw": 90 } },
+    { "id": "l-1", "type": "label", "text": "ROW A", "x": 1200, "y": 300, "fontSize": 350, "rotation": 0 }
+  ],
+  "groups": [
+    { "id": "g-row-a", "name": "Row A" }
+  ],
+  "layers": {
+    "building": { "visible": true, "locked": false },
+    "containment": { "visible": true, "locked": false },
+    "equipment": { "visible": true, "locked": false },
+    "status": { "visible": true },
+    "labels": { "visible": true, "locked": false }
+  },
+  "statusOverlay": {
+    "enabled": true,
+    "mode": "categorical",
+    "field": "customer",
+    "opacity": 0.55,
+    "categorical": { "overrides": {} },
+    "numeric": { "stops": [
+      { "upTo": 4, "color": "#43a047", "label": "≤ 4" },
+      { "upTo": 8, "color": "#f9a825", "label": "≤ 8" },
+      { "upTo": null, "color": "#e74c3c", "label": "above" }
+    ] }
+  },
+  "legend": { "visible": true, "x": 8400, "y": 6600 }
+}

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC Room Viewer — How-To Guide</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #FAF8F5;
+            --surface: #FFFFFF;
+            --text: #3A2F28;
+            --text-muted: #6B5F54;
+            --accent: #4A5D47;
+            --accent-hover: #3D4E3B;
+            --border: rgba(74, 93, 71, 0.12);
+            --tint: rgba(232, 229, 223, 0.4);
+            --pill-bg: #E8E5DF;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                         Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        header {
+            position: sticky; top: 0; z-index: 50;
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .logo-box {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--accent); color: var(--bg);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px;
+        }
+        .brand-title { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+        .brand-sub { font-size: 12px; color: var(--text-muted); }
+        .open-app {
+            padding: 10px 20px;
+            border: none; border-radius: 8px;
+            background: var(--accent); color: #fff;
+            font: 600 14px 'Inter', sans-serif;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .open-app:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 20px 60px;
+        }
+
+        .lead {
+            font-size: 1.1rem; font-weight: 300; color: var(--text-muted);
+            line-height: 1.7;
+            margin: 24px 0 28px;
+        }
+
+        .toc {
+            background: var(--tint);
+            border: 1px solid rgba(74, 93, 71, 0.06);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 36px;
+        }
+        .toc .toc-label {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1.1px;
+            margin-bottom: 12px;
+        }
+        .toc ol {
+            columns: 2; column-gap: 32px;
+            padding-left: 20px;
+            font-size: 14px;
+        }
+        .toc li { margin-bottom: 6px; }
+        .toc a { color: var(--accent); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+
+        section { margin-bottom: 44px; }
+        h2 {
+            font-size: 1.4rem; font-weight: 600; color: var(--accent);
+            margin-bottom: 6px;
+            padding-top: 12px;
+        }
+        .h2-sub { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 16px; }
+        h3 { font-size: 1.02rem; font-weight: 600; color: var(--text); margin: 22px 0 8px; }
+        p { margin-bottom: 12px; font-size: 15px; }
+        ul, ol { padding-left: 24px; margin-bottom: 12px; font-size: 15px; }
+        li { margin-bottom: 6px; }
+
+        .steps {
+            counter-reset: step;
+            list-style: none;
+            padding-left: 0;
+        }
+        .steps li {
+            counter-increment: step;
+            position: relative;
+            padding-left: 40px;
+            margin-bottom: 10px;
+        }
+        .steps li::before {
+            content: counter(step);
+            position: absolute; left: 0; top: 1px;
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: var(--accent); color: #fff;
+            font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        kbd {
+            display: inline-block;
+            padding: 1px 7px;
+            border: 1px solid rgba(74, 93, 71, 0.25);
+            border-bottom-width: 2px;
+            border-radius: 6px;
+            background: var(--surface);
+            font: 500 12.5px 'Inter', sans-serif;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0 18px;
+            font-size: 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+        th {
+            font-size: 11.5px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.8px; color: var(--text-muted);
+            background: var(--tint);
+        }
+        tr:last-child td { border-bottom: none; }
+
+        code {
+            font-family: 'SF Mono', Menlo, Consolas, monospace;
+            font-size: 13px;
+            background: var(--pill-bg);
+            padding: 1px 6px;
+            border-radius: 5px;
+        }
+        pre {
+            background: #33302B;
+            color: #EDE9E2;
+            border-radius: 12px;
+            padding: 16px 18px;
+            overflow-x: auto;
+            margin: 12px 0 18px;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+
+        .callout {
+            background: var(--tint);
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 14px 0;
+            font-size: 14px;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.3);
+            padding: 32px 24px;
+            text-align: center;
+            font-size: 0.875rem;
+            font-weight: 300;
+            color: var(--text-muted);
+        }
+        footer a { color: var(--text-muted); }
+        footer a:hover { color: var(--text); }
+
+        @media (max-width: 768px) {
+            .toc ol { columns: 1; }
+            header { flex-wrap: wrap; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo-box">DC</div>
+            <div>
+                <div class="brand-title">DC Room Viewer — How-To Guide</div>
+                <div class="brand-sub">Data-centre room layout &amp; visualisation</div>
+            </div>
+        </div>
+        <a class="open-app" href="/dc-room-viewer">Open the tool →</a>
+    </header>
+
+    <main>
+        <p class="lead">
+            DC Room Viewer is a to-scale layout editor for data-centre rooms and halls.
+            Place racks, PDUs and cooling units from a component library onto a raised-floor
+            tile grid, draw walls, doors, cages and containment, colour equipment by any
+            metadata field, and export the drawing as PNG or PDF. Everything is stored in
+            plain JSON files on your machine — nothing leaves your browser.
+        </p>
+
+        <div class="toc">
+            <div class="toc-label">Contents</div>
+            <ol>
+                <li><a href="#concepts">Rooms and libraries</a></li>
+                <li><a href="#getting-started">Getting started</a></li>
+                <li><a href="#placing">Placing and editing equipment</a></li>
+                <li><a href="#drawing">Walls, doors, cages and zones</a></li>
+                <li><a href="#layers">Layers</a></li>
+                <li><a href="#groups">Groups and cages</a></li>
+                <li><a href="#overlay">Status overlays and the key</a></li>
+                <li><a href="#files">Saving, autosave and files</a></li>
+                <li><a href="#export">Exporting PNG and PDF</a></li>
+                <li><a href="#shortcuts">Keyboard shortcuts</a></li>
+                <li><a href="#json">JSON file reference</a></li>
+                <li><a href="#privacy">Privacy</a></li>
+            </ol>
+        </div>
+
+        <section id="concepts">
+            <h2>1. Rooms and libraries</h2>
+            <p class="h2-sub">Two JSON file formats, one simple relationship.</p>
+            <p>
+                A <strong>component library</strong> (<code>dc-room-library</code>) defines reusable
+                equipment types — racks, PDUs, cooling units, structural items — each with a physical
+                footprint in millimetres, a colour, and a metadata schema (rack ID, customer,
+                capacity, and so on). The tool ships with a built-in starter library, and you can
+                open your own via <em>Library ▾ → Open library…</em>.
+            </p>
+            <p>
+                A <strong>room</strong> (<code>dc-room</code>) is the drawing itself: the hall
+                dimensions, the tile grid, and every placed object. When you place a component,
+                its definition is <strong>copied into the room file</strong>, so a room always opens
+                standalone — you never need the original library to view or edit it.
+                <em>Library ▾ → Export room components as library</em> turns a room's embedded
+                definitions back into a shareable library file.
+            </p>
+            <p>
+                All coordinates and dimensions are in <strong>millimetres</strong>. The default grid
+                is the standard 600 × 600&nbsp;mm raised-floor tile; the pitch is configurable per room
+                from the Layers panel.
+            </p>
+        </section>
+
+        <section id="getting-started">
+            <h2>2. Getting started</h2>
+            <ol class="steps">
+                <li><strong>New</strong> creates a room — give it a name and its width/depth in metres.</li>
+                <li>Click a component in the <strong>palette</strong> (left sidebar), then click the canvas to place it. The mode stays armed so you can click out a whole row; <kbd>R</kbd> rotates before placing, <kbd>Esc</kbd> exits.</li>
+                <li>Zoom with the mouse wheel (zooms to the pointer), pan with <kbd>Space</kbd>+drag or middle-drag, press <kbd>0</kbd> to fit the room.</li>
+                <li><strong>Save As…</strong> writes the room to a <code>.json</code> file. In Chrome and Edge the file stays linked, so <strong>Save</strong> overwrites it in place.</li>
+            </ol>
+        </section>
+
+        <section id="placing">
+            <h2>3. Placing and editing equipment</h2>
+            <p>
+                Equipment snaps to the tile grid by whichever edge the grid meets — a 600&nbsp;mm rack
+                lands tile-aligned at any rotation. Hold <kbd>Alt</kbd> while dragging or placing to
+                bypass snapping.
+            </p>
+            <ul>
+                <li><strong>Select</strong> with a click; <kbd>Shift</kbd>-click to add/remove; drag on empty floor for a rubber-band selection.</li>
+                <li><strong>Move</strong> by dragging, or nudge one tile with the arrow keys (<kbd>Shift</kbd>+arrows = 10&nbsp;mm).</li>
+                <li><strong>Rotate</strong> in 90° steps with <kbd>R</kbd>, the rotation handle, or the context menu.</li>
+                <li>The <strong>Inspector</strong> shows exact x/y coordinates, rotation, the display label, and all metadata fields — rack ID, customer, capacity, plus any custom field you add.</li>
+                <li>The white tick on a rack marks its <strong>front face</strong>.</li>
+            </ul>
+            <p>
+                Right-click any object for the context menu: rotate, duplicate, lock, bring to
+                front/send to back, cage membership, delete.
+            </p>
+        </section>
+
+        <section id="drawing">
+            <h2>4. Walls, doors, cages and zones</h2>
+            <h3>Walls</h3>
+            <p>
+                The <em>Wall</em> tool draws a polyline: click each vertex, double-click or
+                <kbd>Enter</kbd> to finish. Select a wall to edit its vertices — drag the handles,
+                double-click a segment to insert a vertex, <kbd>Alt</kbd>-click a handle to remove
+                one. Thickness is set in the Inspector. (The room's outer boundary wall is drawn
+                automatically from the room dimensions.)
+            </p>
+            <h3>Doors</h3>
+            <p>
+                The <em>Door</em> tool places a door on the nearest wall, aligned to it, with a
+                dashed swing arc. Hinge side, swing direction and swing angle are editable in the
+                Inspector. Doors re-seat onto the nearest wall when dropped near one.
+            </p>
+            <h3>Cages, containment and restricted areas</h3>
+            <p>
+                <em>Cage</em>, <em>Cold aisle</em> and <em>Restricted</em> draw closed polygons the
+                same way as walls. Cages have <strong>auto-capture</strong>: equipment dropped inside
+                becomes a member (shown in the Inspector), and dragged out it leaves. Columns are
+                placed with a single click.
+            </p>
+        </section>
+
+        <section id="layers">
+            <h2>5. Layers</h2>
+            <p class="h2-sub">A fixed, standard stack — objects always live on the layer their type belongs to.</p>
+            <table>
+                <tr><th>Layer</th><th>Contents</th><th>Controls</th></tr>
+                <tr><td>Grid</td><td>Tile grid and room boundary</td><td>Show/hide, pitch, origin, snap on/off</td></tr>
+                <tr><td>Building</td><td>Walls, doors, columns, structural items</td><td>Show/hide, lock</td></tr>
+                <tr><td>Containment</td><td>Cages, cold-aisle containment, restricted areas</td><td>Show/hide, lock, per-cage visibility</td></tr>
+                <tr><td>Equipment</td><td>Racks, PDUs, cooling</td><td>Show/hide, lock</td></tr>
+                <tr><td>Capacity / status</td><td>Colour-by-metadata tint overlay</td><td>Show/hide</td></tr>
+                <tr><td>Labels &amp; legends</td><td>Free text labels and the on-canvas key</td><td>Show/hide, lock</td></tr>
+            </table>
+            <p>
+                Locking a layer makes everything on it unselectable and immovable. Individual
+                objects can also be locked from the Inspector or context menu — locked objects
+                refuse deletion until unlocked.
+            </p>
+        </section>
+
+        <section id="groups">
+            <h2>6. Groups and cages</h2>
+            <p>
+                Select several objects and press <kbd>Ctrl/Cmd</kbd>+<kbd>G</kbd> to group them —
+                clicking any member then selects the whole group (double-click drills into a single
+                member); <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> ungroups. Groups are the
+                right tool for rack rows you want to move as one.
+            </p>
+            <p>
+                Cage membership is spatial parent-child: it follows from an object's position inside
+                the cage polygon (with auto-capture on), and is stored on each object as
+                <code>cageId</code>. Deleting a cage releases its members.
+            </p>
+        </section>
+
+        <section id="overlay">
+            <h2>7. Status overlays and the key</h2>
+            <p>
+                The <em>Capacity / status overlay</em> section tints equipment by any metadata field:
+            </p>
+            <ul>
+                <li><strong>Categories</strong> — one colour per distinct value (e.g. customer). Colours are assigned automatically and can be overridden per value.</li>
+                <li><strong>Numeric thresholds</strong> — banded colours for fields like <code>capacityKw</code> (e.g. green ≤ 4, amber ≤ 8, red above).</li>
+            </ul>
+            <p>
+                The <strong>key</strong> is drawn on the canvas itself (drag it anywhere; its position
+                is saved in the room file), so it appears in PNG/PDF exports. With no overlay active
+                it shows the equipment category colours instead.
+            </p>
+        </section>
+
+        <section id="files">
+            <h2>8. Saving, autosave and files</h2>
+            <ul>
+                <li>In Chrome/Edge, <strong>Open</strong> and <strong>Save As…</strong> use real file handles — <strong>Save</strong> then overwrites the file in place. In other browsers, Save downloads the file instead.</li>
+                <li>Unsaved work is snapshotted to the browser's local storage every second while you edit. After a crash or accidental tab close, reopening the tool offers to <strong>restore</strong> the snapshot.</li>
+                <li>Opening the same file in two tabs shows a warning — edits are not shared between tabs, and saving in one overwrites the other's changes.</li>
+                <li>Opening a library file via <strong>Open</strong> offers to load it into the palette instead.</li>
+            </ul>
+        </section>
+
+        <section id="export">
+            <h2>9. Exporting PNG and PDF</h2>
+            <p>
+                <em>Export ▾ → PNG image</em> renders the room at print quality with a title block —
+                room name, dimensions, grid pitch, export date and a scale bar — plus the on-canvas
+                key. <em>Export ▾ → PDF drawing</em> wraps the same rendering on an A3 page
+                (orientation chosen automatically), with the room name as the document title.
+            </p>
+            <p>
+                Exports always include everything visible on unhidden layers, regardless of the
+                current zoom. Hide layers first to produce, say, an equipment-only drawing.
+            </p>
+        </section>
+
+        <section id="shortcuts">
+            <h2>10. Keyboard shortcuts</h2>
+            <table>
+                <tr><th>Keys</th><th>Action</th></tr>
+                <tr><td><kbd>V</kbd> / <kbd>W</kbd> / <kbd>D</kbd> / <kbd>C</kbd> / <kbd>T</kbd></td><td>Select / Wall / Door / Cage / Label tool</td></tr>
+                <tr><td><kbd>Esc</kbd></td><td>Cancel drawing, exit tool, or clear selection</td></tr>
+                <tr><td><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>Rotate selection (or placement ghost) ±90°</td></tr>
+                <tr><td>Arrows / <kbd>Shift</kbd>+arrows</td><td>Nudge one tile / 10 mm</td></tr>
+                <tr><td><kbd>Delete</kbd></td><td>Delete selection</td></tr>
+                <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> / +<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Undo / redo</td></tr>
+                <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>D</kbd></td><td>Duplicate (offset one tile)</td></tr>
+                <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>G</kbd> / +<kbd>Shift</kbd>+<kbd>G</kbd></td><td>Group / ungroup</td></tr>
+                <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>A</kbd></td><td>Select all (on visible, unlocked layers)</td></tr>
+                <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>S</kbd></td><td>Save</td></tr>
+                <tr><td><kbd>+</kbd> / <kbd>−</kbd> / <kbd>0</kbd></td><td>Zoom in / out / fit room</td></tr>
+                <tr><td><kbd>G</kbd></td><td>Toggle grid</td></tr>
+                <tr><td><kbd>Space</kbd>+drag, middle-drag</td><td>Pan</td></tr>
+                <tr><td><kbd>Alt</kbd> while dragging</td><td>Bypass grid snap</td></tr>
+                <tr><td><kbd>Enter</kbd> / double-click</td><td>Finish wall or polygon drawing</td></tr>
+            </table>
+        </section>
+
+        <section id="json">
+            <h2>11. JSON file reference</h2>
+            <p class="h2-sub">Both formats are versioned; unknown fields survive a load/save round-trip.</p>
+            <h3>Component library (<code>dc-room-library</code>)</h3>
+            <pre><code>{
+  "format": "dc-room-library",
+  "version": 1,
+  "name": "Standard DC components",
+  "components": [
+    {
+      "id": "rack-600x1200",
+      "name": "Rack 600×1200",
+      "category": "rack",              // rack | pdu | cooling | structural | other
+      "footprint": { "w": 600, "d": 1200 },   // mm
+      "visual": { "fill": "#5B7A9D", "stroke": "#3A4A5D",
+                  "shortCode": "R", "front": "south" },
+      "resizable": false,
+      "metadata": { "uSpace": 42 },    // defaults copied to new instances
+      "metadataSchema": [
+        { "key": "rackId",     "label": "Rack ID",       "type": "string" },
+        { "key": "customer",   "label": "Customer",      "type": "string" },
+        { "key": "capacityKw", "label": "Capacity (kW)", "type": "number" }
+      ]
+    }
+  ]
+}</code></pre>
+            <h3>Room (<code>dc-room</code>)</h3>
+            <pre><code>{
+  "format": "dc-room",
+  "version": 1,
+  "meta": { "name": "Hall 1", "site": "", "notes": "",
+            "created": "…", "modified": "…" },
+  "room": {
+    "width": 24000, "depth": 18000,          // mm
+    "grid": { "pitch": 600, "originX": 0, "originY": 0,
+              "show": true, "snap": true },
+    "wallThickness": 200
+  },
+  "defs": { "rack-600x1200": { …component copied from library… } },
+  "objects": [
+    { "id": "o-a1b2", "type": "equipment", "defId": "rack-600x1200",
+      "x": 1500, "y": 1200,                  // footprint centre, mm
+      "rotation": 0, "label": "A01",
+      "groupId": "g-row-a", "cageId": "c-acme",
+      "metadata": { "rackId": "A01", "customer": "Acme", "capacityKw": 8 } },
+    { "id": "o-w1", "type": "wall",
+      "points": [[6000,0],[6000,9000]], "thickness": 150 },
+    { "id": "o-d1", "type": "door", "x": 3000, "y": 0, "width": 900,
+      "rotation": 0, "hinge": "left", "swing": "in", "swingAngle": 90 },
+    { "id": "o-c1", "type": "column", "x": 6000, "y": 6000,
+      "w": 400, "d": 400, "shape": "rect" },
+    { "id": "c-acme", "type": "cage", "name": "Acme cage",
+      "points": [[1200,600],[7200,600],[7200,6600],[1200,6600]],
+      "autoCapture": true },
+    { "id": "z-1", "type": "zone", "kind": "cold-aisle",   // or "restricted"
+      "name": "Cold aisle 1", "points": [ … ] },
+    { "id": "l-1", "type": "label", "text": "ROW A",
+      "x": 4000, "y": 900, "fontSize": 300, "rotation": 0 }
+  ],
+  "groups": [ { "id": "g-row-a", "name": "Row A" } ],
+  "layers": { "building":    { "visible": true, "locked": false },
+              "containment": { "visible": true, "locked": false },
+              "equipment":   { "visible": true, "locked": false },
+              "status":      { "visible": true },
+              "labels":      { "visible": true, "locked": false } },
+  "statusOverlay": {
+    "enabled": true, "mode": "numeric", "field": "capacityKw",
+    "opacity": 0.55,
+    "categorical": { "overrides": { "Acme": "#4A5D47" } },
+    "numeric": { "stops": [
+      { "upTo": 4,    "color": "#43a047", "label": "≤ 4" },
+      { "upTo": 8,    "color": "#f9a825", "label": "≤ 8" },
+      { "upTo": null, "color": "#e74c3c", "label": "above" } ] }
+  },
+  "legend": { "visible": true, "x": 18800, "y": 600 }
+}</code></pre>
+            <div class="callout">
+                Coordinates use millimetres with the origin at the room's top-left corner,
+                x increasing rightwards and y downwards. Equipment <code>x, y</code> is the
+                footprint centre; rotation is degrees clockwise about that centre.
+            </div>
+        </section>
+
+        <section id="privacy">
+            <h2>12. Privacy</h2>
+            <p>
+                All data handling happens locally in your browser. Room and library files live on
+                your machine; the crash-recovery snapshot lives in your browser's local storage.
+                The page's Content-Security-Policy blocks network access except to the pinned CDN
+                libraries and fonts — your layout data cannot leave the browser.
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <a href="/dc-room-viewer">Open DC Room Viewer</a> · <a href="/disclaimer">Disclaimer</a> · No ads, no tracking.
+    </footer>
+</body>
+</html>
