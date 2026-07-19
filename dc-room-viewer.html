@@ -406,6 +406,17 @@
         .toast span { white-space: pre-line; flex: 1; }
         .toast button { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 14px; padding: 0; }
 
+        /* Summary panel */
+        .summary-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+        .summary-row .val { font-weight: 600; white-space: nowrap; }
+        .summary-row.sub { padding-left: 14px; color: var(--text-muted); font-size: 12px; }
+        .summary-head { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin: 10px 0 4px; }
+        .summary-head:first-child { margin-top: 0; }
+
+        /* Properties dialog */
+        #props-dialog { max-width: 440px; }
+        #props-fields { max-height: 60vh; overflow-y: auto; padding-right: 2px; }
+
         @media (max-width: 768px) {
             #sidebar { position: absolute; top: 0; bottom: 0; left: 0; box-shadow: 0 10px 30px rgba(58,47,40,0.12); }
             #sidebar.collapsed { margin-left: -280px; box-shadow: none; }
@@ -480,7 +491,9 @@
                         <button class="tool-btn" data-tool="column">Column</button>
                         <button class="tool-btn" data-tool="cage">Cage<span class="tool-hint-key">C</span></button>
                         <button class="tool-btn" data-tool="zone-cold">Cold aisle</button>
+                        <button class="tool-btn" data-tool="zone-hot">Hot aisle</button>
                         <button class="tool-btn" data-tool="zone-restricted">Restricted</button>
+                        <button class="tool-btn" data-tool="dimension">Dimension<span class="tool-hint-key">M</span></button>
                         <button class="tool-btn" data-tool="label">Label<span class="tool-hint-key">T</span></button>
                     </div>
                 </div>
@@ -488,6 +501,10 @@
             <div class="control-section" data-section="layers">
                 <label class="section-head">Layers <span class="chevron">▾</span></label>
                 <div class="section-body" id="layers-panel"></div>
+            </div>
+            <div class="control-section" data-section="summary">
+                <label class="section-head">Summary <span class="chevron">▾</span></label>
+                <div class="section-body" id="summary-panel"></div>
             </div>
             <div class="control-section" data-section="inspector">
                 <label class="section-head">Inspector <span class="chevron">▾</span></label>
@@ -545,6 +562,17 @@
             <button type="button" class="btn btn-secondary" id="confirm-cancel">Cancel</button>
             <button type="button" class="btn" id="confirm-ok">OK</button>
         </div>
+    </dialog>
+
+    <dialog id="props-dialog">
+        <h2 id="props-title">Properties</h2>
+        <form method="dialog" id="props-form">
+            <div id="props-fields"></div>
+            <div class="dialog-buttons">
+                <button type="button" class="btn btn-secondary" id="props-cancel">Cancel</button>
+                <button type="submit" class="btn" value="save">Save</button>
+            </div>
+        </form>
     </dialog>
 
     <input type="file" id="file-input" accept=".json,application/json" hidden>
@@ -628,6 +656,27 @@
 
         // Built-in starter component library, seeded into every new room. Users can
         // open their own library JSON files, which merge into the palette.
+        const USAGE_TYPES = ['leased', 'compensation', 'unoccupied', 'planned', 'reserved', 'unusable', 'internal', 'unbuilt'];
+        // Standard rack-usage colours matching common Visio hall legends.
+        const USAGE_TYPE_COLORS = {
+            leased: '#E57373', compensation: '#9575CD', unoccupied: '#81C784',
+            planned: '#C5E1A5', reserved: '#FFEE58', unusable: '#B0BEC5',
+            internal: '#90CAF9', unbuilt: '#2E7D32'
+        };
+        const RACK_SCHEMA = [
+            { key: 'rackId', label: 'Rack ID', type: 'string' },
+            { key: 'customer', label: 'Customer', type: 'string' },
+            { key: 'usageType', label: 'Usage type', type: 'select', options: USAGE_TYPES },
+            { key: 'contractedKw', label: 'Contracted (kW)', type: 'number' },
+            { key: 'avgKw', label: 'Average (kW)', type: 'number' },
+            { key: 'peakKw', label: 'Peak (kW)', type: 'number' },
+            { key: 'uSpace', label: 'U space', type: 'number' }
+        ];
+        const SENSOR_SCHEMA = [
+            { key: 'sensorId', label: 'Sensor ID', type: 'string' },
+            { key: 'system', label: 'Monitored by', type: 'string' },
+            { key: 'notes', label: 'Notes', type: 'string' }
+        ];
         const STARTER_LIBRARY = {
             format: LIBRARY_FORMAT,
             version: FORMAT_VERSION,
@@ -637,32 +686,17 @@
                   footprint: { w: 600, d: 1070 },
                   visual: { fill: '#5B7A9D', stroke: '#3A4A5D', shortCode: 'R', front: 'south' },
                   resizable: false, metadata: { uSpace: 42 },
-                  metadataSchema: [
-                      { key: 'rackId', label: 'Rack ID', type: 'string' },
-                      { key: 'customer', label: 'Customer', type: 'string' },
-                      { key: 'capacityKw', label: 'Capacity (kW)', type: 'number' },
-                      { key: 'uSpace', label: 'U space', type: 'number' }
-                  ] },
+                  metadataSchema: RACK_SCHEMA },
                 { id: 'rack-600x1200', name: 'Rack 600×1200', category: 'rack',
                   footprint: { w: 600, d: 1200 },
                   visual: { fill: '#5B7A9D', stroke: '#3A4A5D', shortCode: 'R', front: 'south' },
                   resizable: false, metadata: { uSpace: 42 },
-                  metadataSchema: [
-                      { key: 'rackId', label: 'Rack ID', type: 'string' },
-                      { key: 'customer', label: 'Customer', type: 'string' },
-                      { key: 'capacityKw', label: 'Capacity (kW)', type: 'number' },
-                      { key: 'uSpace', label: 'U space', type: 'number' }
-                  ] },
+                  metadataSchema: RACK_SCHEMA },
                 { id: 'rack-800x1200', name: 'Rack 800×1200 (network)', category: 'rack',
                   footprint: { w: 800, d: 1200 },
                   visual: { fill: '#4E6E8F', stroke: '#3A4A5D', shortCode: 'N', front: 'south' },
                   resizable: false, metadata: { uSpace: 45 },
-                  metadataSchema: [
-                      { key: 'rackId', label: 'Rack ID', type: 'string' },
-                      { key: 'customer', label: 'Customer', type: 'string' },
-                      { key: 'capacityKw', label: 'Capacity (kW)', type: 'number' },
-                      { key: 'uSpace', label: 'U space', type: 'number' }
-                  ] },
+                  metadataSchema: RACK_SCHEMA },
                 { id: 'pdu-600x1070', name: 'PDU cabinet', category: 'pdu',
                   footprint: { w: 600, d: 1070 },
                   visual: { fill: '#8B6F47', stroke: '#6B5F54', shortCode: 'P', front: 'south' },
@@ -707,11 +741,122 @@
                 { id: 'column-400', name: 'Column 400×400', category: 'structural',
                   footprint: { w: 400, d: 400 },
                   visual: { fill: '#9B948B', stroke: '#6B5F54', shortCode: '', front: null },
+                  resizable: false, metadata: {}, metadataSchema: [] },
+                { id: 'sts-1200x400', name: 'STS (static transfer switch)', category: 'pdu',
+                  footprint: { w: 1200, d: 400 },
+                  visual: { fill: '#A0522D', stroke: '#6B3A1F', shortCode: 'STS', front: 'south' },
+                  resizable: false, metadata: {},
+                  metadataSchema: [
+                      { key: 'stsId', label: 'STS ID', type: 'string' },
+                      { key: 'ampacityA', label: 'Ampacity (A)', type: 'number' },
+                      { key: 'capacityKw', label: 'Capacity (kW)', type: 'number' },
+                      { key: 'feed', label: 'Feed (A/B)', type: 'string' }
+                  ] },
+                { id: 'panel-1200x300', name: 'Distribution board', category: 'pdu',
+                  footprint: { w: 1200, d: 300 },
+                  visual: { fill: '#96795A', stroke: '#6B5F54', shortCode: 'DB', front: 'south' },
+                  resizable: false, metadata: {},
+                  metadataSchema: [
+                      { key: 'panelId', label: 'Panel ID', type: 'string' },
+                      { key: 'feed', label: 'Feed (A/B)', type: 'string' },
+                      { key: 'ampacityA', label: 'Ampacity (A)', type: 'number' }
+                  ] },
+                { id: 'pdu-board-3000x900', name: 'PDU power board', category: 'pdu',
+                  footprint: { w: 3000, d: 900 },
+                  visual: { fill: '#8A8563', stroke: '#5D5940', shortCode: 'PDU', front: 'south' },
+                  resizable: true, metadata: {},
+                  metadataSchema: [
+                      { key: 'pduId', label: 'PDU ID', type: 'string' },
+                      { key: 'feed', label: 'Feed (A/B)', type: 'string' },
+                      { key: 'capacityKw', label: 'Capacity (kW)', type: 'number' }
+                  ] },
+                { id: 'busway-2400x300', name: 'Overhead busway', category: 'pdu',
+                  footprint: { w: 2400, d: 300 },
+                  visual: { fill: '#C9A227', stroke: '#8B6F47', shortCode: 'BW', front: null },
+                  resizable: true, metadata: {},
+                  metadataSchema: [
+                      { key: 'buswayId', label: 'Busway ID', type: 'string' },
+                      { key: 'ampacityA', label: 'Ampacity (A)', type: 'number' }
+                  ] },
+                { id: 'rcu-3000x900', name: 'RCU perimeter cooler', category: 'cooling',
+                  footprint: { w: 3000, d: 900 },
+                  visual: { fill: '#4E7A9B', stroke: '#365D7A', shortCode: 'RCU', front: 'south' },
+                  resizable: true, metadata: {},
+                  metadataSchema: [
+                      { key: 'unitId', label: 'Unit ID', type: 'string' },
+                      { key: 'coolingKw', label: 'Cooling (kW)', type: 'number' }
+                  ] },
+                { id: 'odf-900x300', name: 'ODF frame', category: 'other',
+                  footprint: { w: 900, d: 300 },
+                  visual: { fill: '#7D7A8C', stroke: '#55526B', shortCode: 'ODF', front: 'south' },
+                  resizable: false, metadata: {},
+                  metadataSchema: [
+                      { key: 'odfId', label: 'ODF ID', type: 'string' },
+                      { key: 'fibreCount', label: 'Fibre count', type: 'number' }
+                  ] },
+                { id: 'ramp-1800x1200', name: 'Access ramp', category: 'structural',
+                  footprint: { w: 1800, d: 1200 },
+                  visual: { fill: '#C4BEB4', stroke: '#8A8378', shortCode: 'RAMP', front: 'south' },
+                  resizable: true, metadata: {}, metadataSchema: [] },
+                { id: 'vent-tile-600', name: 'Perforated / vent tile', category: 'structural',
+                  footprint: { w: 600, d: 600 },
+                  visual: { fill: '#AECBAE', stroke: '#6E8F6E', shortCode: 'V', front: null },
+                  resizable: false, metadata: {}, metadataSchema: [] },
+                { id: 'cam-dome-300', name: 'CCTV dome camera', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#3B8749', stroke: '#28632F', shortCode: 'CAM', front: null },
+                  resizable: false, metadata: {},
+                  metadataSchema: [
+                      { key: 'cameraId', label: 'Camera ID', type: 'string' },
+                      { key: 'installer', label: 'Installed by', type: 'string' },
+                      { key: 'cabling', label: 'Cabling', type: 'string' },
+                      { key: 'termination', label: 'Termination', type: 'string' }
+                  ] },
+                { id: 'sensor-temp-300', name: 'Temperature sensor', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#C0663B', stroke: '#8F4826', shortCode: 'T', front: null },
+                  resizable: false, metadata: {}, metadataSchema: SENSOR_SCHEMA },
+                { id: 'sensor-humidity-300', name: 'Humidity sensor', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#4E8FB5', stroke: '#376B8A', shortCode: 'H', front: null },
+                  resizable: false, metadata: {}, metadataSchema: SENSOR_SCHEMA },
+                { id: 'sensor-th-300', name: 'Temp / humidity sensor', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#7B6FA0', stroke: '#5A5178', shortCode: 'TH', front: null },
+                  resizable: false, metadata: {}, metadataSchema: SENSOR_SCHEMA },
+                { id: 'smoke-detector-300', name: 'Smoke detector', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#A65D5D', stroke: '#7A3F3F', shortCode: 'SD', front: null },
+                  resizable: false, metadata: {}, metadataSchema: SENSOR_SCHEMA },
+                { id: 'leak-sensor-300', name: 'Water leak sensor', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#3F7D8C', stroke: '#2C5A66', shortCode: 'LK', front: null },
+                  resizable: false, metadata: {}, metadataSchema: SENSOR_SCHEMA },
+                { id: 'door-contact-300', name: 'Door contact', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#8B6F47', stroke: '#655030', shortCode: 'DC', front: null },
+                  resizable: false, metadata: {}, metadataSchema: SENSOR_SCHEMA },
+                { id: 'motion-pir-300', name: 'Motion sensor (PIR)', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#6B8E5A', stroke: '#4C6940', shortCode: 'PIR', front: null },
+                  resizable: false, metadata: {}, metadataSchema: SENSOR_SCHEMA },
+                { id: 'access-reader-300', name: 'Access-control reader', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#5D5D80', stroke: '#42425E', shortCode: 'ACC', front: null },
+                  resizable: false, metadata: {},
+                  metadataSchema: [
+                      { key: 'readerId', label: 'Reader ID', type: 'string' },
+                      { key: 'system', label: 'System', type: 'string' },
+                      { key: 'notes', label: 'Notes', type: 'string' }
+                  ] },
+                { id: 'exit-sign-300', name: 'Emergency exit sign', category: 'monitoring',
+                  footprint: { w: 300, d: 300 },
+                  visual: { fill: '#2E9E4F', stroke: '#1F7038', shortCode: 'EXIT', front: null },
                   resizable: false, metadata: {}, metadataSchema: [] }
             ]
         };
-        const CATEGORY_LABELS = { rack: 'Racks', pdu: 'Power', cooling: 'Cooling', structural: 'Structural', other: 'Other' };
-        const CATEGORY_ORDER = ['rack', 'pdu', 'cooling', 'structural', 'other'];
+        const CATEGORY_LABELS = { rack: 'Racks', pdu: 'Power', cooling: 'Cooling', structural: 'Structural', monitoring: 'Monitoring & safety', other: 'Other' };
+        const CATEGORY_ORDER = ['rack', 'pdu', 'cooling', 'structural', 'monitoring', 'other'];
 
         // --- Document model ---
         // doc is the source of truth; Konva nodes are a render of it. Unknown JSON
@@ -732,7 +877,8 @@
                 meta: { name: name, site: '', notes: '', created: new Date().toISOString(), modified: '' },
                 room: {
                     width: widthMm, depth: depthMm,
-                    grid: { pitch: pitchMm, originX: 0, originY: 0, show: true, snap: true },
+                    grid: { pitch: pitchMm, originX: 0, originY: 0, show: true, snap: true,
+                            labels: { show: true, skip: '' } },
                     wallThickness: 200
                 },
                 defs: {},
@@ -743,6 +889,7 @@
                     containment: { visible: true, locked: false },
                     equipment: { visible: true, locked: false },
                     status: { visible: true },
+                    monitoring: { visible: true, locked: false },
                     labels: { visible: true, locked: false }
                 },
                 statusOverlay: {
@@ -768,12 +915,13 @@
             if (!d.room) d.room = fresh.room;
             if (!d.room.grid) d.room.grid = fresh.room.grid;
             if (typeof d.room.grid.pitch !== 'number' || d.room.grid.pitch <= 0) d.room.grid.pitch = 600;
+            if (!d.room.grid.labels) d.room.grid.labels = { show: true, skip: '' };
             if (typeof d.room.wallThickness !== 'number') d.room.wallThickness = 200;
             if (!d.defs) d.defs = {};
             if (!Array.isArray(d.objects)) d.objects = [];
             if (!Array.isArray(d.groups)) d.groups = [];
             if (!d.layers) d.layers = {};
-            ['building', 'containment', 'equipment', 'status', 'labels'].forEach(function(k) {
+            ['building', 'containment', 'equipment', 'status', 'monitoring', 'labels'].forEach(function(k) {
                 if (!d.layers[k]) d.layers[k] = { visible: true, locked: false };
             });
             if (!d.statusOverlay) d.statusOverlay = fresh.statusOverlay;
@@ -815,10 +963,12 @@
             switch (obj.type) {
                 case 'wall': case 'door': case 'column': return 'building';
                 case 'cage': case 'zone': return 'containment';
-                case 'label': return 'labels';
+                case 'label': case 'dimension': return 'labels';
                 case 'equipment': {
                     const def = getDef(obj.defId);
-                    return (def && def.category === 'structural') ? 'building' : 'equipment';
+                    if (def && def.category === 'structural') return 'building';
+                    if (def && def.category === 'monitoring') return 'monitoring';
+                    return 'equipment';
                 }
                 default: return null; // unknown type — preserved in JSON, not rendered
             }
@@ -870,6 +1020,12 @@
                 const w = obj.width || 900;
                 return { x1: obj.x - w, y1: obj.y - w, x2: obj.x + w, y2: obj.y + w };
             }
+            if (obj.type === 'dimension') {
+                return {
+                    x1: Math.min(obj.x1, obj.x2) - 300, y1: Math.min(obj.y1, obj.y2) - 300,
+                    x2: Math.max(obj.x1, obj.x2) + 300, y2: Math.max(obj.y1, obj.y2) + 300
+                };
+            }
             if (obj.type === 'label') {
                 const fs = obj.fontSize || 300;
                 const len = String(obj.text || '').length;
@@ -887,6 +1043,18 @@
                 if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
             }
             return inside;
+        }
+        function polygonArea(points) {
+            let a = 0;
+            for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+                a += (points[j][0] + points[i][0]) * (points[j][1] - points[i][1]);
+            }
+            return Math.abs(a / 2);
+        }
+        // The room's optional non-rectangular outline (null when it is a plain rect).
+        function roomOutline() {
+            const o = doc && doc.room && doc.room.outline;
+            return (Array.isArray(o) && o.length >= 3) ? o : null;
         }
         // Nearest point on any wall segment within maxDist — used by the door tool.
         function nearestWallPoint(x, y, maxDist) {
@@ -959,6 +1127,7 @@
         // --- Dirty tracking ---
         function markDirty() {
             scheduleAutosave(); // every mutation refreshes the crash-recovery snapshot
+            scheduleSummaryRefresh();
             if (isDirty) return;
             isDirty = true;
             updateFilenameIndicator();
@@ -1167,7 +1336,7 @@
         // --- UI chrome persistence (never document data) ---
         const UI_STATE_KEY = 'dcRoomViewerUiState';
         const UI_STATE_VERSION = 1;
-        const SECTION_KEYS = ['palette', 'tools', 'layers', 'inspector', 'overlay'];
+        const SECTION_KEYS = ['palette', 'tools', 'layers', 'summary', 'inspector', 'overlay'];
         function readUiState() {
             try {
                 const raw = localStorage.getItem(UI_STATE_KEY);
@@ -1203,11 +1372,11 @@
 
         // --- Stage & viewport ---
         // 1 world unit = 1 mm. Stage scale+position implement zoom/pan. Three real
-        // canvases only (Konva guidance); the six user-visible layers are the grid
-        // layer plus five fixed groups inside roomLayer, in enforced z-order.
+        // canvases only (Konva guidance); the seven user-visible layers are the grid
+        // layer plus six fixed groups inside roomLayer, in enforced z-order.
         const MIN_SCALE = 0.002, MAX_SCALE = 2;
         let stage, gridLayer, roomLayer, overlayLayer, gridShape;
-        const sceneGroups = {}; // building | containment | equipment | status | labels → Konva.Group
+        const sceneGroups = {}; // building | containment | equipment | status | monitoring | labels → Konva.Group
         let selOutlineGroup, transformer;
         const nodeById = new Map(); // object id → top-level Konva node
         let equipmentTexts = [];    // for zoom-threshold label culling
@@ -1229,7 +1398,7 @@
             gridShape = new Konva.Shape({ listening: false, sceneFunc: drawGrid });
             gridLayer.add(gridShape);
 
-            ['building', 'containment', 'equipment', 'status', 'labels'].forEach(function(key) {
+            ['building', 'containment', 'equipment', 'status', 'monitoring', 'labels'].forEach(function(key) {
                 const g = new Konva.Group({ name: 'g-' + key });
                 if (key === 'status') g.listening(false);
                 sceneGroups[key] = g;
@@ -1262,9 +1431,22 @@
             const scale = stage.scaleX();
             const W = doc.room.width, D = doc.room.depth;
             const g = doc.room.grid;
-            // Room surface
+            const outline = roomOutline();
+            const tracePath = function() {
+                ctx.beginPath();
+                if (outline) {
+                    outline.forEach(function(p, i) { i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); });
+                    ctx.closePath();
+                } else {
+                    ctx.rect(0, 0, W, D);
+                }
+            };
+            // Room surface — grid lines are clipped to the outline when one is set
+            ctx.save();
+            tracePath();
             ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, W, D);
+            ctx.fill();
+            ctx.clip();
             // Tile grid (hairlines at any zoom)
             if (g.show) {
                 ctx.lineWidth = 1 / scale;
@@ -1281,10 +1463,56 @@
                     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
                 }
             }
+            ctx.restore();
             // Room boundary wall
             ctx.lineWidth = doc.room.wallThickness;
             ctx.strokeStyle = '#3A2F28';
-            ctx.strokeRect(0, 0, W, D);
+            tracePath();
+            ctx.stroke();
+            drawGridCoordLabels(ctx);
+        }
+        // Column letters across the top edge, row numbers down the left (Visio-style
+        // hall coordinates). Drawn in world space so exports carry them to scale.
+        function drawGridCoordLabels(ctx) {
+            const g = doc.room.grid;
+            if (!g.labels || g.labels.show === false) return;
+            const W = doc.room.width, D = doc.room.depth;
+            const skip = String(g.labels.skip || '').toUpperCase();
+            const fs = Math.min(g.pitch * 0.45, 400);
+            const off = (doc.room.wallThickness || 200) / 2 + fs * 0.9;
+            ctx.fillStyle = '#6B5F54';
+            ctx.font = '500 ' + fs + 'px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const i0 = Math.max(0, Math.round(-g.originX / g.pitch) - 1);
+            for (let i = i0; i < i0 + 5000; i++) {
+                const cx = g.originX + (i + 0.5) * g.pitch;
+                if (cx >= W) break;
+                if (cx < 0) continue;
+                ctx.fillText(gridLetterFor(i, skip), cx, -off);
+            }
+            ctx.textAlign = 'right';
+            const j0 = Math.max(0, Math.round(-g.originY / g.pitch) - 1);
+            for (let j = j0; j < j0 + 5000; j++) {
+                const cy = g.originY + (j + 0.5) * g.pitch;
+                if (cy >= D) break;
+                if (cy < 0) continue;
+                ctx.fillText(String(j + 1), -off * 0.6, cy);
+            }
+        }
+        // Bijective letter sequence A…Z, AA… over the alphabet minus skipped letters
+        // (real halls often skip I and U to avoid misreading).
+        function gridLetterFor(i, skip) {
+            let letters = '';
+            for (let c = 65; c <= 90; c++) {
+                const ch = String.fromCharCode(c);
+                if (skip.indexOf(ch) === -1) letters += ch;
+            }
+            if (!letters) letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const n = letters.length;
+            let s = '', v = i;
+            do { s = letters[v % n] + s; v = Math.floor(v / n) - 1; } while (v >= 0);
+            return s;
         }
 
         function onWheelZoom(e) {
@@ -1322,6 +1550,7 @@
             gridLayer.batchDraw();
             updateLabelCulling();
             refreshSelectionOverlay();
+            if (outlineEdit) renderOutlineHandles();
             updateZoomIndicator();
             if (cullTimer) clearTimeout(cullTimer);
             cullTimer = setTimeout(function() { updateCulling(false); }, 120);
@@ -1415,6 +1644,7 @@
                 case 'column': return createColumnNode(obj);
                 case 'cage': case 'zone': return createPolyNode(obj);
                 case 'label': return createLabelNode(obj);
+                case 'dimension': return createDimensionNode(obj);
                 default: return null;
             }
         }
@@ -1436,12 +1666,22 @@
             const size = equipmentSize(obj);
             const visual = (def && def.visual) || {};
             const group = new Konva.Group({ x: obj.x, y: obj.y, rotation: obj.rotation || 0, draggable: true });
-            group.add(new Konva.Rect({
-                x: -size.w / 2, y: -size.d / 2, width: size.w, height: size.d,
-                fill: visual.fill || '#9B948B', stroke: visual.stroke || '#6B5F54',
-                strokeWidth: 20, perfectDrawEnabled: false, shadowForStrokeEnabled: false
-            }));
-            if (visual.front) {
+            const isMonitoring = def && def.category === 'monitoring';
+            if (isMonitoring) {
+                // Sensors/cameras are small round markers rather than footprint rects.
+                group.add(new Konva.Circle({
+                    radius: Math.max(size.w, size.d) / 2,
+                    fill: visual.fill || '#4E7A50', stroke: visual.stroke || '#3B5D3C',
+                    strokeWidth: 20, perfectDrawEnabled: false, shadowForStrokeEnabled: false
+                }));
+            } else {
+                group.add(new Konva.Rect({
+                    x: -size.w / 2, y: -size.d / 2, width: size.w, height: size.d,
+                    fill: visual.fill || '#9B948B', stroke: visual.stroke || '#6B5F54',
+                    strokeWidth: 20, perfectDrawEnabled: false, shadowForStrokeEnabled: false
+                }));
+            }
+            if (!isMonitoring && visual.front) {
                 const inset = 70, t = 45;
                 let pts = null;
                 if (visual.front === 'south') pts = [-size.w / 2 + inset, size.d / 2 - inset, size.w / 2 - inset, size.d / 2 - inset];
@@ -1455,7 +1695,9 @@
             }
             const textStr = equipmentDisplayText(obj);
             if (textStr) {
-                const fs = clamp(size.w * 0.28, 110, 230);
+                const fs = isMonitoring
+                    ? Math.min(size.w * 0.45, size.w * 1.5 / Math.max(1, textStr.length))
+                    : clamp(size.w * 0.28, 110, 230);
                 const text = new Konva.Text({
                     x: -size.w / 2, y: -fs / 2, width: size.w,
                     align: 'center', text: textStr,
@@ -1533,10 +1775,15 @@
         const ZONE_STYLES = {
             'cage': { stroke: '#8B6F47', fill: 'rgba(139,111,71,0.07)', dash: [140, 90] },
             'cold-aisle': { stroke: '#4E8FB5', fill: 'rgba(78,143,181,0.10)', dash: [60, 60] },
+            'hot-aisle': { stroke: '#C77B3B', fill: 'rgba(199,123,59,0.10)', dash: [60, 60] },
             'restricted': { stroke: '#C0392B', fill: 'rgba(192,57,43,0.10)', dash: [60, 60] }
         };
+        function zoneStyleKey(obj) {
+            if (obj.type === 'cage') return 'cage';
+            return (obj.kind !== 'cage' && ZONE_STYLES[obj.kind]) ? obj.kind : 'restricted';
+        }
         function createPolyNode(obj) {
-            const styleKey = obj.type === 'cage' ? 'cage' : (obj.kind === 'cold-aisle' ? 'cold-aisle' : 'restricted');
+            const styleKey = zoneStyleKey(obj);
             const base = ZONE_STYLES[styleKey];
             const style = obj.style || {};
             const flat = [];
@@ -1565,6 +1812,41 @@
                 fontFamily: 'Inter, sans-serif', fontSize: obj.fontSize || 300, fontStyle: '600',
                 fill: '#3A2F28', draggable: true, perfectDrawEnabled: false
             });
+        }
+        function createDimensionNode(obj) {
+            const group = new Konva.Group({ draggable: true });
+            const dx = obj.x2 - obj.x1, dy = obj.y2 - obj.y1;
+            const len = Math.hypot(dx, dy);
+            const ux = len ? dx / len : 1, uy = len ? dy / len : 0;
+            const px = -uy, py = ux; // unit perpendicular
+            group.add(new Konva.Arrow({
+                points: [obj.x1, obj.y1, obj.x2, obj.y2],
+                stroke: '#3A2F28', fill: '#3A2F28', strokeWidth: 30,
+                pointerLength: 260, pointerWidth: 200, pointerAtBeginning: true,
+                hitStrokeWidth: 320, perfectDrawEnabled: false, shadowForStrokeEnabled: false
+            }));
+            const tick = 160;
+            [[obj.x1, obj.y1], [obj.x2, obj.y2]].forEach(function(p) {
+                group.add(new Konva.Line({
+                    points: [p[0] - px * tick, p[1] - py * tick, p[0] + px * tick, p[1] + py * tick],
+                    stroke: '#3A2F28', strokeWidth: 25,
+                    listening: false, perfectDrawEnabled: false
+                }));
+            });
+            const fs = 300;
+            const text = new Konva.Text({
+                text: (len / 1000).toFixed(len < 10000 ? 2 : 1) + ' m',
+                fontFamily: 'Inter, sans-serif', fontSize: fs, fontStyle: '600',
+                fill: '#3A2F28', listening: false, perfectDrawEnabled: false
+            });
+            text.offsetX(text.getTextWidth() / 2);
+            text.offsetY(fs / 2);
+            text.position({
+                x: (obj.x1 + obj.x2) / 2 + px * (fs * 0.9),
+                y: (obj.y1 + obj.y2) / 2 + py * (fs * 0.9)
+            });
+            group.add(text);
+            return group;
         }
 
         // --- Status overlay ---
@@ -1641,26 +1923,42 @@
         let legendNode = null;
         function legendEntries() {
             const so = doc.statusOverlay;
+            const eq = doc.objects.filter(function(o) { return o.type === 'equipment'; });
             if (so.enabled) {
                 if (so.mode === 'numeric') {
-                    return ((so.numeric && so.numeric.stops) || []).map(function(s) {
-                        return { color: s.color, label: s.label || (s.upTo === null ? 'above' : '≤ ' + s.upTo) };
+                    const stops = (so.numeric && so.numeric.stops) || [];
+                    const counts = stops.map(function() { return 0; });
+                    eq.forEach(function(o) {
+                        const num = Number(overlayValue(o));
+                        if (!isFinite(num)) return;
+                        for (let i = 0; i < stops.length; i++) {
+                            if (stops[i].upTo === null || stops[i].upTo === undefined || num <= stops[i].upTo) { counts[i]++; return; }
+                        }
+                    });
+                    return stops.map(function(s, i) {
+                        return { color: s.color, label: (s.label || (s.upTo === null ? 'above' : '≤ ' + s.upTo)) + ' (' + counts[i] + ')' };
                     });
                 }
+                const counts = {};
+                eq.forEach(function(o) {
+                    const v = overlayValue(o);
+                    if (v === undefined || v === null || v === '') return;
+                    counts[String(v)] = (counts[String(v)] || 0) + 1;
+                });
                 return overlayCategories().map(function(v, i) {
-                    return { color: (so.categorical.overrides && so.categorical.overrides[v]) || overlayCategoryColor(i), label: v };
+                    return { color: (so.categorical.overrides && so.categorical.overrides[v]) || overlayCategoryColor(i), label: v + ' (' + (counts[v] || 0) + ')' };
                 });
             }
-            // Default key: equipment categories present in the room
+            // Default key: equipment categories present in the room, with counts
             const seen = new Map();
-            doc.objects.forEach(function(o) {
-                if (o.type !== 'equipment') return;
+            eq.forEach(function(o) {
                 const def = getDef(o.defId);
-                if (!def || seen.has(def.category)) return;
-                seen.set(def.category, (def.visual && def.visual.fill) || '#9B948B');
+                if (!def) return;
+                if (!seen.has(def.category)) seen.set(def.category, { color: (def.visual && def.visual.fill) || '#9B948B', count: 0 });
+                seen.get(def.category).count++;
             });
             return Array.from(seen.entries()).map(function(e) {
-                return { color: e[1], label: CATEGORY_LABELS[e[0]] || e[0] };
+                return { color: e[1].color, label: (CATEGORY_LABELS[e[0]] || e[0]) + ' (' + e[1].count + ')' };
             });
         }
         function rebuildLegendNode() {
@@ -1709,7 +2007,7 @@
 
         // --- Layer state (visibility / locking) ---
         function applyLayerState() {
-            ['building', 'containment', 'equipment', 'labels'].forEach(function(key) {
+            ['building', 'containment', 'equipment', 'monitoring', 'labels'].forEach(function(key) {
                 const st = doc.layers[key] || {};
                 sceneGroups[key].visible(st.visible !== false);
                 sceneGroups[key].listening(!st.locked);
@@ -1761,6 +2059,7 @@
                 }
             });
             refreshWallHandles();
+            refreshDimensionHandles();
             overlayLayer.batchDraw();
         }
         // Transformer only for a single, unlocked object; walls use vertex handles.
@@ -1773,7 +2072,7 @@
             }
             const obj = objs[0];
             const node = nodeById.get(obj.id);
-            if (!node || obj.type === 'wall' || obj.type === 'door') {
+            if (!node || obj.type === 'wall' || obj.type === 'door' || obj.type === 'dimension') {
                 transformer.nodes([]);
                 overlayLayer.batchDraw();
                 return;
@@ -1870,6 +2169,7 @@
                     roomLayer.batchDraw();
                 });
                 handle.on('dragend', function() {
+                    markDragEnd();
                     if (handleSnap) { commitUndoable(handleSnap); handleSnap = null; }
                     markDirty();
                     refreshSelectionOverlay();
@@ -1886,11 +2186,159 @@
                 });
                 wallHandleGroup.add(handle);
             });
-            selOutlineGroup.add(wallHandleGroup);
+            // NB: handles must live on the layer itself — selOutlineGroup is
+            // listening:false, which would exclude them from hit detection.
+            overlayLayer.add(wallHandleGroup);
+        }
+        let dimHandleGroup = null;
+        function refreshDimensionHandles() {
+            if (dimHandleGroup) { dimHandleGroup.destroy(); dimHandleGroup = null; }
+            const objs = selectionObjects();
+            if (objs.length !== 1 || objs[0].type !== 'dimension' || isObjLocked(objs[0]) || activeTool !== 'select') return;
+            const dim = objs[0];
+            const s = stage.scaleX();
+            dimHandleGroup = new Konva.Group();
+            [['x1', 'y1'], ['x2', 'y2']].forEach(function(keys) {
+                const handle = new Konva.Circle({
+                    x: dim[keys[0]], y: dim[keys[1]], radius: 7 / s,
+                    fill: '#FFFFFF', stroke: '#4A5D47', strokeWidth: 2 / s,
+                    draggable: true
+                });
+                let snap = null;
+                handle.on('dragstart', function() { snap = captureUndoable('Edit dimension'); });
+                handle.on('dragmove', function(e) {
+                    const pos = e.evt.altKey ? { x: handle.x(), y: handle.y() } : snapPoint(handle.position());
+                    handle.position(pos);
+                    dim[keys[0]] = Math.round(pos.x);
+                    dim[keys[1]] = Math.round(pos.y);
+                    syncObjectNode(dim);
+                });
+                handle.on('dragend', function() {
+                    markDragEnd();
+                    if (snap) { commitUndoable(snap); snap = null; }
+                    markDirty();
+                    refreshSelectionOverlay();
+                    renderInspector();
+                });
+                dimHandleGroup.add(handle);
+            });
+            overlayLayer.add(dimHandleGroup);
+        }
+        function destroyEditHandles() {
+            if (wallHandleGroup) { wallHandleGroup.destroy(); wallHandleGroup = null; }
+            if (dimHandleGroup) { dimHandleGroup.destroy(); dimHandleGroup = null; }
+        }
+
+        // --- Room outline editing (non-rectangular halls) ---
+        // While active, canvas selection is suspended; corner handles edit
+        // doc.room.outline live (the grid clips to it). Enter commits, Esc cancels.
+        let outlineEdit = null; // { before, snap } while the mode is active
+        let outlineHandleGroup = null;
+        function startOutlineEdit() {
+            if (outlineEdit) return;
+            const before = JSON.stringify(doc.room.outline || null);
+            const snap = captureUndoable('Edit room outline');
+            if (!roomOutline()) {
+                doc.room.outline = [[0, 0], [doc.room.width, 0],
+                                    [doc.room.width, doc.room.depth], [0, doc.room.depth]];
+            }
+            setActiveTool('select');
+            outlineEdit = { before: before, snap: snap };
+            clearSelection();
+            setHint('Editing room outline — drag corners, double-click an edge to add one, Alt-click a corner removes it, Enter finishes, Esc cancels');
+            gridLayer.batchDraw();
+            renderOutlineHandles();
+        }
+        function renderOutlineHandles() {
+            if (outlineHandleGroup) { outlineHandleGroup.destroy(); outlineHandleGroup = null; }
+            if (!outlineEdit) { overlayLayer.batchDraw(); return; }
+            const pts = doc.room.outline;
+            const s = stage.scaleX();
+            outlineHandleGroup = new Konva.Group();
+            pts.forEach(function(p, idx) {
+                const handle = new Konva.Circle({
+                    x: p[0], y: p[1], radius: 8 / s,
+                    fill: '#FFFFFF', stroke: '#8B6F47', strokeWidth: 2.5 / s,
+                    draggable: true
+                });
+                handle.on('dragmove', function(e) {
+                    const pos = e.evt.altKey ? { x: handle.x(), y: handle.y() } : snapPoint(handle.position());
+                    handle.position(pos);
+                    pts[idx] = [Math.round(pos.x), Math.round(pos.y)];
+                    gridLayer.batchDraw();
+                });
+                handle.on('dragend', markDragEnd);
+                handle.on('click', function(e) {
+                    if (e.evt.altKey && pts.length > 3) {
+                        pts.splice(idx, 1);
+                        gridLayer.batchDraw();
+                        renderOutlineHandles();
+                        e.cancelBubble = true;
+                    }
+                });
+                outlineHandleGroup.add(handle);
+            });
+            overlayLayer.add(outlineHandleGroup);
+            overlayLayer.batchDraw();
+        }
+        function insertOutlineVertexAtPointer() {
+            if (!outlineEdit) return;
+            const w = pointerWorld();
+            if (!w) return;
+            const pts = doc.room.outline;
+            let best = null;
+            for (let i = 0; i < pts.length; i++) {
+                const a = pts[i], b = pts[(i + 1) % pts.length];
+                const dx = b[0] - a[0], dy = b[1] - a[1];
+                const len2 = dx * dx + dy * dy;
+                if (!len2) continue;
+                const t = clamp(((w.x - a[0]) * dx + (w.y - a[1]) * dy) / len2, 0, 1);
+                const px = a[0] + t * dx, py = a[1] + t * dy;
+                const dist = Math.hypot(w.x - px, w.y - py);
+                if (!best || dist < best.dist) best = { i: i, dist: dist };
+            }
+            if (!best) return;
+            const p = snapPoint(w);
+            pts.splice(best.i + 1, 0, [p.x, p.y]);
+            gridLayer.batchDraw();
+            renderOutlineHandles();
+        }
+        function finishOutlineEdit(cancel) {
+            if (!outlineEdit) return;
+            const ctx = outlineEdit;
+            outlineEdit = null;
+            if (outlineHandleGroup) { outlineHandleGroup.destroy(); outlineHandleGroup = null; }
+            if (cancel) {
+                const prev = JSON.parse(ctx.before);
+                if (prev) doc.room.outline = prev; else delete doc.room.outline;
+            } else {
+                const pts = doc.room.outline.map(function(p) {
+                    return [Math.max(0, Math.round(p[0])), Math.max(0, Math.round(p[1]))];
+                });
+                let maxX = 0, maxY = 0;
+                pts.forEach(function(p) { maxX = Math.max(maxX, p[0]); maxY = Math.max(maxY, p[1]); });
+                const isFullRect = pts.length === 4 && polygonArea(pts) === maxX * maxY;
+                if (isFullRect || maxX < 1000 || maxY < 1000) delete doc.room.outline;
+                else doc.room.outline = pts;
+                if (maxX >= 1000) doc.room.width = maxX;
+                if (maxY >= 1000) doc.room.depth = maxY;
+                commitUndoable(ctx.snap);
+                markDirty();
+                renderSummaryPanel();
+                renderInspector();
+            }
+            setHint('');
+            gridLayer.batchDraw();
+            overlayLayer.batchDraw();
         }
 
         // --- Object interaction wiring (drag with snap, multi-drag via overlay layer) ---
         let dragCtx = null;
+        // Konva synthesizes dblclick from any two pointerups within 400 ms — a drag's
+        // mouseup plus one quick click qualifies. Ignore dblclick right after a drag.
+        let lastDragEndAt = 0;
+        function markDragEnd() { lastDragEndAt = performance.now(); }
+        function justFinishedDrag() { return performance.now() - lastDragEndAt < 350; }
         function wireObjectNode(node, objId) {
             node.on('dragstart', function(e) {
                 const obj = getObj(objId);
@@ -1914,6 +2362,7 @@
                     n.moveTo(overlayLayer);
                 });
                 selOutlineGroup.destroyChildren();
+                destroyEditHandles();
                 overlayLayer.batchDraw();
                 roomLayer.batchDraw();
             });
@@ -1936,6 +2385,7 @@
             });
             node.on('dragend', function() {
                 if (!dragCtx) return;
+                markDragEnd();
                 const ctx = dragCtx;
                 dragCtx = null;
                 ctx.parts.forEach(function(p) {
@@ -1966,7 +2416,7 @@
                 const top = snapMm(pos.y - he.hh);
                 return { x: left + he.hw, y: top + he.hh };
             }
-            if (obj.type === 'wall' || obj.type === 'cage' || obj.type === 'zone') {
+            if (obj.type === 'wall' || obj.type === 'cage' || obj.type === 'zone' || obj.type === 'dimension') {
                 const pitch = doc.room.grid.pitch;
                 return { x: Math.round(pos.x / pitch) * pitch, y: Math.round(pos.y / pitch) * pitch };
             }
@@ -1985,6 +2435,14 @@
                         line.points(flat);
                     }
                     if (node.getClassName() === 'Group') syncObjectNode(obj); // reposition name text
+                }
+            } else if (obj.type === 'dimension') {
+                const dx = Math.round(node.x()), dy = Math.round(node.y());
+                if (dx || dy) {
+                    obj.x1 += dx; obj.y1 += dy;
+                    obj.x2 += dx; obj.y2 += dy;
+                    node.position({ x: 0, y: 0 });
+                    syncObjectNode(obj);
                 }
             } else if (obj.type === 'door') {
                 obj.x = Math.round(node.x());
@@ -2063,7 +2521,7 @@
                     e.evt.preventDefault();
                     return;
                 }
-                if (e.evt.button !== 0) return;
+                if (e.evt.button !== 0 || outlineEdit) return;
                 if (activeTool === 'select' && (e.target === stage || e.target === gridShape)) {
                     const w = pointerWorld();
                     if (w) rubber = { x1: w.x, y1: w.y, rect: null };
@@ -2144,7 +2602,7 @@
             });
             stage.on('click', function(e) {
                 if (suppressNextClick) { suppressNextClick = false; return; }
-                if (e.evt.button !== 0 || spaceDown) return;
+                if (e.evt.button !== 0 || spaceDown || outlineEdit) return;
                 if (activeTool === 'select') {
                     const obj = resolveEventObject(e.target);
                     if (!obj) {
@@ -2166,17 +2624,24 @@
                 }
                 handleToolClick(e);
             });
-            stage.on('dblclick', function(e) {
+            stage.on('dblclick dbltap', function(e) {
+                // Konva also counts a quick right-click toward dblclick — left only.
+                if (e.evt.button !== undefined && e.evt.button !== 0) return;
+                if (justFinishedDrag()) return;
+                if (outlineEdit) { insertOutlineVertexAtPointer(); return; }
                 const obj = resolveEventObject(e.target);
                 if (activeTool === 'select' && obj) {
-                    if (obj.type === 'wall' && selection.has(obj.id) && selection.size === 1) {
+                    // Alt+double-click on the selected wall inserts a vertex; plain
+                    // double-click opens properties (and drills past group selection).
+                    if (obj.type === 'wall' && e.evt.altKey && selection.has(obj.id) && selection.size === 1) {
                         insertWallVertexAtPointer(obj);
                         return;
                     }
-                    // Drill into a group: select just this object.
-                    if (obj.groupId) setSelection([obj.id]);
+                    setSelection([obj.id]);
+                    openPropertiesDialog(obj);
+                    return;
                 }
-                if (activeTool === 'wall' || activeTool === 'cage' || activeTool === 'zone-cold' || activeTool === 'zone-restricted') {
+                if (activeTool === 'wall' || activeTool === 'cage' || activeTool === 'zone-cold' || activeTool === 'zone-hot' || activeTool === 'zone-restricted') {
                     // Konva synthesizes dblclick from any two clicks within 400 ms even
                     // when they are far apart, and both clicks have already added a
                     // vertex each. Only treat it as "finish" when the two clicks landed
@@ -2221,6 +2686,9 @@
             }
             if (!best) return;
             const p = snapPoint(w);
+            // A synthesized double-dblclick could land on the same spot twice —
+            // never stack a vertex on top of an existing one.
+            if (wall.points.some(function(q) { return q[0] === p.x && q[1] === p.y; })) return;
             pushUndo('Insert wall vertex');
             wall.points.splice(best.i + 1, 0, [p.x, p.y]);
             syncObjectNode(wall);
@@ -2248,6 +2716,7 @@
             return Array.from(seen.values());
         }
         function setActiveTool(tool, defId) {
+            if (outlineEdit) finishOutlineEdit(false);
             activeTool = tool;
             placeDefId = defId || null;
             cancelDrawing();
@@ -2262,8 +2731,10 @@
                     makeGhost(def);
                     setHint('Click to place ' + def.name + ' — R rotates, Esc exits');
                 }
-            } else if (tool === 'wall' || tool === 'cage' || tool === 'zone-cold' || tool === 'zone-restricted') {
+            } else if (tool === 'wall' || tool === 'cage' || tool === 'zone-cold' || tool === 'zone-hot' || tool === 'zone-restricted') {
                 setHint('Click to add points — double-click or Enter finishes, Esc cancels');
+            } else if (tool === 'dimension') {
+                setHint('Click the two end points of the dimension — Esc cancels');
             } else if (tool === 'door') {
                 setHint('Click on or near a wall to place a door — Esc exits');
             } else if (tool === 'column') {
@@ -2285,12 +2756,20 @@
         function makeGhost(def) {
             destroyGhost();
             ghostNode = new Konva.Group({ listening: false });
-            ghostNode.add(new Konva.Rect({
-                x: -def.footprint.w / 2, y: -def.footprint.d / 2,
-                width: def.footprint.w, height: def.footprint.d,
-                fill: (def.visual && def.visual.fill) || '#9B948B', opacity: 0.45,
-                stroke: '#4A5D47', strokeWidth: 25, dash: [90, 60]
-            }));
+            if (def.category === 'monitoring') {
+                ghostNode.add(new Konva.Circle({
+                    radius: Math.max(def.footprint.w, def.footprint.d) / 2,
+                    fill: (def.visual && def.visual.fill) || '#9B948B', opacity: 0.45,
+                    stroke: '#4A5D47', strokeWidth: 25, dash: [90, 60]
+                }));
+            } else {
+                ghostNode.add(new Konva.Rect({
+                    x: -def.footprint.w / 2, y: -def.footprint.d / 2,
+                    width: def.footprint.w, height: def.footprint.d,
+                    fill: (def.visual && def.visual.fill) || '#9B948B', opacity: 0.45,
+                    stroke: '#4A5D47', strokeWidth: 25, dash: [90, 60]
+                }));
+            }
             ghostNode.rotation(placeRotation);
             const w = pointerWorld();
             if (w) ghostNode.position(snapPositionForObject(ghostObjProxy(), w));
@@ -2345,12 +2824,38 @@
                 updateObjectCount();
                 setActiveTool('select');
                 setSelection([obj.id]);
-            } else if (activeTool === 'wall' || activeTool === 'cage' || activeTool === 'zone-cold' || activeTool === 'zone-restricted') {
+            } else if (activeTool === 'dimension') {
+                const p = snapPoint(w);
+                drawPts.push([p.x, p.y]);
+                if (drawPts.length === 1) {
+                    drawPreview = new Konva.Line({
+                        points: [p.x, p.y], stroke: '#3A2F28', strokeWidth: 25,
+                        dash: [120, 80], listening: false, opacity: 0.8
+                    });
+                    overlayLayer.add(drawPreview);
+                } else {
+                    const a = drawPts[0], b = drawPts[1];
+                    cancelDrawing();
+                    let placed = null;
+                    if (Math.hypot(b[0] - a[0], b[1] - a[1]) >= 1) {
+                        pushUndo('Draw dimension');
+                        placed = { id: uid('o'), type: 'dimension', x1: a[0], y1: a[1], x2: b[0], y2: b[1] };
+                        doc.objects.push(placed);
+                        addObjectNode(placed);
+                        markDirty();
+                        roomLayer.batchDraw();
+                        updateObjectCount();
+                        renderLayersPanel();
+                    }
+                    setActiveTool('select');
+                    if (placed) setSelection([placed.id]);
+                }
+            } else if (activeTool === 'wall' || activeTool === 'cage' || activeTool === 'zone-cold' || activeTool === 'zone-hot' || activeTool === 'zone-restricted') {
                 const p = snapPoint(w);
                 drawPts.push([p.x, p.y]);
                 if (!drawPreview) {
                     const isWall = activeTool === 'wall';
-                    const styleKey = activeTool === 'cage' ? 'cage' : (activeTool === 'zone-cold' ? 'cold-aisle' : 'restricted');
+                    const styleKey = activeTool === 'cage' ? 'cage' : (activeTool === 'zone-cold' ? 'cold-aisle' : (activeTool === 'zone-hot' ? 'hot-aisle' : 'restricted'));
                     drawPreview = new Konva.Line({
                         points: [p.x, p.y],
                         stroke: isWall ? '#5D5248' : ZONE_STYLES[styleKey].stroke,
@@ -2395,14 +2900,14 @@
                 doc.objects.push(obj);
                 addObjectNode(obj);
                 markDirty();
-            } else if ((tool === 'cage' || tool === 'zone-cold' || tool === 'zone-restricted') && pts.length >= 3) {
+            } else if ((tool === 'cage' || tool === 'zone-cold' || tool === 'zone-hot' || tool === 'zone-restricted') && pts.length >= 3) {
                 const isCage = tool === 'cage';
-                const kind = isCage ? 'cage' : (tool === 'zone-cold' ? 'cold-aisle' : 'restricted');
+                const kind = isCage ? 'cage' : (tool === 'zone-cold' ? 'cold-aisle' : (tool === 'zone-hot' ? 'hot-aisle' : 'restricted'));
                 const count = doc.objects.filter(function(o) { return o.type === (isCage ? 'cage' : 'zone'); }).length + 1;
                 pushUndo(isCage ? 'Draw cage' : 'Draw zone');
                 const obj = {
                     id: uid(isCage ? 'c' : 'z'), type: isCage ? 'cage' : 'zone', kind: kind,
-                    name: (isCage ? 'Cage ' : (kind === 'cold-aisle' ? 'Cold aisle ' : 'Restricted ')) + count,
+                    name: (isCage ? 'Cage ' : (kind === 'cold-aisle' ? 'Cold aisle ' : (kind === 'hot-aisle' ? 'Hot aisle ' : 'Restricted '))) + count,
                     points: pts
                 };
                 if (isCage) obj.autoCapture = true;
@@ -2435,6 +2940,7 @@
                 b.addEventListener('click', function() { hideContextMenu(); fn(); });
                 menu.appendChild(b);
             };
+            if (single) add('Properties…', function() { openPropertiesDialog(single); });
             const rotatable = objs.some(function(o) { return o.type === 'equipment' || o.type === 'door' || o.type === 'label'; });
             if (rotatable) add('Rotate 90°', function() { rotateSelection(90); });
             add('Duplicate', duplicateSelection);
@@ -2486,6 +2992,8 @@
             objs.forEach(function(o) {
                 if (o.type === 'wall' || o.type === 'cage' || o.type === 'zone') {
                     o.points = o.points.map(function(p) { return [p[0] + dx, p[1] + dy]; });
+                } else if (o.type === 'dimension') {
+                    o.x1 += dx; o.y1 += dy; o.x2 += dx; o.y2 += dy;
                 } else {
                     o.x += dx; o.y += dy;
                 }
@@ -2516,6 +3024,7 @@
                     copy.groupId = groupMap[copy.groupId];
                 }
                 if (copy.points) copy.points = copy.points.map(function(p) { return [p[0] + pitch, p[1] + pitch]; });
+                else if (copy.type === 'dimension') { copy.x1 += pitch; copy.y1 += pitch; copy.x2 += pitch; copy.y2 += pitch; }
                 else { copy.x += pitch; copy.y += pitch; }
                 doc.objects.push(copy);
                 addObjectNode(copy);
@@ -2605,9 +3114,20 @@
         }
         function updatePosIndicator() {
             const w = pointerWorld();
-            document.getElementById('sb-pos').textContent = w
-                ? 'x ' + (w.x / 1000).toFixed(2) + ' m · y ' + (w.y / 1000).toFixed(2) + ' m'
-                : '';
+            let text = '';
+            if (w) {
+                text = 'x ' + (w.x / 1000).toFixed(2) + ' m · y ' + (w.y / 1000).toFixed(2) + ' m';
+                const g = doc && doc.room.grid;
+                if (g && g.labels && g.labels.show !== false
+                    && w.x >= 0 && w.y >= 0 && w.x < doc.room.width && w.y < doc.room.depth) {
+                    const i = Math.floor((w.x - g.originX) / g.pitch);
+                    const j = Math.floor((w.y - g.originY) / g.pitch);
+                    if (i >= 0 && j >= 0) {
+                        text += ' · ' + gridLetterFor(i, String(g.labels.skip || '').toUpperCase()) + (j + 1);
+                    }
+                }
+            }
+            document.getElementById('sb-pos').textContent = text;
         }
         function updateZoomIndicator() {
             document.getElementById('sb-zoom').textContent = '1 m = ' + Math.round(stage.scaleX() * 1000) + ' px';
@@ -2650,14 +3170,15 @@
         }
 
         // --- Layers panel ---
-        // The six standard layers are fixed — they can be hidden or locked but never
-        // added to, removed, or reordered.
+        // The seven standard layers are fixed — they can be hidden or locked but
+        // never added to, removed, or reordered.
         const LAYER_ROWS = [
             { key: 'grid', name: 'Grid', lockable: false },
             { key: 'building', name: 'Building', lockable: true },
             { key: 'containment', name: 'Containment', lockable: true },
             { key: 'equipment', name: 'Equipment', lockable: true },
             { key: 'status', name: 'Capacity / status', lockable: false },
+            { key: 'monitoring', name: 'Monitoring', lockable: true },
             { key: 'labels', name: 'Labels & legends', lockable: true }
         ];
         const layerChildrenOpen = { containment: false, grid: false };
@@ -2756,6 +3277,24 @@
             const snap = el('input', { type: 'checkbox', checked: doc.room.grid.snap });
             snap.addEventListener('change', function() { doc.room.grid.snap = snap.checked; markDirty(); });
             wrap.appendChild(el('label', { class: 'checkbox-row' }, [snap, el('span', { text: 'Snap to grid' })]));
+            if (!doc.room.grid.labels) doc.room.grid.labels = { show: true, skip: '' };
+            const labels = doc.room.grid.labels;
+            const coords = el('input', { type: 'checkbox', checked: labels.show !== false });
+            coords.addEventListener('change', function() {
+                labels.show = coords.checked;
+                markDirty(); gridLayer.batchDraw();
+            });
+            wrap.appendChild(el('label', { class: 'checkbox-row' }, [coords, el('span', { text: 'Coordinate labels' })]));
+            const skipIn = el('input', { type: 'text', value: labels.skip || '', placeholder: 'e.g. IU' });
+            skipIn.addEventListener('change', function() {
+                labels.skip = skipIn.value.toUpperCase().replace(/[^A-Z]/g, '');
+                skipIn.value = labels.skip;
+                markDirty(); gridLayer.batchDraw();
+            });
+            wrap.appendChild(el('div', { class: 'field-row' }, [el('label', { text: 'Skip letters' }), skipIn]));
+            const outlineBtn = el('button', { class: 'btn btn-sm btn-secondary', text: 'Edit room outline' });
+            outlineBtn.addEventListener('click', startOutlineEdit);
+            wrap.appendChild(outlineBtn);
             return wrap;
         }
 
@@ -2784,6 +3323,22 @@
             sel.addEventListener('change', function() { onCommit(sel.value); });
             return sel;
         }
+        // Input widget for a metadataSchema field (string | number | select).
+        function schemaFieldInput(f, value, onCommit) {
+            if (f.type === 'select' && Array.isArray(f.options)) {
+                const opts = [{ value: '', label: '—' }].concat(f.options.map(function(o) {
+                    return { value: String(o), label: String(o).charAt(0).toUpperCase() + String(o).slice(1) };
+                }));
+                return selectInput(value == null ? '' : String(value), opts, function(v) {
+                    onCommit(v === '' ? null : v);
+                });
+            }
+            return f.type === 'number' ? numInput(value, onCommit, { step: 'any' }) : textInput(value, onCommit);
+        }
+        function hexToRgba(hex, alpha) {
+            const n = parseInt(String(hex).slice(1), 16);
+            return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + alpha + ')';
+        }
         // Edit helper: undo + mutate + resync in one place.
         function editObject(obj, label, mutate) {
             pushUndo(label);
@@ -2793,12 +3348,67 @@
             rebuildStatusOverlay();
             selectionChanged();
         }
+        // Shown in the inspector when nothing is selected — the room's own data.
+        function renderRoomProperties(root) {
+            root.appendChild(el('div', { class: 'inspector-title', text: 'Room properties' }));
+            root.appendChild(el('div', { class: 'inspector-sub', text: 'Click an object to inspect it; these fields describe the room itself.' }));
+            const meta = doc.meta;
+            const commitMeta = function(label, mutate) {
+                pushUndo(label);
+                mutate();
+                markDirty();
+                updateFilenameIndicator();
+                renderSummaryPanel();
+            };
+            const optText = function(key) {
+                return textInput(meta[key], function(v) {
+                    commitMeta('Edit room', function() { if (v) meta[key] = v; else delete meta[key]; });
+                });
+            };
+            const optNum = function(key) {
+                return numInput(meta[key], function(v) {
+                    commitMeta('Edit room', function() {
+                        if (v != null && isFinite(v)) meta[key] = v; else delete meta[key];
+                    });
+                }, { step: 'any' });
+            };
+            root.appendChild(fieldRow('Name', textInput(meta.name, function(v) {
+                commitMeta('Rename room', function() { meta.name = v; });
+            })));
+            root.appendChild(fieldRow('Site', textInput(meta.site, function(v) {
+                commitMeta('Edit room', function() { meta.site = v; });
+            })));
+            root.appendChild(fieldRow('Updated by', optText('updatedBy')));
+            root.appendChild(fieldRow('Contract kW', optNum('contractedKw')));
+            root.appendChild(fieldRow('Usable m²', optNum('usableM2')));
+            root.appendChild(fieldRow('Floor load', optText('floorLoading')));
+            root.appendChild(fieldRow('Notes', textInput(meta.notes, function(v) {
+                commitMeta('Edit room', function() { meta.notes = v; });
+            })));
+            const btnRow = el('div', { class: 'tool-grid' });
+            const outlineBtn = el('button', { class: 'tool-btn', text: 'Edit room outline' });
+            outlineBtn.addEventListener('click', startOutlineEdit);
+            btnRow.appendChild(outlineBtn);
+            if (roomOutline()) {
+                const resetBtn = el('button', { class: 'tool-btn', text: 'Reset to rectangle' });
+                resetBtn.addEventListener('click', function() {
+                    pushUndo('Reset room outline');
+                    delete doc.room.outline;
+                    markDirty();
+                    gridLayer.batchDraw();
+                    renderInspector();
+                    renderSummaryPanel();
+                });
+                btnRow.appendChild(resetBtn);
+            }
+            root.appendChild(btnRow);
+        }
         function renderInspector() {
             const root = document.getElementById('inspector');
             root.textContent = '';
             const objs = selectionObjects();
             if (!objs.length) {
-                root.appendChild(el('div', { class: 'inspector-empty', text: 'Nothing selected. Click an object, shift-click to multi-select, or drag a rubber band.' }));
+                renderRoomProperties(root);
                 return;
             }
             if (objs.length > 1) {
@@ -2848,7 +3458,7 @@
             }
             if (type === 'wall') {
                 root.appendChild(fieldRow('Thickness', numInput(obj.thickness || 100, function(v) { if (v > 0) editObject(obj, 'Edit wall', function() { obj.thickness = Math.round(v); }); })));
-                root.appendChild(el('div', { class: 'inspector-sub', text: obj.points.length + ' vertices — drag handles to edit, double-click to add, Alt-click to remove' }));
+                root.appendChild(el('div', { class: 'inspector-sub', text: obj.points.length + ' vertices — drag handles to edit, Alt+double-click adds one, Alt-click removes' }));
             }
             if (type === 'door') {
                 root.appendChild(fieldRow('Width (mm)', numInput(obj.width || 900, function(v) { if (v > 0) editObject(obj, 'Edit door', function() { obj.width = Math.round(v); }); })));
@@ -2875,8 +3485,32 @@
             if (type === 'zone') {
                 root.appendChild(fieldRow('Name', textInput(obj.name, function(v) { editObject(obj, 'Rename zone', function() { obj.name = v; }); })));
                 root.appendChild(fieldRow('Kind', selectInput(obj.kind || 'restricted', [
-                    { value: 'cold-aisle', label: 'Cold aisle containment' }, { value: 'restricted', label: 'Restricted area' }
+                    { value: 'cold-aisle', label: 'Cold aisle containment' },
+                    { value: 'hot-aisle', label: 'Hot aisle containment' },
+                    { value: 'restricted', label: 'Restricted area' }
                 ], function(v) { editObject(obj, 'Edit zone', function() { obj.kind = v; }); })));
+            }
+            if (type === 'cage' || type === 'zone') {
+                const colorIn = el('input', { type: 'color', value: toHexColor((obj.style && obj.style.stroke) || ZONE_STYLES[zoneStyleKey(obj)].stroke) });
+                colorIn.addEventListener('change', function() {
+                    editObject(obj, 'Recolour', function() {
+                        obj.style = { stroke: colorIn.value, fill: hexToRgba(colorIn.value, 0.10) };
+                    });
+                });
+                const resetColor = el('button', { class: 'btn btn-sm btn-outline', text: 'Reset' });
+                resetColor.addEventListener('click', function() {
+                    editObject(obj, 'Recolour', function() { delete obj.style; });
+                });
+                root.appendChild(el('div', { class: 'field-row' }, [el('label', { text: 'Colour' }), colorIn, resetColor]));
+            }
+            if (type === 'dimension') {
+                const dlen = Math.hypot(obj.x2 - obj.x1, obj.y2 - obj.y1);
+                root.appendChild(el('div', { class: 'inspector-sub', text: 'Length ' + (dlen / 1000).toFixed(2) + ' m — drag the endpoint handles to adjust' }));
+                ['x1', 'y1', 'x2', 'y2'].forEach(function(k) {
+                    root.appendChild(fieldRow(k + ' (mm)', numInput(obj[k], function(v) {
+                        if (v != null) editObject(obj, 'Edit dimension', function() { obj[k] = Math.round(v); });
+                    })));
+                });
             }
             if (type === 'label') {
                 root.appendChild(fieldRow('Text', textInput(obj.text, function(v) { editObject(obj, 'Edit label', function() { obj.text = v; }); })));
@@ -2912,8 +3546,7 @@
                         else obj.metadata[f.key] = f.type === 'number' ? Number(v) : v;
                     });
                 };
-                root.appendChild(fieldRow(f.label || f.key,
-                    f.type === 'number' ? numInput(val, commit, { step: 'any' }) : textInput(val, commit)));
+                root.appendChild(fieldRow(f.label || f.key, schemaFieldInput(f, val, commit)));
             });
             Object.keys(obj.metadata).forEach(function(k) {
                 if (shown.has(k)) return;
@@ -2933,6 +3566,134 @@
                 editObject(obj, 'Add metadata field', function() { obj.metadata[k] = valIn.value; });
             });
             root.appendChild(el('div', { class: 'field-row' }, [keyIn, valIn, addBtn]));
+        }
+
+        // --- Properties dialog (double-click any object) ---
+        // Edits land on a working clone; Save applies them as ONE undo step. Any
+        // object type can carry metadata this way, not just equipment.
+        function propsTitleFor(obj, def) {
+            if (obj.type === 'equipment') return def ? def.name : 'Equipment';
+            if (obj.type === 'cage') return obj.name || 'Cage';
+            if (obj.type === 'zone') return obj.name || 'Zone';
+            return obj.type.charAt(0).toUpperCase() + obj.type.slice(1);
+        }
+        function renderMetadataFields(root, holder, schema, rerender) {
+            root.appendChild(el('div', { class: 'meta-head', text: 'Metadata' }));
+            holder.metadata = holder.metadata || {};
+            const shown = new Set();
+            (schema || []).forEach(function(f) {
+                shown.add(f.key);
+                root.appendChild(fieldRow(f.label || f.key, schemaFieldInput(f, holder.metadata[f.key], function(v) {
+                    if (v === null || v === '') delete holder.metadata[f.key];
+                    else holder.metadata[f.key] = f.type === 'number' ? Number(v) : v;
+                })));
+            });
+            Object.keys(holder.metadata).forEach(function(k) {
+                if (shown.has(k)) return;
+                root.appendChild(fieldRow(k, textInput(holder.metadata[k], function(v) {
+                    if (v === '') delete holder.metadata[k]; else holder.metadata[k] = v;
+                })));
+            });
+            const keyIn = el('input', { type: 'text', placeholder: 'field' });
+            const valIn = el('input', { type: 'text', placeholder: 'value' });
+            const addBtn = el('button', { class: 'btn btn-sm btn-outline', text: '+', type: 'button', title: 'Add custom field' });
+            addBtn.addEventListener('click', function() {
+                const k = keyIn.value.trim();
+                if (!k) return;
+                holder.metadata[k] = valIn.value;
+                rerender();
+            });
+            root.appendChild(el('div', { class: 'field-row' }, [keyIn, valIn, addBtn]));
+        }
+        function renderPropsFields(root, work, def) {
+            root.textContent = '';
+            const rerender = function() { renderPropsFields(root, work, def); };
+            if (work.type === 'equipment') {
+                root.appendChild(fieldRow('Label', textInput(work.label, function(v) { work.label = v; })));
+            }
+            if (work.type === 'cage' || work.type === 'zone') {
+                root.appendChild(fieldRow('Name', textInput(work.name, function(v) { work.name = v; })));
+            }
+            if (work.type === 'zone') {
+                root.appendChild(fieldRow('Kind', selectInput(work.kind || 'restricted', [
+                    { value: 'cold-aisle', label: 'Cold aisle containment' },
+                    { value: 'hot-aisle', label: 'Hot aisle containment' },
+                    { value: 'restricted', label: 'Restricted area' }
+                ], function(v) { work.kind = v; })));
+            }
+            if (work.type === 'cage') {
+                const auto = el('input', { type: 'checkbox', checked: work.autoCapture !== false });
+                auto.addEventListener('change', function() { work.autoCapture = auto.checked; });
+                root.appendChild(el('label', { class: 'checkbox-row' }, [auto, el('span', { text: 'Auto-capture equipment inside' })]));
+            }
+            if (work.type === 'cage' || work.type === 'zone') {
+                const colorIn = el('input', { type: 'color', value: toHexColor((work.style && work.style.stroke) || ZONE_STYLES[zoneStyleKey(work)].stroke) });
+                colorIn.addEventListener('change', function() {
+                    work.style = { stroke: colorIn.value, fill: hexToRgba(colorIn.value, 0.10) };
+                });
+                const resetColor = el('button', { class: 'btn btn-sm btn-outline', text: 'Reset', type: 'button' });
+                resetColor.addEventListener('click', function() { delete work.style; rerender(); });
+                root.appendChild(el('div', { class: 'field-row' }, [el('label', { text: 'Colour' }), colorIn, resetColor]));
+            }
+            if (work.type === 'label') {
+                root.appendChild(fieldRow('Text', textInput(work.text, function(v) { work.text = v; })));
+                root.appendChild(fieldRow('Size (mm)', numInput(work.fontSize || 300, function(v) {
+                    if (v > 0) work.fontSize = Math.round(v);
+                }, { step: 50 })));
+            }
+            if (work.type === 'wall') {
+                root.appendChild(fieldRow('Thickness', numInput(work.thickness || 100, function(v) {
+                    if (v > 0) work.thickness = Math.round(v);
+                })));
+            }
+            if (work.type === 'door') {
+                root.appendChild(fieldRow('Width (mm)', numInput(work.width || 900, function(v) {
+                    if (v > 0) work.width = Math.round(v);
+                })));
+                root.appendChild(fieldRow('Hinge', selectInput(work.hinge || 'left', [
+                    { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }
+                ], function(v) { work.hinge = v; })));
+                root.appendChild(fieldRow('Swing', selectInput(work.swing || 'in', [
+                    { value: 'in', label: 'Inward' }, { value: 'out', label: 'Outward' }
+                ], function(v) { work.swing = v; })));
+                root.appendChild(fieldRow('Swing angle', numInput(work.swingAngle || 90, function(v) {
+                    if (v > 0 && v <= 180) work.swingAngle = Math.round(v);
+                }, { step: 15 })));
+            }
+            if (work.type === 'column') {
+                root.appendChild(fieldRow('Width (mm)', numInput(work.w || 400, function(v) { if (v > 0) work.w = Math.round(v); })));
+                root.appendChild(fieldRow('Depth (mm)', numInput(work.d || 400, function(v) { if (v > 0) work.d = Math.round(v); })));
+                root.appendChild(fieldRow('Shape', selectInput(work.shape || 'rect', [
+                    { value: 'rect', label: 'Rectangular' }, { value: 'round', label: 'Round' }
+                ], function(v) { work.shape = v; })));
+            }
+            renderMetadataFields(root, work, (def && def.metadataSchema) || null, rerender);
+        }
+        function openPropertiesDialog(obj) {
+            if (!obj) return;
+            const dlg = document.getElementById('props-dialog');
+            const def = obj.type === 'equipment' ? getDef(obj.defId) : null;
+            const work = JSON.parse(JSON.stringify(obj));
+            document.getElementById('props-title').textContent = propsTitleFor(obj, def);
+            renderPropsFields(document.getElementById('props-fields'), work, def);
+            dlg.returnValue = '';
+            dlg.onclose = function() {
+                if (dlg.returnValue !== 'save') return;
+                pushUndo('Edit properties');
+                if (work.metadata && !Object.keys(work.metadata).length) delete work.metadata;
+                // Replace the object's keys wholesale — the clone carries unknown
+                // keys through, so round-trip fidelity is preserved.
+                Object.keys(obj).forEach(function(k) { delete obj[k]; });
+                Object.assign(obj, work);
+                markDirty();
+                syncObjectNode(obj);
+                rebuildStatusOverlay();
+                renderLayersPanel();
+                selectionChanged();
+            };
+            document.getElementById('props-cancel').onclick = function() { dlg.close('cancel'); };
+            document.getElementById('props-form').onsubmit = function() { dlg.returnValue = 'save'; };
+            dlg.showModal();
         }
 
         // --- Status overlay panel ---
@@ -2959,6 +3720,23 @@
                 renderOverlayPanel();
             });
             root.appendChild(el('label', { class: 'checkbox-row' }, [enabled, el('span', { text: 'Colour equipment by metadata' })]));
+            const preset = el('button', {
+                class: 'btn btn-sm btn-secondary', text: 'Colour by usage type',
+                title: 'One-click categorical overlay on the standard rack usageType field with the conventional colours'
+            });
+            preset.addEventListener('click', function() {
+                pushUndo('Usage type preset');
+                so.enabled = true;
+                so.mode = 'categorical';
+                so.field = 'usageType';
+                so.categorical = so.categorical || {};
+                so.categorical.overrides = Object.assign({}, USAGE_TYPE_COLORS, so.categorical.overrides || {});
+                markDirty();
+                applyLayerState();
+                rebuildStatusOverlay();
+                renderOverlayPanel();
+            });
+            root.appendChild(preset);
             if (!so.enabled) {
                 root.appendChild(el('div', { class: 'inspector-empty', text: 'Tint racks by customer, capacity, or any metadata field, with an on-canvas key.' }));
                 return;
@@ -3030,6 +3808,105 @@
             });
             root.appendChild(el('label', { class: 'checkbox-row' }, [legendBox, el('span', { text: 'Show key on canvas' })]));
         }
+        // --- Summary panel (live capacity aggregates) ---
+        let summaryTimer = null;
+        function scheduleSummaryRefresh() {
+            if (summaryTimer) clearTimeout(summaryTimer);
+            summaryTimer = setTimeout(function() { summaryTimer = null; renderSummaryPanel(); }, 300);
+        }
+        function computeSummary() {
+            const s = {
+                racks: 0, byUsage: {}, contractedKw: 0, avgKw: 0, peakKw: 0,
+                pduKw: 0, coolingKw: 0, monitoring: 0, customers: {}
+            };
+            doc.objects.forEach(function(o) {
+                if (o.type !== 'equipment') return;
+                const def = getDef(o.defId);
+                const cat = def ? def.category : 'other';
+                const md = o.metadata || {};
+                if (cat === 'rack') {
+                    s.racks++;
+                    if (md.usageType) s.byUsage[md.usageType] = (s.byUsage[md.usageType] || 0) + 1;
+                    const c = Number(md.contractedKw);
+                    if (isFinite(c)) s.contractedKw += c;
+                    const a = Number(md.avgKw);
+                    if (isFinite(a)) s.avgKw += a;
+                    const p = Number(md.peakKw);
+                    if (isFinite(p)) s.peakKw += p;
+                    if (md.customer) {
+                        const e = s.customers[md.customer] = s.customers[md.customer] || { racks: 0, kw: 0 };
+                        e.racks++;
+                        if (isFinite(c)) e.kw += c;
+                    }
+                } else if (cat === 'pdu') {
+                    const c = Number(md.capacityKw);
+                    if (isFinite(c)) s.pduKw += c;
+                } else if (cat === 'cooling') {
+                    const c = Number(md.coolingKw);
+                    if (isFinite(c)) s.coolingKw += c;
+                } else if (cat === 'monitoring') {
+                    s.monitoring++;
+                }
+            });
+            const outline = roomOutline();
+            s.areaM2 = (outline ? polygonArea(outline) : doc.room.width * doc.room.depth) / 1e6;
+            return s;
+        }
+        function renderSummaryPanel() {
+            const root = document.getElementById('summary-panel');
+            if (!root || !doc) return;
+            root.textContent = '';
+            const s = computeSummary();
+            const row = function(label, value, cls) {
+                return el('div', { class: 'summary-row' + (cls ? ' ' + cls : '') }, [
+                    el('span', { text: label }), el('span', { class: 'val', text: value })
+                ]);
+            };
+            const kw = function(v) { return (Math.round(v * 10) / 10) + ' kW'; };
+            const cap = function(str) { return str.charAt(0).toUpperCase() + str.slice(1); };
+            root.appendChild(el('div', { class: 'summary-head', text: 'Space' }));
+            root.appendChild(row('Floor area', (Math.round(s.areaM2 * 10) / 10) + ' m²'));
+            if (doc.meta.usableM2 != null) root.appendChild(row('Usable', doc.meta.usableM2 + ' m²'));
+            root.appendChild(el('div', { class: 'summary-head', text: 'Racks' }));
+            root.appendChild(row('Total racks', String(s.racks)));
+            USAGE_TYPES.forEach(function(u) {
+                if (s.byUsage[u]) root.appendChild(row(cap(u), String(s.byUsage[u]), 'sub'));
+            });
+            Object.keys(s.byUsage).sort().forEach(function(u) {
+                if (USAGE_TYPES.indexOf(u) === -1) root.appendChild(row(cap(String(u)), String(s.byUsage[u]), 'sub'));
+            });
+            root.appendChild(el('div', { class: 'summary-head', text: 'Power' }));
+            root.appendChild(row('Contracted', kw(s.contractedKw)));
+            if (doc.meta.contractedKw != null && doc.meta.contractedKw > 0) {
+                root.appendChild(row('Room contract', kw(doc.meta.contractedKw)));
+                root.appendChild(row('Utilisation', Math.round(s.contractedKw / doc.meta.contractedKw * 100) + '%', 'sub'));
+            }
+            root.appendChild(row('Average', kw(s.avgKw)));
+            root.appendChild(row('Peak', kw(s.peakKw)));
+            if (s.pduKw) root.appendChild(row('PDU capacity', kw(s.pduKw)));
+            if (s.coolingKw) root.appendChild(row('Cooling capacity', kw(s.coolingKw)));
+            const custNames = Object.keys(s.customers).sort(function(a, b) {
+                return s.customers[b].kw - s.customers[a].kw || s.customers[b].racks - s.customers[a].racks || a.localeCompare(b);
+            });
+            if (custNames.length) {
+                root.appendChild(el('div', { class: 'summary-head', text: 'Customers' }));
+                custNames.slice(0, 8).forEach(function(c) {
+                    const e = s.customers[c];
+                    root.appendChild(row(c, e.racks + (e.kw ? ' · ' + kw(e.kw) : '')));
+                });
+                if (custNames.length > 8) {
+                    root.appendChild(row('… and ' + (custNames.length - 8) + ' more', '', 'sub'));
+                }
+            }
+            if (s.monitoring) {
+                root.appendChild(el('div', { class: 'summary-head', text: 'Monitoring' }));
+                root.appendChild(row('Devices', String(s.monitoring)));
+            }
+            if (!doc.objects.length) {
+                root.appendChild(el('div', { class: 'inspector-empty', text: 'Aggregates appear as you place equipment.' }));
+            }
+        }
+
         // <input type=color> needs #rrggbb — convert other CSS colours via canvas.
         let colorCtx = null;
         function toHexColor(c) {
@@ -3081,6 +3958,7 @@
                 case 'Escape':
                     hideContextMenu();
                     closeMenus();
+                    if (outlineEdit) { finishOutlineEdit(true); break; }
                     if (activeTool !== 'select') setActiveTool('select');
                     else clearSelection();
                     break;
@@ -3089,7 +3967,15 @@
                     deleteSelection();
                     break;
                 case 'Enter':
-                    if (drawPts.length) finishDrawing();
+                    if (outlineEdit) finishOutlineEdit(false);
+                    else if (drawPts.length) finishDrawing();
+                    else if (activeTool === 'select' && selection.size === 1) {
+                        // Defer past this key event, or the same Enter press
+                        // submits (and closes) the dialog it just opened.
+                        e.preventDefault();
+                        const target = selectionObjects()[0];
+                        setTimeout(function() { openPropertiesDialog(target); }, 0);
+                    }
                     break;
                 case 'r': rotateGhostOrSelection(90); break;
                 case 'R': rotateGhostOrSelection(-90); break;
@@ -3097,6 +3983,7 @@
                 case 'w': case 'W': setActiveTool('wall'); break;
                 case 'd': case 'D': setActiveTool('door'); break;
                 case 'c': case 'C': setActiveTool('cage'); break;
+                case 'm': case 'M': setActiveTool('dimension'); break;
                 case 't': case 'T': setActiveTool('label'); break;
                 case 'g': case 'G':
                     doc.room.grid.show = !doc.room.grid.show;
@@ -3388,7 +4275,7 @@
             }));
             layer.add(gridShape.clone());
             // A Layer clone can't be added to a layer — clone its groups in z-order.
-            ['building', 'containment', 'equipment', 'status', 'labels'].forEach(function(key) {
+            ['building', 'containment', 'equipment', 'status', 'monitoring', 'labels'].forEach(function(key) {
                 layer.add(sceneGroups[key].clone({ listening: false }));
             });
             layer.add(buildTitleBlock());
@@ -3413,18 +4300,39 @@
                 x: 0, y: 0, text: doc.meta.name || 'Untitled room',
                 fontFamily: 'Inter, sans-serif', fontSize: 620, fontStyle: '600', fill: '#3A2F28'
             }));
+            const s = computeSummary();
             const sub = [];
             if (doc.meta.site) sub.push(doc.meta.site);
             sub.push((doc.room.width / 1000) + ' × ' + (doc.room.depth / 1000) + ' m');
+            sub.push(Math.round(s.areaM2) + ' m²' + (doc.meta.usableM2 != null ? ' (' + doc.meta.usableM2 + ' m² usable)' : ''));
+            if (doc.meta.contractedKw != null) sub.push('contract ' + doc.meta.contractedKw + ' kW');
             sub.push('grid ' + doc.room.grid.pitch + ' mm');
             sub.push('exported ' + new Date().toISOString().slice(0, 10));
+            if (doc.meta.updatedBy) sub.push('by ' + doc.meta.updatedBy);
             g.add(new Konva.Text({
                 x: 0, y: 800, text: sub.join('  ·  '),
                 fontFamily: 'Inter, sans-serif', fontSize: 330, fill: '#6B5F54'
             }));
+            // Capacity summary line
+            const line2 = [];
+            if (s.racks) {
+                line2.push(s.racks + ' rack' + (s.racks === 1 ? '' : 's'));
+                if (s.contractedKw) {
+                    line2.push('Σ contracted ' + (Math.round(s.contractedKw * 10) / 10) + ' kW'
+                        + (doc.meta.contractedKw ? ' of ' + doc.meta.contractedKw + ' kW ('
+                            + Math.round(s.contractedKw / doc.meta.contractedKw * 100) + '%)' : ''));
+                }
+                if (s.peakKw) line2.push('peak ' + (Math.round(s.peakKw * 10) / 10) + ' kW');
+            }
+            if (line2.length) {
+                g.add(new Konva.Text({
+                    x: 0, y: 1250, text: line2.join('  ·  '),
+                    fontFamily: 'Inter, sans-serif', fontSize: 330, fill: '#6B5F54'
+                }));
+            }
             // Scale bar: 5 grid tiles
             const barLen = doc.room.grid.pitch * 5;
-            const barY = 1500;
+            const barY = 1900;
             g.add(new Konva.Line({ points: [0, barY, barLen, barY], stroke: '#3A2F28', strokeWidth: 60 }));
             g.add(new Konva.Line({ points: [0, barY - 120, 0, barY + 120], stroke: '#3A2F28', strokeWidth: 40 }));
             g.add(new Konva.Line({ points: [barLen, barY - 120, barLen, barY + 120], stroke: '#3A2F28', strokeWidth: 40 }));
@@ -3576,6 +4484,7 @@
             renderPalette();
             renderLayersPanel();
             renderOverlayPanel();
+            renderSummaryPanel();
             updateFilenameIndicator();
             updateSaveButtonState();
         }
@@ -3614,6 +4523,8 @@
                 counts: function() {
                     return { objects: doc.objects.length, nodes: nodeById.size };
                 },
+                summary: function() { return computeSummary(); },
+                openProps: function(id) { openPropertiesDialog(getObj(id)); },
                 get activeTool() { return activeTool; },
                 get drawPts() { return drawPts.slice(); },
                 rebuild: function() {

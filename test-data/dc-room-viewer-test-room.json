@@ -5,13 +5,19 @@
     "name": "Test Hall 1",
     "site": "Test Site",
     "notes": "Hand-authored fixture covering every object type.",
+    "updatedBy": "Fixture Author",
+    "contractedKw": 120,
+    "usableM2": 84,
+    "floorLoading": "Type 6 N36 Thermo, 300kg point",
     "created": "2026-07-17T09:00:00.000Z",
     "modified": "2026-07-17T09:00:00.000Z"
   },
   "room": {
     "width": 12000,
     "depth": 9000,
-    "grid": { "pitch": 600, "originX": 0, "originY": 0, "show": true, "snap": true },
+    "grid": { "pitch": 600, "originX": 0, "originY": 0, "show": true, "snap": true,
+              "labels": { "show": true, "skip": "IU" } },
+    "outline": [[0, 0], [12000, 0], [12000, 5400], [9600, 5400], [9600, 9000], [0, 9000]],
     "wallThickness": 200
   },
   "defs": {
@@ -26,7 +32,11 @@
       "metadataSchema": [
         { "key": "rackId", "label": "Rack ID", "type": "string" },
         { "key": "customer", "label": "Customer", "type": "string" },
-        { "key": "capacityKw", "label": "Capacity (kW)", "type": "number" },
+        { "key": "usageType", "label": "Usage type", "type": "select",
+          "options": ["leased", "compensation", "unoccupied", "planned", "reserved", "unusable", "internal", "unbuilt"] },
+        { "key": "contractedKw", "label": "Contracted (kW)", "type": "number" },
+        { "key": "avgKw", "label": "Average (kW)", "type": "number" },
+        { "key": "peakKw", "label": "Peak (kW)", "type": "number" },
         { "key": "uSpace", "label": "U space", "type": "number" }
       ]
     },
@@ -56,6 +66,35 @@
         { "key": "unitId", "label": "Unit ID", "type": "string" },
         { "key": "coolingKw", "label": "Cooling (kW)", "type": "number" }
       ]
+    },
+    "cam-dome-300": {
+      "id": "cam-dome-300",
+      "name": "CCTV dome camera",
+      "category": "monitoring",
+      "footprint": { "w": 300, "d": 300 },
+      "visual": { "fill": "#3B8749", "stroke": "#28632F", "shortCode": "CAM", "front": null },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        { "key": "cameraId", "label": "Camera ID", "type": "string" },
+        { "key": "installer", "label": "Installed by", "type": "string" },
+        { "key": "cabling", "label": "Cabling", "type": "string" },
+        { "key": "termination", "label": "Termination", "type": "string" }
+      ]
+    },
+    "sensor-temp-300": {
+      "id": "sensor-temp-300",
+      "name": "Temperature sensor",
+      "category": "monitoring",
+      "footprint": { "w": 300, "d": 300 },
+      "visual": { "fill": "#C0663B", "stroke": "#8F4826", "shortCode": "T", "front": null },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        { "key": "sensorId", "label": "Sensor ID", "type": "string" },
+        { "key": "system", "label": "Monitored by", "type": "string" },
+        { "key": "notes", "label": "Notes", "type": "string" }
+      ]
     }
   },
   "objects": [
@@ -63,6 +102,8 @@
       "points": [[1200, 600], [7800, 600], [7800, 4200], [1200, 4200]], "autoCapture": true },
     { "id": "z-cold1", "type": "zone", "kind": "cold-aisle", "name": "Cold aisle 1",
       "points": [[1200, 4800], [4800, 4800], [4800, 5400], [1200, 5400]] },
+    { "id": "z-hot1", "type": "zone", "kind": "hot-aisle", "name": "Hot aisle 1",
+      "points": [[1200, 6000], [4800, 6000], [4800, 6600], [1200, 6600]] },
     { "id": "z-restricted1", "type": "zone", "kind": "restricted", "name": "Restricted",
       "points": [[9600, 0], [12000, 0], [12000, 2400], [9600, 2400]] },
     { "id": "o-w1", "type": "wall", "points": [[9000, 0], [9000, 5400], [12000, 5400]], "thickness": 150 },
@@ -72,22 +113,34 @@
     { "id": "o-col2", "type": "column", "x": 6000, "y": 6600, "w": 400, "d": 400, "shape": "round" },
     { "id": "o-r1", "type": "equipment", "defId": "rack-600x1200", "x": 1500, "y": 1800,
       "rotation": 0, "label": "A01", "groupId": "g-row-a", "cageId": "c-acme",
-      "metadata": { "rackId": "A01", "customer": "Acme", "capacityKw": 4, "uSpace": 42 } },
+      "metadata": { "rackId": "A01", "customer": "Acme", "usageType": "leased",
+                    "contractedKw": 4, "avgKw": 2.1, "peakKw": 3.5, "uSpace": 42 } },
     { "id": "o-r2", "type": "equipment", "defId": "rack-600x1200", "x": 2100, "y": 1800,
       "rotation": 0, "label": "A02", "groupId": "g-row-a", "cageId": "c-acme",
-      "metadata": { "rackId": "A02", "customer": "Acme", "capacityKw": 6, "uSpace": 42 } },
+      "metadata": { "rackId": "A02", "customer": "Acme", "usageType": "leased",
+                    "contractedKw": 6, "avgKw": 3.2, "peakKw": 5.1, "uSpace": 42 } },
     { "id": "o-r3", "type": "equipment", "defId": "rack-600x1200", "x": 2700, "y": 1800,
       "rotation": 0, "label": "A03", "groupId": "g-row-a", "cageId": "c-acme",
-      "metadata": { "rackId": "A03", "customer": "Globex", "capacityKw": 8, "uSpace": 42 } },
+      "metadata": { "rackId": "A03", "customer": "Globex", "usageType": "leased",
+                    "contractedKw": 8, "avgKw": 4, "peakKw": 6.8, "uSpace": 42 } },
     { "id": "o-r4", "type": "equipment", "defId": "rack-600x1200", "x": 3300, "y": 1800,
       "rotation": 0, "label": "A04", "groupId": "g-row-a", "cageId": "c-acme",
-      "metadata": { "rackId": "A04", "customer": "Globex", "capacityKw": 12, "uSpace": 42 } },
+      "metadata": { "rackId": "A04", "customer": "Globex", "usageType": "internal",
+                    "contractedKw": 12, "avgKw": 7.5, "peakKw": 11, "uSpace": 42 } },
     { "id": "o-p1", "type": "equipment", "defId": "pdu-600x1070", "x": 4500, "y": 1800,
       "rotation": 0, "label": "PDU-A", "cageId": "c-acme",
       "metadata": { "pduId": "PDU-A", "feed": "A", "capacityKw": 60 } },
     { "id": "o-ac1", "type": "equipment", "defId": "crac-1800x900", "x": 2100, "y": 8250,
       "rotation": 0, "label": "AC-01",
       "metadata": { "unitId": "AC-01", "coolingKw": 90 } },
+    { "id": "o-cam1", "type": "equipment", "defId": "cam-dome-300", "x": 450, "y": 450,
+      "rotation": 0, "label": "1",
+      "metadata": { "cameraId": "CAM-01", "installer": "SERIS", "cabling": "UTP",
+                    "termination": "Rack A01, U23" } },
+    { "id": "o-s1", "type": "equipment", "defId": "sensor-temp-300", "x": 3000, "y": 5100,
+      "rotation": 0, "label": "",
+      "metadata": { "sensorId": "TS-01", "system": "BMS" } },
+    { "id": "o-dim1", "type": "dimension", "x1": 1200, "y1": 7800, "x2": 7200, "y2": 7800 },
     { "id": "l-1", "type": "label", "text": "ROW A", "x": 1200, "y": 300, "fontSize": 350, "rotation": 0 }
   ],
   "groups": [
@@ -98,6 +151,7 @@
     "containment": { "visible": true, "locked": false },
     "equipment": { "visible": true, "locked": false },
     "status": { "visible": true },
+    "monitoring": { "visible": true, "locked": false },
     "labels": { "visible": true, "locked": false }
   },
   "statusOverlay": {

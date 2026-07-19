@@ -213,10 +213,11 @@
     <main>
         <p class="lead">
             DC Room Viewer is a to-scale layout editor for data-centre rooms and halls.
-            Place racks, PDUs and cooling units from a component library onto a raised-floor
-            tile grid, draw walls, doors, cages and containment, colour equipment by any
-            metadata field, and export the drawing as PNG or PDF. Everything is stored in
-            plain JSON files on your machine — nothing leaves your browser.
+            Place racks, PDUs, cooling units, sensors and cameras from a component library
+            onto a raised-floor tile grid, draw walls, doors, cages and containment, colour
+            equipment by any metadata field, watch live capacity totals in the Summary panel,
+            and export the drawing as PNG or PDF. Everything is stored in plain JSON files
+            on your machine — nothing leaves your browser.
         </p>
 
         <div class="toc">
@@ -225,10 +226,12 @@
                 <li><a href="#concepts">Rooms and libraries</a></li>
                 <li><a href="#getting-started">Getting started</a></li>
                 <li><a href="#placing">Placing and editing equipment</a></li>
-                <li><a href="#drawing">Walls, doors, cages and zones</a></li>
+                <li><a href="#drawing">Walls, doors, cages, zones and dimensions</a></li>
+                <li><a href="#room-shape">Room shape and hall coordinates</a></li>
                 <li><a href="#layers">Layers</a></li>
                 <li><a href="#groups">Groups and cages</a></li>
                 <li><a href="#overlay">Status overlays and the key</a></li>
+                <li><a href="#summary">The Summary panel</a></li>
                 <li><a href="#files">Saving, autosave and files</a></li>
                 <li><a href="#export">Exporting PNG and PDF</a></li>
                 <li><a href="#shortcuts">Keyboard shortcuts</a></li>
@@ -245,7 +248,12 @@
                 equipment types — racks, PDUs, cooling units, structural items — each with a physical
                 footprint in millimetres, a colour, and a metadata schema (rack ID, customer,
                 capacity, and so on). The tool ships with a built-in starter library, and you can
-                open your own via <em>Library ▾ → Open library…</em>.
+                open your own via <em>Library ▾ → Open library…</em>. Racks carry standard
+                <code>contractedKw</code> / <code>avgKw</code> / <code>peakKw</code> power fields
+                and a <code>usageType</code> (leased, compensation, unoccupied, planned, reserved,
+                unusable, internal, unbuilt); the <em>Monitoring &amp; safety</em> category holds
+                round point markers — CCTV cameras, temperature/humidity/smoke/leak sensors, door
+                contacts, PIR motion, access readers and exit signs.
             </p>
             <p>
                 A <strong>room</strong> (<code>dc-room</code>) is the drawing itself: the hall
@@ -283,24 +291,34 @@
                 <li><strong>Select</strong> with a click; <kbd>Shift</kbd>-click to add/remove; drag on empty floor for a rubber-band selection.</li>
                 <li><strong>Move</strong> by dragging, or nudge one tile with the arrow keys (<kbd>Shift</kbd>+arrows = 10&nbsp;mm).</li>
                 <li><strong>Rotate</strong> in 90° steps with <kbd>R</kbd>, the rotation handle, or the context menu.</li>
-                <li>The <strong>Inspector</strong> shows exact x/y coordinates, rotation, the display label, and all metadata fields — rack ID, customer, capacity, plus any custom field you add.</li>
+                <li>The <strong>Inspector</strong> shows exact x/y coordinates, rotation, the display label, and all metadata fields — rack ID, customer, contracted/average/peak kW, plus any custom field you add.</li>
                 <li>The white tick on a rack marks its <strong>front face</strong>.</li>
             </ul>
+            <h3>The properties dialog</h3>
             <p>
-                Right-click any object for the context menu: rotate, duplicate, lock, bring to
-                front/send to back, cage membership, delete.
+                <strong>Double-click any object</strong> — rack, wall, door, cage, zone, column,
+                label, dimension or sensor — to open its properties dialog: the object's data
+                fields plus a metadata editor (every object type can carry metadata, not just
+                equipment). Edits apply as a single undo step when you press <em>Save</em>;
+                <kbd>Esc</kbd> discards them. <kbd>Enter</kbd> with one object selected, or
+                <em>Properties…</em> in the context menu, opens the same dialog.
+            </p>
+            <p>
+                Right-click any object for the context menu: properties, rotate, duplicate, lock,
+                bring to front/send to back, cage membership, delete.
             </p>
         </section>
 
         <section id="drawing">
-            <h2>4. Walls, doors, cages and zones</h2>
+            <h2>4. Walls, doors, cages, zones and dimensions</h2>
             <h3>Walls</h3>
             <p>
                 The <em>Wall</em> tool draws a polyline: click each vertex, double-click or
                 <kbd>Enter</kbd> to finish. Select a wall to edit its vertices — drag the handles,
-                double-click a segment to insert a vertex, <kbd>Alt</kbd>-click a handle to remove
-                one. Thickness is set in the Inspector. (The room's outer boundary wall is drawn
-                automatically from the room dimensions.)
+                <kbd>Alt</kbd>+double-click a segment to insert a vertex, <kbd>Alt</kbd>-click a
+                handle to remove one. (Plain double-click opens the wall's properties.) Thickness
+                is set in the Inspector. The room's outer boundary wall is drawn automatically
+                from the room shape.
             </p>
             <h3>Doors</h3>
             <p>
@@ -310,24 +328,60 @@
             </p>
             <h3>Cages, containment and restricted areas</h3>
             <p>
-                <em>Cage</em>, <em>Cold aisle</em> and <em>Restricted</em> draw closed polygons the
-                same way as walls. Cages have <strong>auto-capture</strong>: equipment dropped inside
-                becomes a member (shown in the Inspector), and dragged out it leaves. Columns are
-                placed with a single click.
+                <em>Cage</em>, <em>Cold aisle</em>, <em>Hot aisle</em> and <em>Restricted</em> draw
+                closed polygons the same way as walls. Cages have <strong>auto-capture</strong>:
+                equipment dropped inside becomes a member (shown in the Inspector), and dragged out
+                it leaves. Each cage or zone can be given its own boundary colour from the
+                Inspector or properties dialog. Columns are placed with a single click.
+            </p>
+            <h3>Dimension annotations</h3>
+            <p>
+                The <em>Dimension</em> tool (<kbd>M</kbd>) draws a double-headed measuring arrow
+                with two clicks; the length label ("14.40 m") updates automatically as you drag
+                either endpoint handle. Dimensions live on the Labels &amp; legends layer and
+                export with the drawing.
+            </p>
+        </section>
+
+        <section id="room-shape">
+            <h2>5. Room shape and hall coordinates</h2>
+            <h3>Non-rectangular rooms</h3>
+            <p>
+                Rooms are rectangular by default, but real halls have annexes and notches.
+                <em>Edit room outline</em> (in Room properties, shown in the Inspector when nothing
+                is selected, or under the Grid layer's controls) turns the boundary into an editable
+                polygon: drag the corner handles, double-click an edge to add a corner,
+                <kbd>Alt</kbd>-click one to remove it, then <kbd>Enter</kbd> to finish
+                (<kbd>Esc</kbd> cancels). The tile grid, boundary wall and floor-area figure all
+                follow the outline.
+            </p>
+            <h3>Grid coordinate labels</h3>
+            <p>
+                Column letters run across the top of the hall and row numbers down the side, exactly
+                as on survey drawings; the status bar shows the tile reference under the cursor
+                (e.g. <code>AF12</code>). Toggle them, or skip confusable letters (many halls omit
+                <code>I</code> and <code>U</code>), from the Grid layer's controls.
+            </p>
+            <h3>Room properties</h3>
+            <p>
+                With nothing selected, the Inspector edits the room itself: name, site, updated-by,
+                contracted power (kW), usable floor area, floor-loading note and free-text notes.
+                These feed the Summary panel and the export title block.
             </p>
         </section>
 
         <section id="layers">
-            <h2>5. Layers</h2>
+            <h2>6. Layers</h2>
             <p class="h2-sub">A fixed, standard stack — objects always live on the layer their type belongs to.</p>
             <table>
                 <tr><th>Layer</th><th>Contents</th><th>Controls</th></tr>
-                <tr><td>Grid</td><td>Tile grid and room boundary</td><td>Show/hide, pitch, origin, snap on/off</td></tr>
+                <tr><td>Grid</td><td>Tile grid, room boundary, coordinate labels</td><td>Show/hide, pitch, origin, snap, coordinates, outline</td></tr>
                 <tr><td>Building</td><td>Walls, doors, columns, structural items</td><td>Show/hide, lock</td></tr>
-                <tr><td>Containment</td><td>Cages, cold-aisle containment, restricted areas</td><td>Show/hide, lock, per-cage visibility</td></tr>
+                <tr><td>Containment</td><td>Cages, cold/hot-aisle containment, restricted areas</td><td>Show/hide, lock, per-cage visibility</td></tr>
                 <tr><td>Equipment</td><td>Racks, PDUs, cooling</td><td>Show/hide, lock</td></tr>
                 <tr><td>Capacity / status</td><td>Colour-by-metadata tint overlay</td><td>Show/hide</td></tr>
-                <tr><td>Labels &amp; legends</td><td>Free text labels and the on-canvas key</td><td>Show/hide, lock</td></tr>
+                <tr><td>Monitoring</td><td>Sensors, cameras and safety markers</td><td>Show/hide, lock</td></tr>
+                <tr><td>Labels &amp; legends</td><td>Free text labels, dimensions and the on-canvas key</td><td>Show/hide, lock</td></tr>
             </table>
             <p>
                 Locking a layer makes everything on it unselectable and immovable. Individual
@@ -337,7 +391,7 @@
         </section>
 
         <section id="groups">
-            <h2>6. Groups and cages</h2>
+            <h2>7. Groups and cages</h2>
             <p>
                 Select several objects and press <kbd>Ctrl/Cmd</kbd>+<kbd>G</kbd> to group them —
                 clicking any member then selects the whole group (double-click drills into a single
@@ -352,23 +406,43 @@
         </section>
 
         <section id="overlay">
-            <h2>7. Status overlays and the key</h2>
+            <h2>8. Status overlays and the key</h2>
             <p>
                 The <em>Capacity / status overlay</em> section tints equipment by any metadata field:
             </p>
             <ul>
                 <li><strong>Categories</strong> — one colour per distinct value (e.g. customer). Colours are assigned automatically and can be overridden per value.</li>
-                <li><strong>Numeric thresholds</strong> — banded colours for fields like <code>capacityKw</code> (e.g. green ≤ 4, amber ≤ 8, red above).</li>
+                <li><strong>Numeric thresholds</strong> — banded colours for fields like <code>contractedKw</code> (e.g. green ≤ 4, amber ≤ 8, red above).</li>
             </ul>
             <p>
+                The <strong>Colour by usage type</strong> button applies the conventional survey
+                palette in one click — pink/red leased, purple compensation, green unoccupied,
+                yellow reserved, grey unusable, light-blue internal, and so on — driven by the
+                racks' standard <code>usageType</code> field.
+            </p>
+            <p>
                 The <strong>key</strong> is drawn on the canvas itself (drag it anywhere; its position
-                is saved in the room file), so it appears in PNG/PDF exports. With no overlay active
-                it shows the equipment category colours instead.
+                is saved in the room file), so it appears in PNG/PDF exports, and each entry shows a
+                live count — "Leased (96)". With no overlay active it shows the equipment category
+                colours instead.
+            </p>
+        </section>
+
+        <section id="summary">
+            <h2>9. The Summary panel</h2>
+            <p>
+                The <em>Summary</em> sidebar section aggregates the room live as you edit:
+                floor area (outline-aware) and usable area, rack count with a usage-type breakdown,
+                total contracted / average / peak kW across racks — with a utilisation percentage
+                against the room's contracted power when set — PDU and cooling capacity totals,
+                a per-customer table (racks and contracted kW), and the monitoring device count.
+                A condensed version ("266 racks · Σ contracted 312 kW of 330 kW (95%)") is printed
+                in the export title block.
             </p>
         </section>
 
         <section id="files">
-            <h2>8. Saving, autosave and files</h2>
+            <h2>10. Saving, autosave and files</h2>
             <ul>
                 <li>In Chrome/Edge, <strong>Open</strong> and <strong>Save As…</strong> use real file handles — <strong>Save</strong> then overwrites the file in place. In other browsers, Save downloads the file instead.</li>
                 <li>Unsaved work is snapshotted to the browser's local storage every second while you edit. After a crash or accidental tab close, reopening the tool offers to <strong>restore</strong> the snapshot.</li>
@@ -378,11 +452,12 @@
         </section>
 
         <section id="export">
-            <h2>9. Exporting PNG and PDF</h2>
+            <h2>11. Exporting PNG and PDF</h2>
             <p>
                 <em>Export ▾ → PNG image</em> renders the room at print quality with a title block —
-                room name, dimensions, grid pitch, export date and a scale bar — plus the on-canvas
-                key. <em>Export ▾ → PDF drawing</em> wraps the same rendering on an A3 page
+                room name, site, dimensions, floor area, contracted power, grid pitch, export date,
+                updated-by, a capacity summary line and a scale bar — plus the on-canvas key.
+                <em>Export ▾ → PDF drawing</em> wraps the same rendering on an A3 page
                 (orientation chosen automatically), with the room name as the document title.
             </p>
             <p>
@@ -392,11 +467,14 @@
         </section>
 
         <section id="shortcuts">
-            <h2>10. Keyboard shortcuts</h2>
+            <h2>12. Keyboard shortcuts</h2>
             <table>
                 <tr><th>Keys</th><th>Action</th></tr>
-                <tr><td><kbd>V</kbd> / <kbd>W</kbd> / <kbd>D</kbd> / <kbd>C</kbd> / <kbd>T</kbd></td><td>Select / Wall / Door / Cage / Label tool</td></tr>
-                <tr><td><kbd>Esc</kbd></td><td>Cancel drawing, exit tool, or clear selection</td></tr>
+                <tr><td><kbd>V</kbd> / <kbd>W</kbd> / <kbd>D</kbd> / <kbd>C</kbd> / <kbd>M</kbd> / <kbd>T</kbd></td><td>Select / Wall / Door / Cage / Dimension / Label tool</td></tr>
+                <tr><td>Double-click</td><td>Open an object's properties dialog</td></tr>
+                <tr><td><kbd>Enter</kbd></td><td>Open properties for the selected object</td></tr>
+                <tr><td><kbd>Alt</kbd>+double-click</td><td>Insert a vertex on the selected wall</td></tr>
+                <tr><td><kbd>Esc</kbd></td><td>Cancel drawing/outline edit, close dialog, exit tool, or clear selection</td></tr>
                 <tr><td><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>Rotate selection (or placement ghost) ±90°</td></tr>
                 <tr><td>Arrows / <kbd>Shift</kbd>+arrows</td><td>Nudge one tile / 10 mm</td></tr>
                 <tr><td><kbd>Delete</kbd></td><td>Delete selection</td></tr>
@@ -409,12 +487,12 @@
                 <tr><td><kbd>G</kbd></td><td>Toggle grid</td></tr>
                 <tr><td><kbd>Space</kbd>+drag, middle-drag</td><td>Pan</td></tr>
                 <tr><td><kbd>Alt</kbd> while dragging</td><td>Bypass grid snap</td></tr>
-                <tr><td><kbd>Enter</kbd> / double-click</td><td>Finish wall or polygon drawing</td></tr>
+                <tr><td><kbd>Enter</kbd> / double-click</td><td>Finish wall, polygon or outline drawing</td></tr>
             </table>
         </section>
 
         <section id="json">
-            <h2>11. JSON file reference</h2>
+            <h2>13. JSON file reference</h2>
             <p class="h2-sub">Both formats are versioned; unknown fields survive a load/save round-trip.</p>
             <h3>Component library (<code>dc-room-library</code>)</h3>
             <pre><code>{
@@ -425,30 +503,46 @@
     {
       "id": "rack-600x1200",
       "name": "Rack 600×1200",
-      "category": "rack",              // rack | pdu | cooling | structural | other
+      "category": "rack",   // rack | pdu | cooling | structural | monitoring | other
       "footprint": { "w": 600, "d": 1200 },   // mm
       "visual": { "fill": "#5B7A9D", "stroke": "#3A4A5D",
                   "shortCode": "R", "front": "south" },
       "resizable": false,
       "metadata": { "uSpace": 42 },    // defaults copied to new instances
       "metadataSchema": [
-        { "key": "rackId",     "label": "Rack ID",       "type": "string" },
-        { "key": "customer",   "label": "Customer",      "type": "string" },
-        { "key": "capacityKw", "label": "Capacity (kW)", "type": "number" }
+        { "key": "rackId",       "label": "Rack ID",         "type": "string" },
+        { "key": "customer",     "label": "Customer",        "type": "string" },
+        { "key": "usageType",    "label": "Usage type",      "type": "select",
+          "options": ["leased", "compensation", "unoccupied", "planned",
+                      "reserved", "unusable", "internal", "unbuilt"] },
+        { "key": "contractedKw", "label": "Contracted (kW)", "type": "number" },
+        { "key": "avgKw",        "label": "Average (kW)",    "type": "number" },
+        { "key": "peakKw",       "label": "Peak (kW)",       "type": "number" }
       ]
     }
   ]
 }</code></pre>
+            <div class="callout">
+                <code>category: "monitoring"</code> components render as round point markers on the
+                Monitoring layer; schema fields with <code>"type": "select"</code> render as a
+                dropdown of their <code>options</code>.
+            </div>
             <h3>Room (<code>dc-room</code>)</h3>
             <pre><code>{
   "format": "dc-room",
   "version": 1,
   "meta": { "name": "Hall 1", "site": "", "notes": "",
+            "updatedBy": "R. Sarhan",        // optional
+    "contractedKw": 330, "usableM2": 365,    // optional room-level figures
+    "floorLoading": "Type 6 N36, 300kg",     // optional
             "created": "…", "modified": "…" },
   "room": {
-    "width": 24000, "depth": 18000,          // mm
+    "width": 24000, "depth": 18000,          // mm (bounding box)
     "grid": { "pitch": 600, "originX": 0, "originY": 0,
-              "show": true, "snap": true },
+              "show": true, "snap": true,
+              "labels": { "show": true, "skip": "IU" } },  // hall coordinates
+    "outline": [[0,0],[24000,0],[24000,12000],
+                [15000,12000],[15000,18000],[0,18000]],    // optional L-shape
     "wallThickness": 200
   },
   "defs": { "rack-600x1200": { …component copied from library… } },
@@ -457,7 +551,11 @@
       "x": 1500, "y": 1200,                  // footprint centre, mm
       "rotation": 0, "label": "A01",
       "groupId": "g-row-a", "cageId": "c-acme",
-      "metadata": { "rackId": "A01", "customer": "Acme", "capacityKw": 8 } },
+      "metadata": { "rackId": "A01", "customer": "Acme", "usageType": "leased",
+                    "contractedKw": 8, "avgKw": 4.2, "peakKw": 6.9 } },
+    { "id": "o-s1", "type": "equipment", "defId": "sensor-temp-300",
+      "x": 3000, "y": 5100, "rotation": 0,   // monitoring marker
+      "metadata": { "sensorId": "TS-01", "system": "BMS" } },
     { "id": "o-w1", "type": "wall",
       "points": [[6000,0],[6000,9000]], "thickness": 150 },
     { "id": "o-d1", "type": "door", "x": 3000, "y": 0, "width": 900,
@@ -466,9 +564,12 @@
       "w": 400, "d": 400, "shape": "rect" },
     { "id": "c-acme", "type": "cage", "name": "Acme cage",
       "points": [[1200,600],[7200,600],[7200,6600],[1200,6600]],
-      "autoCapture": true },
-    { "id": "z-1", "type": "zone", "kind": "cold-aisle",   // or "restricted"
-      "name": "Cold aisle 1", "points": [ … ] },
+      "autoCapture": true,
+      "style": { "stroke": "#E8A020", "fill": "rgba(232,160,32,0.1)" } },
+    { "id": "z-1", "type": "zone", "kind": "cold-aisle",
+      "name": "Cold aisle 1", "points": [ … ] },  // cold-aisle | hot-aisle | restricted
+    { "id": "o-dim1", "type": "dimension",
+      "x1": 1200, "y1": 7800, "x2": 15600, "y2": 7800 },  // auto "14.40 m" label
     { "id": "l-1", "type": "label", "text": "ROW A",
       "x": 4000, "y": 900, "fontSize": 300, "rotation": 0 }
   ],
@@ -477,9 +578,10 @@
               "containment": { "visible": true, "locked": false },
               "equipment":   { "visible": true, "locked": false },
               "status":      { "visible": true },
+              "monitoring":  { "visible": true, "locked": false },
               "labels":      { "visible": true, "locked": false } },
   "statusOverlay": {
-    "enabled": true, "mode": "numeric", "field": "capacityKw",
+    "enabled": true, "mode": "numeric", "field": "contractedKw",
     "opacity": 0.55,
     "categorical": { "overrides": { "Acme": "#4A5D47" } },
     "numeric": { "stops": [
@@ -490,6 +592,11 @@
   "legend": { "visible": true, "x": 18800, "y": 600 }
 }</code></pre>
             <div class="callout">
+                Every object type may carry a <code>metadata</code> object (edited via the
+                double-click properties dialog), and cages/zones accept an optional
+                <code>style</code> colour override.
+            </div>
+            <div class="callout">
                 Coordinates use millimetres with the origin at the room's top-left corner,
                 x increasing rightwards and y downwards. Equipment <code>x, y</code> is the
                 footprint centre; rotation is degrees clockwise about that centre.
@@ -497,7 +604,7 @@
         </section>
 
         <section id="privacy">
-            <h2>12. Privacy</h2>
+            <h2>14. Privacy</h2>
             <p>
                 All data handling happens locally in your browser. Room and library files live on
                 your machine; the crash-recovery snapshot lives in your browser's local storage.

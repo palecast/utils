@@ -18,16 +18,29 @@
       ]
     },
     {
-      "id": "busway-2400x300",
-      "name": "Overhead busway",
+      "id": "busway-1800x300-custom",
+      "name": "Custom short busway",
       "category": "other",
-      "footprint": { "w": 2400, "d": 300 },
+      "footprint": { "w": 1800, "d": 300 },
       "visual": { "fill": "#C9A227", "stroke": "#8B6F47", "shortCode": "BW", "front": null },
       "resizable": true,
       "metadata": {},
       "metadataSchema": [
         { "key": "buswayId", "label": "Busway ID", "type": "string" },
         { "key": "ampacity", "label": "Ampacity (A)", "type": "number" }
+      ]
+    },
+    {
+      "id": "vibration-sensor-300",
+      "name": "Vibration sensor",
+      "category": "monitoring",
+      "footprint": { "w": 300, "d": 300 },
+      "visual": { "fill": "#805A7A", "stroke": "#5D4058", "shortCode": "VB", "front": null },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        { "key": "sensorId", "label": "Sensor ID", "type": "string" },
+        { "key": "system", "label": "Monitored by", "type": "string" }
       ]
     }
   ]
