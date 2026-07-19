@@ -214,9 +214,15 @@
         .control-section.collapsed .section-body { display: none; }
 
         /* Palette */
-        .palette-cat { font-size: 11px; font-weight: 600; color: var(--text-muted); margin: 8px 0 4px; }
+        .palette-cat {
+            font-size: 11px; font-weight: 600; color: var(--text-muted); margin: 8px 0 4px;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; user-select: none;
+        }
         .palette-cat:first-child { margin-top: 0; }
+        .palette-cat .chevron { font-size: 9px; }
         .palette-items { display: flex; flex-wrap: wrap; gap: 6px; }
+        .palette-items.collapsed { display: none; }
         .palette-chip {
             display: inline-flex;
             flex-direction: column;
@@ -336,6 +342,22 @@
             overflow: hidden;
         }
         #sb-hint { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Floating canvas tooltip (resize dimensions, wall lengths) */
+        #canvas-tooltip {
+            position: absolute;
+            z-index: 30;
+            pointer-events: none;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(58, 47, 40, 0.12);
+        }
 
         /* Context menu */
         #context-menu {
@@ -488,6 +510,8 @@
                         <button class="tool-btn active" data-tool="select">Select<span class="tool-hint-key">V</span></button>
                         <button class="tool-btn" data-tool="wall">Wall<span class="tool-hint-key">W</span></button>
                         <button class="tool-btn" data-tool="door">Door<span class="tool-hint-key">D</span></button>
+                        <button class="tool-btn" data-tool="door-double">Double door</button>
+                        <button class="tool-btn" data-tool="door-airlock">Air-lock</button>
                         <button class="tool-btn" data-tool="column">Column</button>
                         <button class="tool-btn" data-tool="cage">Cage<span class="tool-hint-key">C</span></button>
                         <button class="tool-btn" data-tool="zone-cold">Cold aisle</button>
@@ -1000,7 +1024,8 @@
         function objectAABB(obj) {
             if (obj.type === 'equipment') {
                 const def = getDef(obj.defId);
-                const w = def ? def.footprint.w : 600, d = def ? def.footprint.d : 600;
+                // obj.w/obj.d are per-object resize overrides of the footprint
+                const w = obj.w || (def ? def.footprint.w : 600), d = obj.d || (def ? def.footprint.d : 600);
                 const he = rotatedHalfExtents(w, d, obj.rotation || 0);
                 return { x1: obj.x - he.hw, y1: obj.y - he.hh, x2: obj.x + he.hw, y2: obj.y + he.hh };
             }
@@ -1018,7 +1043,9 @@
             }
             if (obj.type === 'door') {
                 const w = obj.width || 900;
-                return { x1: obj.x - w, y1: obj.y - w, x2: obj.x + w, y2: obj.y + w };
+                // Rotation-safe radius; the air-lock vestibule extends the reach.
+                const r = w + (obj.kind === 'airlock' ? (obj.vestibuleDepth || 1500) : 0);
+                return { x1: obj.x - r, y1: obj.y - r, x2: obj.x + r, y2: obj.y + r };
             }
             if (obj.type === 'dimension') {
                 return {
@@ -1056,24 +1083,37 @@
             const o = doc && doc.room && doc.room.outline;
             return (Array.isArray(o) && o.length >= 3) ? o : null;
         }
+        // Nearest segment of a polyline to (x, y): the segment's start-vertex
+        // index, the projected point, its distance, and the segment length.
+        function nearestSegment(points, x, y) {
+            let best = null;
+            for (let i = 0; i < points.length - 1; i++) {
+                const ax = points[i][0], ay = points[i][1];
+                const bx = points[i + 1][0], by = points[i + 1][1];
+                const dx = bx - ax, dy = by - ay;
+                const len2 = dx * dx + dy * dy;
+                if (!len2) continue;
+                const t = clamp(((x - ax) * dx + (y - ay) * dy) / len2, 0, 1);
+                const px = ax + t * dx, py = ay + t * dy;
+                const dist = Math.hypot(x - px, y - py);
+                if (!best || dist < best.dist) {
+                    best = { index: i, px: px, py: py, dist: dist, len: Math.sqrt(len2) };
+                }
+            }
+            return best;
+        }
         // Nearest point on any wall segment within maxDist — used by the door tool.
         function nearestWallPoint(x, y, maxDist) {
             let best = null;
             doc.objects.forEach(function(o) {
                 if (o.type !== 'wall' || !o.points || o.points.length < 2) return;
-                for (let i = 0; i < o.points.length - 1; i++) {
-                    const ax = o.points[i][0], ay = o.points[i][1];
-                    const bx = o.points[i + 1][0], by = o.points[i + 1][1];
-                    const dx = bx - ax, dy = by - ay;
-                    const len2 = dx * dx + dy * dy;
-                    if (!len2) continue;
-                    let t = ((x - ax) * dx + (y - ay) * dy) / len2;
-                    t = clamp(t, 0, 1);
-                    const px = ax + t * dx, py = ay + t * dy;
-                    const dist = Math.hypot(x - px, y - py);
-                    if (dist <= maxDist && (!best || dist < best.dist)) {
-                        best = { x: px, y: py, angle: Math.atan2(dy, dx) * 180 / Math.PI, dist: dist };
-                    }
+                const seg = nearestSegment(o.points, x, y);
+                if (!seg || seg.dist > maxDist) return;
+                if (!best || seg.dist < best.dist) {
+                    const a = o.points[seg.index], b = o.points[seg.index + 1];
+                    best = { x: seg.px, y: seg.py,
+                             angle: Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI,
+                             dist: seg.dist };
                 }
             });
             return best;
@@ -1337,6 +1377,9 @@
         const UI_STATE_KEY = 'dcRoomViewerUiState';
         const UI_STATE_VERSION = 1;
         const SECTION_KEYS = ['palette', 'tools', 'layers', 'summary', 'inspector', 'overlay'];
+        // Palette categories are rendered dynamically, so their collapse state
+        // lives in its own map rather than SECTION_KEYS.
+        let paletteCatsCollapsed = {};
         function readUiState() {
             try {
                 const raw = localStorage.getItem(UI_STATE_KEY);
@@ -1354,7 +1397,8 @@
             const state = {
                 v: UI_STATE_VERSION,
                 sidebarCollapsed: document.getElementById('sidebar').classList.contains('collapsed'),
-                sectionsCollapsed: sectionsCollapsed
+                sectionsCollapsed: sectionsCollapsed,
+                paletteCats: paletteCatsCollapsed
             };
             try { localStorage.setItem(UI_STATE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
         }
@@ -1362,6 +1406,7 @@
             const s = readUiState();
             if (!s) return;
             if (s.sidebarCollapsed) document.getElementById('sidebar').classList.add('collapsed');
+            if (s.paletteCats && typeof s.paletteCats === 'object') paletteCatsCollapsed = s.paletteCats;
             SECTION_KEYS.forEach(function(k) {
                 if (s.sectionsCollapsed && s.sectionsCollapsed[k]) {
                     const sec = document.querySelector('.control-section[data-section="' + k + '"]');
@@ -1378,6 +1423,7 @@
         let stage, gridLayer, roomLayer, overlayLayer, gridShape;
         const sceneGroups = {}; // building | containment | equipment | status | monitoring | labels → Konva.Group
         let selOutlineGroup, transformer;
+        let canvasTooltipEl = null;
         const nodeById = new Map(); // object id → top-level Konva node
         let equipmentTexts = [];    // for zoom-threshold label culling
         let labelsCulledNow = false;
@@ -1422,7 +1468,12 @@
                 stage.size({ width: container.clientWidth, height: container.clientHeight });
             }).observe(container);
 
+            canvasTooltipEl = el('div', { id: 'canvas-tooltip' });
+            canvasTooltipEl.style.display = 'none';
+            container.appendChild(canvasTooltipEl);
+
             stage.on('wheel', onWheelZoom);
+            stage.on('mouseleave', hideCanvasTooltip);
             wireStagePointer();
         }
 
@@ -1723,37 +1774,70 @@
         function createDoorNode(obj) {
             const w = obj.width || 900;
             const swingAngle = obj.swingAngle || 90;
+            const kind = obj.kind || 'single';
             const group = new Konva.Group({ x: obj.x, y: obj.y, rotation: obj.rotation || 0, draggable: true });
             // Doorway gap "cuts" the wall visually; it is also the hit region.
-            group.add(new Konva.Line({
-                points: [0, 0, w, 0], stroke: '#FAF8F5', strokeWidth: 260,
-                lineCap: 'butt', hitStrokeWidth: 400, perfectDrawEnabled: false
-            }));
-            group.add(new Konva.Line({
-                points: [0, 0, w, 0], stroke: '#8B6F47', strokeWidth: 24,
-                dash: [90, 90], listening: false, perfectDrawEnabled: false
-            }));
-            const pivotX = obj.hinge === 'right' ? w : 0;
-            const dirIn = obj.swing === 'out' ? 1 : -1; // -y is "in" by convention
-            let arcRotation, openAngleDeg;
-            if (obj.hinge === 'right') {
-                arcRotation = dirIn === -1 ? 180 : 180 - swingAngle;
-                openAngleDeg = dirIn === -1 ? 180 + swingAngle : 180 - swingAngle;
-            } else {
-                arcRotation = dirIn === -1 ? -swingAngle : 0;
-                openAngleDeg = dirIn === -1 ? -swingAngle : swingAngle;
+            function addGap(y0) {
+                group.add(new Konva.Line({
+                    points: [0, y0, w, y0], stroke: '#FAF8F5', strokeWidth: 260,
+                    lineCap: 'butt', hitStrokeWidth: 400, perfectDrawEnabled: false
+                }));
+                group.add(new Konva.Line({
+                    points: [0, y0, w, y0], stroke: '#8B6F47', strokeWidth: 24,
+                    dash: [90, 90], listening: false, perfectDrawEnabled: false
+                }));
             }
-            group.add(new Konva.Arc({
-                x: pivotX, y: 0, innerRadius: 0, outerRadius: w,
-                angle: swingAngle, rotation: arcRotation,
-                stroke: '#8B6F47', strokeWidth: 18, dash: [80, 80],
-                listening: false, perfectDrawEnabled: false
-            }));
-            const rad = openAngleDeg * Math.PI / 180;
-            group.add(new Konva.Line({
-                points: [pivotX, 0, pivotX + w * Math.cos(rad), w * Math.sin(rad)],
-                stroke: '#6B5F54', strokeWidth: 45, listening: false, perfectDrawEnabled: false
-            }));
+            // One swing arc + leaf line. pivotX/hingeRight pick the jamb,
+            // dirIn the opening direction (-y is "in" by convention), y0 the
+            // door line the leaf sits on (non-zero for the air-lock's inner door).
+            function addLeaf(pivotX, leafW, hingeRight, dirIn, y0) {
+                let arcRotation, openAngleDeg;
+                if (hingeRight) {
+                    arcRotation = dirIn === -1 ? 180 : 180 - swingAngle;
+                    openAngleDeg = dirIn === -1 ? 180 + swingAngle : 180 - swingAngle;
+                } else {
+                    arcRotation = dirIn === -1 ? -swingAngle : 0;
+                    openAngleDeg = dirIn === -1 ? -swingAngle : swingAngle;
+                }
+                group.add(new Konva.Arc({
+                    x: pivotX, y: y0, innerRadius: 0, outerRadius: leafW,
+                    angle: swingAngle, rotation: arcRotation,
+                    stroke: '#8B6F47', strokeWidth: 18, dash: [80, 80],
+                    listening: false, perfectDrawEnabled: false
+                }));
+                const rad = openAngleDeg * Math.PI / 180;
+                group.add(new Konva.Line({
+                    points: [pivotX, y0, pivotX + leafW * Math.cos(rad), y0 + leafW * Math.sin(rad)],
+                    stroke: '#6B5F54', strokeWidth: 45, listening: false, perfectDrawEnabled: false
+                }));
+            }
+            const dirIn = obj.swing === 'out' ? 1 : -1;
+            const hingeRight = obj.hinge === 'right';
+            if (kind === 'double') {
+                // Two mirrored half-width leaves meeting mid-opening; hinge n/a.
+                addGap(0);
+                addLeaf(0, w / 2, false, dirIn, 0);
+                addLeaf(w, w / 2, true, dirIn, 0);
+            } else if (kind === 'airlock') {
+                // Personnel trap: vestibule on the swing side, a door line at
+                // each end. Outer leaf swings away from the vestibule, inner
+                // leaf swings onward out of it.
+                const vd = obj.vestibuleDepth || 1500;
+                const off = dirIn * vd;
+                group.add(new Konva.Rect({
+                    x: 0, y: Math.min(0, off), width: w, height: Math.abs(off),
+                    fill: 'rgba(139, 111, 71, 0.08)', stroke: '#8B6F47',
+                    strokeWidth: 18, dash: [80, 80],
+                    listening: false, perfectDrawEnabled: false
+                }));
+                addGap(0);
+                addGap(off);
+                addLeaf(hingeRight ? w : 0, w, hingeRight, -dirIn, 0);
+                addLeaf(hingeRight ? w : 0, w, hingeRight, dirIn, off);
+            } else {
+                addGap(0);
+                addLeaf(hingeRight ? w : 0, w, hingeRight, dirIn, 0);
+            }
             return group;
         }
         function createColumnNode(obj) {
@@ -2072,18 +2156,29 @@
             }
             const obj = objs[0];
             const node = nodeById.get(obj.id);
-            if (!node || obj.type === 'wall' || obj.type === 'door' || obj.type === 'dimension') {
+            if (!node || obj.type === 'wall' || obj.type === 'dimension') {
                 transformer.nodes([]);
                 overlayLayer.batchDraw();
                 return;
             }
+            // keepRatio must be reset explicitly — the label branch turns it on
+            // and Konva keeps the last value otherwise.
             if (obj.type === 'equipment') {
                 const def = getDef(obj.defId);
                 transformer.rotateEnabled(true);
                 transformer.enabledAnchors(def && def.resizable ? ['top-left', 'top-right', 'bottom-left', 'bottom-right'] : []);
+                transformer.keepRatio(false);
+            } else if (obj.type === 'door') {
+                // Width-axis only: the middle anchors act along the group's
+                // local x — i.e. along the wall — so resizing cannot pull the
+                // door off its wall. Rotation stays on R / the context menu.
+                transformer.rotateEnabled(false);
+                transformer.enabledAnchors(['middle-left', 'middle-right']);
+                transformer.keepRatio(false);
             } else if (obj.type === 'cage' || obj.type === 'zone' || obj.type === 'column') {
                 transformer.rotateEnabled(false);
                 transformer.enabledAnchors(['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']);
+                transformer.keepRatio(false);
             } else if (obj.type === 'label') {
                 transformer.rotateEnabled(true);
                 transformer.enabledAnchors(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
@@ -2097,7 +2192,43 @@
             transformer.on('transformstart', function() {
                 transformSnap = captureUndoable('Transform');
             });
+            transformer.on('transform', function() {
+                const objs = selectionObjects();
+                if (objs.length !== 1) return;
+                const obj = objs[0];
+                const node = nodeById.get(obj.id);
+                const p = node && stage.getPointerPosition();
+                if (!p) return;
+                // Scale ≈ 1 means the gesture is a rotation, not a resize.
+                const scaling = Math.abs(node.scaleX() - 1) > 0.001 || Math.abs(node.scaleY() - 1) > 0.001;
+                const deg = ((Math.round(node.rotation()) % 360) + 360) % 360;
+                let text = null;
+                if (obj.type === 'equipment') {
+                    if (scaling) {
+                        const size = equipmentSize(obj);
+                        text = Math.round(size.w * node.scaleX()) + ' × ' + Math.round(size.d * node.scaleY()) + ' mm';
+                    } else text = deg + '°';
+                } else if (obj.type === 'column') {
+                    text = Math.round((obj.w || 400) * node.scaleX()) + ' × ' + Math.round((obj.d || 400) * node.scaleY()) + ' mm';
+                } else if (obj.type === 'cage' || obj.type === 'zone') {
+                    const m = node.getTransform();
+                    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+                    obj.points.forEach(function(q) {
+                        const t = m.point({ x: q[0], y: q[1] });
+                        x1 = Math.min(x1, t.x); y1 = Math.min(y1, t.y);
+                        x2 = Math.max(x2, t.x); y2 = Math.max(y2, t.y);
+                    });
+                    text = Math.round(x2 - x1) + ' × ' + Math.round(y2 - y1) + ' mm';
+                } else if (obj.type === 'door') {
+                    text = Math.max(300, Math.round((obj.width || 900) * node.scaleX())) + ' mm';
+                } else if (obj.type === 'label') {
+                    text = scaling ? Math.max(80, Math.round((obj.fontSize || 300) * node.scaleY())) + ' mm'
+                                   : deg + '°';
+                }
+                if (text) showCanvasTooltip(p.x, p.y, text);
+            });
             transformer.on('transformend', function() {
+                hideCanvasTooltip();
                 const objs = selectionObjects();
                 if (objs.length !== 1) return;
                 const obj = objs[0];
@@ -2125,6 +2256,12 @@
                         const q = m.point({ x: p[0], y: p[1] });
                         return [Math.round(q.x), Math.round(q.y)];
                     });
+                } else if (obj.type === 'door') {
+                    // Scale maps to width; no wall re-seat needed — the middle
+                    // anchors only move the door along its own wall line.
+                    obj.width = Math.max(300, Math.round((obj.width || 900) * node.scaleX()));
+                    obj.x = Math.round(node.x());
+                    obj.y = Math.round(node.y());
                 } else if (obj.type === 'label') {
                     obj.fontSize = Math.max(80, Math.round((obj.fontSize || 300) * node.scaleY()));
                     obj.rotation = Math.round(node.rotation());
@@ -2347,11 +2484,16 @@
                     setSelection(expandGroupSelection([objId]));
                 }
                 transformer.nodes([]); // no transformer during drag
+                hideCanvasTooltip();
                 dragCtx = {
                     snap: captureUndoable('Move'),
                     masterId: objId,
                     moved: false,
-                    parts: []
+                    parts: [],
+                    // Multi-drag snaps by the master only (others follow its
+                    // delta), so every selected id is excluded from targets.
+                    edgeTargets: (obj.type === 'equipment' || obj.type === 'column')
+                        ? buildEdgeSnapTargets(selection) : null
                 };
                 selectionObjects().forEach(function(o) {
                     const n = nodeById.get(o.id);
@@ -2374,7 +2516,13 @@
                 const master = dragCtx.parts.find(function(p) { return p.obj.id === dragCtx.masterId; });
                 if (!master) return;
                 let pos = node.position();
-                if (!e.evt.altKey) pos = snapPositionForObject(obj, pos);
+                if (!e.evt.altKey) {
+                    const r = composedSnapPosition(obj, pos, dragCtx.edgeTargets);
+                    pos = r.pos;
+                    updateSnapGuides(r.es ? edgeSnapGuides(obj, pos, r.es) : []);
+                } else {
+                    updateSnapGuides([]);
+                }
                 node.position(pos);
                 const dx = pos.x - master.start.x, dy = pos.y - master.start.y;
                 dragCtx.parts.forEach(function(p) {
@@ -2386,6 +2534,7 @@
             node.on('dragend', function() {
                 if (!dragCtx) return;
                 markDragEnd();
+                updateSnapGuides([]);
                 const ctx = dragCtx;
                 dragCtx = null;
                 ctx.parts.forEach(function(p) {
@@ -2421,6 +2570,118 @@
                 return { x: Math.round(pos.x / pitch) * pitch, y: Math.round(pos.y / pitch) * pitch };
             }
             return snapPoint(pos);
+        }
+
+        // --- Snap-to-component (edge snapping) ---
+        // While dragging or placing equipment/columns, nearby component edges
+        // beat the grid so footprints abut exactly. Alt disables it along with
+        // grid snap; magenta guide lines mark the matched edge.
+        const EDGE_SNAP_SCREEN_PX = 9;   // pointer slack on screen
+        const EDGE_SNAP_MAX_MM = 150;    // world-space ceiling when zoomed far out
+        const EDGE_SNAP_RANGE_MM = 3000; // only snap against components this close on the other axis
+        let snapGuideGroup = null;
+        function edgeSnapTolerance() {
+            return Math.min(EDGE_SNAP_SCREEN_PX / stage.scaleX(), EDGE_SNAP_MAX_MM);
+        }
+        function dragExtents(obj) {
+            const size = obj.type === 'column' ? { w: obj.w || 400, d: obj.d || 400 } : equipmentSize(obj);
+            return rotatedHalfExtents(size.w, size.d, obj.rotation || 0);
+        }
+        function buildEdgeSnapTargets(excludeIds) {
+            const targets = [];
+            doc.objects.forEach(function(o) {
+                if (o.type !== 'equipment' && o.type !== 'column') return;
+                if (excludeIds && excludeIds.has(o.id)) return;
+                if (o.visible === false) return;
+                const key = layerKeyFor(o);
+                if (key && !isLayerVisible(key)) return;
+                const b = objectAABB(o);
+                targets.push({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2,
+                               cx: (b.x1 + b.x2) / 2, cy: (b.y1 + b.y2) / 2 });
+            });
+            return targets;
+        }
+        // Per axis, test the 3×3 cross-product of dragged {min, centre, max} ×
+        // target {min, centre, max}: abutting, edge-alignment and centre-centre
+        // all fall out of the one rule. Smallest in-tolerance delta wins.
+        function computeEdgeSnap(obj, pos, targets) {
+            const he = dragExtents(obj);
+            const tol = edgeSnapTolerance();
+            const res = { x: null, y: null };
+            let bestDx = tol, bestDy = tol;
+            targets.forEach(function(t) {
+                const nearY = (pos.y - he.hh) < t.y2 + EDGE_SNAP_RANGE_MM
+                           && (pos.y + he.hh) > t.y1 - EDGE_SNAP_RANGE_MM;
+                const nearX = (pos.x - he.hw) < t.x2 + EDGE_SNAP_RANGE_MM
+                           && (pos.x + he.hw) > t.x1 - EDGE_SNAP_RANGE_MM;
+                if (nearY) {
+                    const drag = [pos.x - he.hw, pos.x, pos.x + he.hw];
+                    const tgt = [t.x1, t.cx, t.x2];
+                    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+                        const delta = tgt[j] - drag[i];
+                        if (Math.abs(delta) <= bestDx) {
+                            bestDx = Math.abs(delta);
+                            res.x = { value: pos.x + delta, edge: tgt[j], t: t };
+                        }
+                    }
+                }
+                if (nearX) {
+                    const drag = [pos.y - he.hh, pos.y, pos.y + he.hh];
+                    const tgt = [t.y1, t.cy, t.y2];
+                    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+                        const delta = tgt[j] - drag[i];
+                        if (Math.abs(delta) <= bestDy) {
+                            bestDy = Math.abs(delta);
+                            res.y = { value: pos.y + delta, edge: tgt[j], t: t };
+                        }
+                    }
+                }
+            });
+            return res;
+        }
+        function edgeSnapGuides(obj, pos, es) {
+            const he = dragExtents(obj);
+            const pad = 200;
+            const guides = [];
+            if (es.x) {
+                const t = es.x.t;
+                guides.push({ points: [es.x.edge, Math.min(t.y1, pos.y - he.hh) - pad,
+                                       es.x.edge, Math.max(t.y2, pos.y + he.hh) + pad] });
+            }
+            if (es.y) {
+                const t = es.y.t;
+                guides.push({ points: [Math.min(t.x1, pos.x - he.hw) - pad, es.y.edge,
+                                       Math.max(t.x2, pos.x + he.hw) + pad, es.y.edge] });
+            }
+            return guides;
+        }
+        function updateSnapGuides(guides) {
+            if (!snapGuideGroup) {
+                if (!guides.length) return;
+                snapGuideGroup = new Konva.Group({ listening: false });
+                overlayLayer.add(snapGuideGroup);
+            }
+            if (!guides.length && !snapGuideGroup.hasChildren()) return;
+            snapGuideGroup.destroyChildren();
+            const s = stage.scaleX();
+            guides.forEach(function(g) {
+                snapGuideGroup.add(new Konva.Line({
+                    points: g.points, stroke: '#C2185B', strokeWidth: 1.4 / s,
+                    dash: [6 / s, 4 / s], listening: false, perfectDrawEnabled: false
+                }));
+            });
+            overlayLayer.batchDraw();
+        }
+        // Grid snap first, then component edges win per axis; the grid fills
+        // whichever axis found no edge candidate.
+        function composedSnapPosition(obj, rawPos, targets) {
+            const grid = snapPositionForObject(obj, rawPos);
+            if (!targets || !targets.length) return { pos: grid, es: null };
+            const es = computeEdgeSnap(obj, rawPos, targets);
+            return {
+                pos: { x: es.x ? es.x.value : grid.x, y: es.y ? es.y.value : grid.y },
+                es: es
+            };
         }
         function commitNodePositionToModel(obj, node) {
             if (obj.type === 'wall' || obj.type === 'cage' || obj.type === 'zone') {
@@ -2495,6 +2756,36 @@
             return null;
         }
 
+        // Hovering a wall (or the room boundary) shows the length of the
+        // segment under the cursor. One code path inside the stage mousemove —
+        // per-node mouseenter/leave handlers would race it over show/hide.
+        function updateHoverLengthTooltip(e) {
+            if (!canvasTooltipEl || !doc) return;
+            if (dragCtx || rubber || ghostNode || drawPts.length || outlineEdit
+                || transformSnap || activeTool !== 'select') {
+                hideCanvasTooltip();
+                return;
+            }
+            const w = pointerWorld();
+            if (!w) { hideCanvasTooltip(); return; }
+            let seg = null;
+            const obj = e && e.target && e.target !== stage ? resolveEventObject(e.target) : null;
+            if (obj && obj.type === 'wall' && obj.points && obj.points.length >= 2) {
+                seg = nearestSegment(obj.points, w.x, w.y);
+            } else if (!obj) {
+                // The room boundary is drawn on a listening:false layer, so it
+                // can never be the event target — proximity is the only signal.
+                const W = doc.room.width, D = doc.room.depth;
+                const pts = roomOutline() || [[0, 0], [W, 0], [W, D], [0, D]];
+                const s = nearestSegment(pts.concat([pts[0]]), w.x, w.y);
+                const tol = (doc.room.wallThickness || 200) / 2 + 10 / stage.scaleX();
+                if (s && s.dist <= tol) seg = s;
+            }
+            const p = seg && stage.getPointerPosition();
+            if (p) showCanvasTooltip(p.x, p.y, (seg.len / 1000).toFixed(2) + ' m');
+            else hideCanvasTooltip();
+        }
+
         // --- Stage pointer wiring: pan, rubber-band, click select, tools ---
         let activeTool = 'select';
         let placeDefId = null;
@@ -2541,6 +2832,7 @@
             });
             stage.on('mousemove', function(e) {
                 updatePosIndicator();
+                updateHoverLengthTooltip(e);
                 if (rubber) {
                     const w = pointerWorld();
                     if (!w) return;
@@ -2562,7 +2854,17 @@
                 if (ghostNode) {
                     const w = pointerWorld();
                     if (w) {
-                        ghostNode.position(snapPositionForObject(ghostObjProxy(), w));
+                        // Same composed snap as the click that places it, so the
+                        // preview never diverges from where the part lands.
+                        const proxy = ghostObjProxy();
+                        if (e.evt.altKey) {
+                            ghostNode.position(w);
+                            updateSnapGuides([]);
+                        } else {
+                            const r = composedSnapPosition(proxy, w, buildEdgeSnapTargets(null));
+                            ghostNode.position(r.pos);
+                            updateSnapGuides(r.es ? edgeSnapGuides(proxy, r.pos, r.es) : []);
+                        }
                         overlayLayer.batchDraw();
                     }
                 }
@@ -2672,25 +2974,14 @@
             const w = pointerWorld();
             if (!w) return;
             // Find nearest segment and insert the snapped point after its start.
-            let best = null;
-            for (let i = 0; i < wall.points.length - 1; i++) {
-                const ax = wall.points[i][0], ay = wall.points[i][1];
-                const bx = wall.points[i + 1][0], by = wall.points[i + 1][1];
-                const dx = bx - ax, dy = by - ay;
-                const len2 = dx * dx + dy * dy;
-                if (!len2) continue;
-                let t = clamp(((w.x - ax) * dx + (w.y - ay) * dy) / len2, 0, 1);
-                const px = ax + t * dx, py = ay + t * dy;
-                const dist = Math.hypot(w.x - px, w.y - py);
-                if (!best || dist < best.dist) best = { i: i, dist: dist };
-            }
+            const best = nearestSegment(wall.points, w.x, w.y);
             if (!best) return;
             const p = snapPoint(w);
             // A synthesized double-dblclick could land on the same spot twice —
             // never stack a vertex on top of an existing one.
             if (wall.points.some(function(q) { return q[0] === p.x && q[1] === p.y; })) return;
             pushUndo('Insert wall vertex');
-            wall.points.splice(best.i + 1, 0, [p.x, p.y]);
+            wall.points.splice(best.index + 1, 0, [p.x, p.y]);
             syncObjectNode(wall);
             markDirty();
             refreshSelectionOverlay();
@@ -2721,6 +3012,7 @@
             placeDefId = defId || null;
             cancelDrawing();
             destroyGhost();
+            hideCanvasTooltip();
             clearToolButtonStates();
             const container = stage.container();
             container.classList.toggle('tool-crosshair', tool !== 'select');
@@ -2735,8 +3027,9 @@
                 setHint('Click to add points — double-click or Enter finishes, Esc cancels');
             } else if (tool === 'dimension') {
                 setHint('Click the two end points of the dimension — Esc cancels');
-            } else if (tool === 'door') {
-                setHint('Click on or near a wall to place a door — Esc exits');
+            } else if (tool === 'door' || tool === 'door-double' || tool === 'door-airlock') {
+                const doorName = tool === 'door-double' ? 'double door' : tool === 'door-airlock' ? 'air-lock' : 'door';
+                setHint('Click on or near a wall to place a ' + doorName + ' — Esc exits');
             } else if (tool === 'column') {
                 setHint('Click to place a column — Esc exits');
             } else if (tool === 'label') {
@@ -2778,6 +3071,7 @@
         }
         function destroyGhost() {
             if (ghostNode) { ghostNode.destroy(); ghostNode = null; overlayLayer.batchDraw(); }
+            updateSnapGuides([]);
         }
         function cancelDrawing() {
             drawPts = [];
@@ -2797,15 +3091,20 @@
                 markDirty();
                 roomLayer.batchDraw();
                 updateObjectCount();
-            } else if (activeTool === 'door') {
+            } else if (activeTool === 'door' || activeTool === 'door-double' || activeTool === 'door-airlock') {
                 const near = nearestWallPoint(w.x, w.y, 1500);
-                pushUndo('Place door');
+                pushUndo(activeTool === 'door-double' ? 'Place double door'
+                    : activeTool === 'door-airlock' ? 'Place air-lock' : 'Place door');
                 const obj = {
                     id: uid('o'), type: 'door',
                     x: Math.round(near ? near.x : snapMm(w.x)), y: Math.round(near ? near.y : snapMm(w.y)),
-                    width: 900, rotation: near ? Math.round(near.angle) : 0,
+                    width: activeTool === 'door-double' ? 1800 : 900,
+                    rotation: near ? Math.round(near.angle) : 0,
                     hinge: 'left', swing: 'in', swingAngle: 90
                 };
+                // Plain doors stay kind-less so existing files' shape is untouched.
+                if (activeTool === 'door-double') obj.kind = 'double';
+                if (activeTool === 'door-airlock') { obj.kind = 'airlock'; obj.vestibuleDepth = 1500; }
                 doc.objects.push(obj);
                 addObjectNode(obj);
                 markDirty();
@@ -2873,7 +3172,8 @@
             const def = paletteDefById(placeDefId);
             if (!def) return;
             const proxy = ghostObjProxy();
-            const p = altKey ? w : snapPositionForObject(proxy, w);
+            const p = altKey ? w : composedSnapPosition(proxy, w, buildEdgeSnapTargets(null)).pos;
+            updateSnapGuides([]);
             pushUndo('Place ' + def.name);
             if (!doc.defs[def.id]) doc.defs[def.id] = JSON.parse(JSON.stringify(def)); // room files are self-contained
             const obj = {
@@ -2930,6 +3230,7 @@
             menu.hidden = true;
         }
         function showContextMenu(cx, cy) {
+            hideCanvasTooltip();
             const menu = document.getElementById('context-menu');
             menu.textContent = '';
             const objs = selectionObjects();
@@ -2943,6 +3244,16 @@
             if (single) add('Properties…', function() { openPropertiesDialog(single); });
             const rotatable = objs.some(function(o) { return o.type === 'equipment' || o.type === 'door' || o.type === 'label'; });
             if (rotatable) add('Rotate 90°', function() { rotateSelection(90); });
+            if (objs.length >= 2) {
+                [['Align left', 'left'], ['Align centre X', 'centerX'], ['Align right', 'right'],
+                 ['Align top', 'top'], ['Align centre Y', 'centerY'], ['Align bottom', 'bottom']].forEach(function(a) {
+                    add(a[0], function() { alignSelection(a[1]); });
+                });
+            }
+            if (objs.length >= 3) {
+                add('Distribute horizontally', function() { distributeSelection('x'); });
+                add('Distribute vertically', function() { distributeSelection('y'); });
+            }
             add('Duplicate', duplicateSelection);
             const anyLocked = objs.some(function(o) { return o.locked; });
             add(anyLocked ? 'Unlock' : 'Lock', function() { setSelectionLocked(!anyLocked); });
@@ -2985,24 +3296,114 @@
             rebuildStatusOverlay();
             selectionChanged();
         }
+        function translateObject(o, dx, dy) {
+            if (o.type === 'wall' || o.type === 'cage' || o.type === 'zone') {
+                o.points = o.points.map(function(p) { return [p[0] + dx, p[1] + dy]; });
+            } else if (o.type === 'dimension') {
+                o.x1 += dx; o.y1 += dy; o.x2 += dx; o.y2 += dy;
+            } else {
+                o.x += dx; o.y += dy;
+            }
+            syncObjectNode(o);
+            applyCageCapture(o);
+        }
         function nudgeSelection(dx, dy) {
             const objs = selectionObjects().filter(function(o) { return !isObjLocked(o); });
             if (!objs.length) return;
             pushUndo('Nudge');
+            objs.forEach(function(o) { translateObject(o, dx, dy); });
+            markDirty();
+            rebuildStatusOverlay();
+            selectionChanged();
+        }
+        // Unlocked selection objects grouped into rigid units: objects sharing
+        // a groupId move as one (selection nearly always holds whole groups via
+        // expandGroupSelection — aligning members individually would collapse a
+        // grouped pod onto a single line).
+        function selectionAlignUnits() {
+            const objs = selectionObjects().filter(function(o) { return !isObjLocked(o); });
+            const byGroup = {};
+            const units = [];
             objs.forEach(function(o) {
-                if (o.type === 'wall' || o.type === 'cage' || o.type === 'zone') {
-                    o.points = o.points.map(function(p) { return [p[0] + dx, p[1] + dy]; });
-                } else if (o.type === 'dimension') {
-                    o.x1 += dx; o.y1 += dy; o.x2 += dx; o.y2 += dy;
+                if (o.groupId) {
+                    if (!byGroup[o.groupId]) { byGroup[o.groupId] = { members: [] }; units.push(byGroup[o.groupId]); }
+                    byGroup[o.groupId].members.push(o);
                 } else {
-                    o.x += dx; o.y += dy;
+                    units.push({ members: [o] });
                 }
-                syncObjectNode(o);
-                applyCageCapture(o);
+            });
+            units.forEach(function(u) {
+                let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+                u.members.forEach(function(o) {
+                    const b = objectAABB(o);
+                    x1 = Math.min(x1, b.x1); y1 = Math.min(y1, b.y1);
+                    x2 = Math.max(x2, b.x2); y2 = Math.max(y2, b.y2);
+                });
+                u.bb = { x1: x1, y1: y1, x2: x2, y2: y2 };
+            });
+            return units;
+        }
+        function applyUnitMoves(label, moves) {
+            const real = moves.filter(function(m) { return m.dx || m.dy; });
+            if (!real.length) return;
+            pushUndo(label);
+            real.forEach(function(m) {
+                m.u.members.forEach(function(o) { translateObject(o, m.dx, m.dy); });
             });
             markDirty();
             rebuildStatusOverlay();
             selectionChanged();
+        }
+        function alignSelection(mode) {
+            const units = selectionAlignUnits();
+            if (units.length < 2) return;
+            let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+            units.forEach(function(u) {
+                x1 = Math.min(x1, u.bb.x1); y1 = Math.min(y1, u.bb.y1);
+                x2 = Math.max(x2, u.bb.x2); y2 = Math.max(y2, u.bb.y2);
+            });
+            const moves = units.map(function(u) {
+                let dx = 0, dy = 0;
+                if (mode === 'left') dx = x1 - u.bb.x1;
+                else if (mode === 'right') dx = x2 - u.bb.x2;
+                else if (mode === 'centerX') dx = (x1 + x2) / 2 - (u.bb.x1 + u.bb.x2) / 2;
+                else if (mode === 'top') dy = y1 - u.bb.y1;
+                else if (mode === 'bottom') dy = y2 - u.bb.y2;
+                else if (mode === 'centerY') dy = (y1 + y2) / 2 - (u.bb.y1 + u.bb.y2) / 2;
+                return { u: u, dx: Math.round(dx), dy: Math.round(dy) };
+            });
+            applyUnitMoves('Align', moves);
+        }
+        function distributeSelection(axis) {
+            const units = selectionAlignUnits();
+            if (units.length < 3) return;
+            const lo = axis === 'x' ? 'x1' : 'y1', hi = axis === 'x' ? 'x2' : 'y2';
+            units.sort(function(a, b) { return (a.bb[lo] + a.bb[hi]) - (b.bb[lo] + b.bb[hi]); });
+            const first = units[0], last = units[units.length - 1];
+            const inner = units.slice(1, -1);
+            let innerExtent = 0;
+            inner.forEach(function(u) { innerExtent += u.bb[hi] - u.bb[lo]; });
+            const gap = (last.bb[lo] - first.bb[hi] - innerExtent) / (units.length - 1);
+            const moves = [];
+            if (gap >= 0) {
+                // Equal gaps between neighbouring edges — with mixed footprints
+                // this gives equal aisle clearance, which is the layout intent.
+                let cursor = first.bb[hi] + gap;
+                inner.forEach(function(u) {
+                    const d = Math.round(cursor - u.bb[lo]);
+                    moves.push({ u: u, dx: axis === 'x' ? d : 0, dy: axis === 'x' ? 0 : d });
+                    cursor += (u.bb[hi] - u.bb[lo]) + gap;
+                });
+            } else {
+                // Units overlap — equal edge gaps are impossible; space centres.
+                const c0 = (first.bb[lo] + first.bb[hi]) / 2;
+                const step = ((last.bb[lo] + last.bb[hi]) / 2 - c0) / (units.length - 1);
+                inner.forEach(function(u, i) {
+                    const d = Math.round(c0 + step * (i + 1) - (u.bb[lo] + u.bb[hi]) / 2);
+                    moves.push({ u: u, dx: axis === 'x' ? d : 0, dy: axis === 'x' ? 0 : d });
+                });
+            }
+            applyUnitMoves(axis === 'x' ? 'Distribute horizontally' : 'Distribute vertically', moves);
         }
         function duplicateSelection() {
             const objs = selectionObjects().filter(function(o) { return !isObjLocked(o); });
@@ -3108,6 +3509,26 @@
             renderInspector();
         }
 
+        // --- Floating canvas tooltip ---
+        // One shared element for all transient canvas text (live resize
+        // dimensions, wall segment lengths). px/py are container coordinates,
+        // i.e. what stage.getPointerPosition() returns.
+        function showCanvasTooltip(px, py, text) {
+            if (!canvasTooltipEl) return;
+            canvasTooltipEl.textContent = text;
+            canvasTooltipEl.style.display = 'block';
+            const cw = canvasTooltipEl.offsetWidth, ch = canvasTooltipEl.offsetHeight;
+            const container = stage.container();
+            let x = px + 14, y = py + 16;
+            if (x + cw > container.clientWidth - 4) x = px - cw - 10;
+            if (y + ch > container.clientHeight - 4) y = py - ch - 10;
+            canvasTooltipEl.style.left = Math.max(4, x) + 'px';
+            canvasTooltipEl.style.top = Math.max(4, y) + 'px';
+        }
+        function hideCanvasTooltip() {
+            if (canvasTooltipEl) canvasTooltipEl.style.display = 'none';
+        }
+
         // --- Status bar ---
         function setHint(text) {
             document.getElementById('sb-hint').textContent = text || 'Space+drag or middle-drag pans · wheel zooms · 0 fits room';
@@ -3149,8 +3570,21 @@
             });
             CATEGORY_ORDER.forEach(function(cat) {
                 if (!byCat[cat]) return;
-                root.appendChild(el('div', { class: 'palette-cat', text: CATEGORY_LABELS[cat] }));
-                const wrap = el('div', { class: 'palette-items' });
+                const collapsed = !!paletteCatsCollapsed[cat];
+                const chevron = el('span', { class: 'chevron', text: collapsed ? '▸' : '▾' });
+                const head = el('div', { class: 'palette-cat' }, [
+                    el('span', { text: CATEGORY_LABELS[cat] }), chevron
+                ]);
+                root.appendChild(head);
+                const wrap = el('div', { class: 'palette-items' + (collapsed ? ' collapsed' : '') });
+                head.addEventListener('click', function() {
+                    // Toggle in place — a full re-render would drop the armed
+                    // .palette-chip.active state elsewhere in the palette.
+                    const now = wrap.classList.toggle('collapsed');
+                    chevron.textContent = now ? '▸' : '▾';
+                    paletteCatsCollapsed[cat] = now;
+                    saveUiState();
+                });
                 byCat[cat].forEach(function(c) {
                     const chip = el('button', { class: 'palette-chip', title: 'Click, then click the canvas to place' }, [
                         el('span', { class: 'chip-name' }, [
@@ -3425,12 +3859,24 @@
                 actions.appendChild(mk('Rotate 90°', function() { rotateSelection(90); }));
                 actions.appendChild(mk('Delete', deleteSelection));
                 root.appendChild(actions);
+                root.appendChild(el('div', { class: 'inspector-sub', text: 'Align' }));
+                const alignGrid = el('div', { class: 'tool-grid' });
+                [['Left', 'left'], ['Centre X', 'centerX'], ['Right', 'right'],
+                 ['Top', 'top'], ['Centre Y', 'centerY'], ['Bottom', 'bottom']].forEach(function(a) {
+                    alignGrid.appendChild(mk(a[0], function() { alignSelection(a[1]); }));
+                });
+                alignGrid.appendChild(mk('Distribute H', function() { distributeSelection('x'); }));
+                alignGrid.appendChild(mk('Distribute V', function() { distributeSelection('y'); }));
+                root.appendChild(alignGrid);
                 return;
             }
             const obj = objs[0];
             const type = obj.type;
             const def = type === 'equipment' ? getDef(obj.defId) : null;
-            root.appendChild(el('div', { class: 'inspector-title', text: def ? def.name : (type.charAt(0).toUpperCase() + type.slice(1)) }));
+            const typeTitle = type === 'door'
+                ? (obj.kind === 'double' ? 'Double door' : obj.kind === 'airlock' ? 'Air-lock door' : 'Door')
+                : type.charAt(0).toUpperCase() + type.slice(1);
+            root.appendChild(el('div', { class: 'inspector-title', text: def ? def.name : typeTitle }));
             if (def) root.appendChild(el('div', { class: 'inspector-sub', text: (CATEGORY_LABELS[def.category] || def.category) + ' · ' + equipmentSize(obj).w + ' × ' + equipmentSize(obj).d + ' mm' }));
 
             if (type === 'equipment' || type === 'column' || type === 'door' || type === 'label') {
@@ -3461,16 +3907,31 @@
                 root.appendChild(el('div', { class: 'inspector-sub', text: obj.points.length + ' vertices — drag handles to edit, Alt+double-click adds one, Alt-click removes' }));
             }
             if (type === 'door') {
+                root.appendChild(fieldRow('Kind', selectInput(obj.kind || 'single', [
+                    { value: 'single', label: 'Single' }, { value: 'double', label: 'Double' },
+                    { value: 'airlock', label: 'Air-lock' }
+                ], function(v) { editObject(obj, 'Edit door', function() {
+                    if (v === 'single') delete obj.kind; else obj.kind = v;
+                    if (v === 'airlock' && !obj.vestibuleDepth) obj.vestibuleDepth = 1500;
+                }); })));
                 root.appendChild(fieldRow('Width (mm)', numInput(obj.width || 900, function(v) { if (v > 0) editObject(obj, 'Edit door', function() { obj.width = Math.round(v); }); })));
-                root.appendChild(fieldRow('Hinge', selectInput(obj.hinge || 'left', [
-                    { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }
-                ], function(v) { editObject(obj, 'Edit door', function() { obj.hinge = v; }); })));
+                if ((obj.kind || 'single') !== 'double') {
+                    // A double door's leaves mirror each other — no hinge side.
+                    root.appendChild(fieldRow('Hinge', selectInput(obj.hinge || 'left', [
+                        { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }
+                    ], function(v) { editObject(obj, 'Edit door', function() { obj.hinge = v; }); })));
+                }
                 root.appendChild(fieldRow('Swing', selectInput(obj.swing || 'in', [
                     { value: 'in', label: 'Inward' }, { value: 'out', label: 'Outward' }
                 ], function(v) { editObject(obj, 'Edit door', function() { obj.swing = v; }); })));
                 root.appendChild(fieldRow('Swing angle', numInput(obj.swingAngle || 90, function(v) {
                     if (v > 0 && v <= 180) editObject(obj, 'Edit door', function() { obj.swingAngle = Math.round(v); });
                 }, { step: 15 })));
+                if (obj.kind === 'airlock') {
+                    root.appendChild(fieldRow('Vestibule (mm)', numInput(obj.vestibuleDepth || 1500, function(v) {
+                        if (v >= 300) editObject(obj, 'Edit door', function() { obj.vestibuleDepth = Math.round(v); });
+                    }, { step: 100 })));
+                }
             }
             if (type === 'cage') {
                 root.appendChild(fieldRow('Name', textInput(obj.name, function(v) { editObject(obj, 'Rename cage', function() { obj.name = v; }); })));
@@ -3575,6 +4036,9 @@
             if (obj.type === 'equipment') return def ? def.name : 'Equipment';
             if (obj.type === 'cage') return obj.name || 'Cage';
             if (obj.type === 'zone') return obj.name || 'Zone';
+            if (obj.type === 'door') {
+                return obj.kind === 'double' ? 'Double door' : obj.kind === 'airlock' ? 'Air-lock door' : 'Door';
+            }
             return obj.type.charAt(0).toUpperCase() + obj.type.slice(1);
         }
         function renderMetadataFields(root, holder, schema, rerender) {
@@ -3647,18 +4111,33 @@
                 })));
             }
             if (work.type === 'door') {
+                root.appendChild(fieldRow('Kind', selectInput(work.kind || 'single', [
+                    { value: 'single', label: 'Single' }, { value: 'double', label: 'Double' },
+                    { value: 'airlock', label: 'Air-lock' }
+                ], function(v) {
+                    if (v === 'single') delete work.kind; else work.kind = v;
+                    if (v === 'airlock' && !work.vestibuleDepth) work.vestibuleDepth = 1500;
+                    rerender(); // kind changes which rows below are shown
+                })));
                 root.appendChild(fieldRow('Width (mm)', numInput(work.width || 900, function(v) {
                     if (v > 0) work.width = Math.round(v);
                 })));
-                root.appendChild(fieldRow('Hinge', selectInput(work.hinge || 'left', [
-                    { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }
-                ], function(v) { work.hinge = v; })));
+                if ((work.kind || 'single') !== 'double') {
+                    root.appendChild(fieldRow('Hinge', selectInput(work.hinge || 'left', [
+                        { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }
+                    ], function(v) { work.hinge = v; })));
+                }
                 root.appendChild(fieldRow('Swing', selectInput(work.swing || 'in', [
                     { value: 'in', label: 'Inward' }, { value: 'out', label: 'Outward' }
                 ], function(v) { work.swing = v; })));
                 root.appendChild(fieldRow('Swing angle', numInput(work.swingAngle || 90, function(v) {
                     if (v > 0 && v <= 180) work.swingAngle = Math.round(v);
                 }, { step: 15 })));
+                if (work.kind === 'airlock') {
+                    root.appendChild(fieldRow('Vestibule (mm)', numInput(work.vestibuleDepth || 1500, function(v) {
+                        if (v >= 300) work.vestibuleDepth = Math.round(v);
+                    }, { step: 100 })));
+                }
             }
             if (work.type === 'column') {
                 root.appendChild(fieldRow('Width (mm)', numInput(work.w || 400, function(v) { if (v > 0) work.w = Math.round(v); })));
@@ -3671,6 +4150,7 @@
         }
         function openPropertiesDialog(obj) {
             if (!obj) return;
+            hideCanvasTooltip();
             const dlg = document.getElementById('props-dialog');
             const def = obj.type === 'equipment' ? getDef(obj.defId) : null;
             const work = JSON.parse(JSON.stringify(obj));
@@ -3953,6 +4433,16 @@
                 }).map(function(o) { return o.id; }));
                 return;
             }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                // Must run before the meta bail-out: Ctrl+arrow is the 1 mm
+                // fine-nudge (Alt+arrow is the macOS-safe equivalent).
+                e.preventDefault();
+                const step = (meta || e.altKey) ? 1 : (e.shiftKey ? 10 : doc.room.grid.pitch);
+                nudgeSelection(
+                    e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0,
+                    e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0);
+                return;
+            }
             if (meta) return;
             switch (e.key) {
                 case 'Escape':
@@ -3994,10 +4484,6 @@
                 case '+': case '=': zoomBy(1.25); break;
                 case '-': case '_': zoomBy(0.8); break;
                 case '0': fitRoom(); break;
-                case 'ArrowLeft': e.preventDefault(); nudgeSelection(e.shiftKey ? -10 : -doc.room.grid.pitch, 0); break;
-                case 'ArrowRight': e.preventDefault(); nudgeSelection(e.shiftKey ? 10 : doc.room.grid.pitch, 0); break;
-                case 'ArrowUp': e.preventDefault(); nudgeSelection(0, e.shiftKey ? -10 : -doc.room.grid.pitch); break;
-                case 'ArrowDown': e.preventDefault(); nudgeSelection(0, e.shiftKey ? 10 : doc.room.grid.pitch); break;
             }
         });
         window.addEventListener('keyup', function(e) {

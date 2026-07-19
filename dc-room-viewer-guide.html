@@ -274,7 +274,7 @@
             <h2>2. Getting started</h2>
             <ol class="steps">
                 <li><strong>New</strong> creates a room — give it a name and its width/depth in metres.</li>
-                <li>Click a component in the <strong>palette</strong> (left sidebar), then click the canvas to place it. The mode stays armed so you can click out a whole row; <kbd>R</kbd> rotates before placing, <kbd>Esc</kbd> exits.</li>
+                <li>Click a component in the <strong>palette</strong> (left sidebar), then click the canvas to place it. The mode stays armed so you can click out a whole row; <kbd>R</kbd> rotates before placing, <kbd>Esc</kbd> exits. Palette category headers collapse on click and remember their state between sessions.</li>
                 <li>Zoom with the mouse wheel (zooms to the pointer), pan with <kbd>Space</kbd>+drag or middle-drag, press <kbd>0</kbd> to fit the room.</li>
                 <li><strong>Save As…</strong> writes the room to a <code>.json</code> file. In Chrome and Edge the file stays linked, so <strong>Save</strong> overwrites it in place.</li>
             </ol>
@@ -284,13 +284,17 @@
             <h2>3. Placing and editing equipment</h2>
             <p>
                 Equipment snaps to the tile grid by whichever edge the grid meets — a 600&nbsp;mm rack
-                lands tile-aligned at any rotation. Hold <kbd>Alt</kbd> while dragging or placing to
-                bypass snapping.
+                lands tile-aligned at any rotation. Dragging or placing near other equipment also
+                snaps to their <strong>edges and centres</strong>, marked by magenta guide lines, so
+                components abut exactly; a nearby edge beats the grid. Hold <kbd>Alt</kbd> while
+                dragging or placing to bypass all snapping.
             </p>
             <ul>
                 <li><strong>Select</strong> with a click; <kbd>Shift</kbd>-click to add/remove; drag on empty floor for a rubber-band selection.</li>
-                <li><strong>Move</strong> by dragging, or nudge one tile with the arrow keys (<kbd>Shift</kbd>+arrows = 10&nbsp;mm).</li>
+                <li><strong>Move</strong> by dragging, or nudge one tile with the arrow keys (<kbd>Shift</kbd>+arrows = 10&nbsp;mm, <kbd>Ctrl</kbd>- or <kbd>Alt</kbd>+arrows = 1&nbsp;mm for millimetre-precise placement).</li>
                 <li><strong>Rotate</strong> in 90° steps with <kbd>R</kbd>, the rotation handle, or the context menu.</li>
+                <li><strong>Align</strong> a multi-selection from the Inspector or right-click menu: left/right/top/bottom edges, centres on either axis, and distribute with equal gaps (needs three or more).</li>
+                <li><strong>Resize</strong> resizable components by their corner handles — a tooltip shows the live width × depth in mm while you drag.</li>
                 <li>The <strong>Inspector</strong> shows exact x/y coordinates, rotation, the display label, and all metadata fields — rack ID, customer, contracted/average/peak kW, plus any custom field you add.</li>
                 <li>The white tick on a rack marks its <strong>front face</strong>.</li>
             </ul>
@@ -318,13 +322,19 @@
                 <kbd>Alt</kbd>+double-click a segment to insert a vertex, <kbd>Alt</kbd>-click a
                 handle to remove one. (Plain double-click opens the wall's properties.) Thickness
                 is set in the Inspector. The room's outer boundary wall is drawn automatically
-                from the room shape.
+                from the room shape. <strong>Hovering</strong> over a wall — or the room boundary —
+                shows the length of that segment (vertex to vertex) in metres.
             </p>
             <h3>Doors</h3>
             <p>
-                The <em>Door</em> tool places a door on the nearest wall, aligned to it, with a
-                dashed swing arc. Hinge side, swing direction and swing angle are editable in the
-                Inspector. Doors re-seat onto the nearest wall when dropped near one.
+                The <em>Door</em>, <em>Double door</em> and <em>Air-lock</em> tools place a door on
+                the nearest wall, aligned to it, with dashed swing arcs. A selected door can be
+                <strong>resized by its side handles</strong> (the tooltip shows the live width in
+                mm), or exactly via the Width field. Hinge side, swing direction and swing angle
+                are editable in the Inspector — a double door's mirrored leaves have no hinge side,
+                and an air-lock adds a <em>Vestibule</em> depth for the space between its two
+                doors. The <em>Kind</em> field converts a door between the three variants. Doors
+                re-seat onto the nearest wall when dropped near one.
             </p>
             <h3>Cages, containment and restricted areas</h3>
             <p>
@@ -476,7 +486,7 @@
                 <tr><td><kbd>Alt</kbd>+double-click</td><td>Insert a vertex on the selected wall</td></tr>
                 <tr><td><kbd>Esc</kbd></td><td>Cancel drawing/outline edit, close dialog, exit tool, or clear selection</td></tr>
                 <tr><td><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>Rotate selection (or placement ghost) ±90°</td></tr>
-                <tr><td>Arrows / <kbd>Shift</kbd>+arrows</td><td>Nudge one tile / 10 mm</td></tr>
+                <tr><td>Arrows / <kbd>Shift</kbd> / <kbd>Ctrl</kbd> or <kbd>Alt</kbd>+arrows</td><td>Nudge one tile / 10 mm / 1 mm</td></tr>
                 <tr><td><kbd>Delete</kbd></td><td>Delete selection</td></tr>
                 <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd> / +<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Undo / redo</td></tr>
                 <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>D</kbd></td><td>Duplicate (offset one tile)</td></tr>
@@ -486,7 +496,7 @@
                 <tr><td><kbd>+</kbd> / <kbd>−</kbd> / <kbd>0</kbd></td><td>Zoom in / out / fit room</td></tr>
                 <tr><td><kbd>G</kbd></td><td>Toggle grid</td></tr>
                 <tr><td><kbd>Space</kbd>+drag, middle-drag</td><td>Pan</td></tr>
-                <tr><td><kbd>Alt</kbd> while dragging</td><td>Bypass grid snap</td></tr>
+                <tr><td><kbd>Alt</kbd> while dragging</td><td>Bypass grid and edge snapping</td></tr>
                 <tr><td><kbd>Enter</kbd> / double-click</td><td>Finish wall, polygon or outline drawing</td></tr>
             </table>
         </section>
@@ -560,6 +570,12 @@
       "points": [[6000,0],[6000,9000]], "thickness": 150 },
     { "id": "o-d1", "type": "door", "x": 3000, "y": 0, "width": 900,
       "rotation": 0, "hinge": "left", "swing": "in", "swingAngle": 90 },
+    { "id": "o-d2", "type": "door", "x": 6000, "y": 0, "width": 1800,
+      "rotation": 0, "swing": "in", "swingAngle": 90,
+      "kind": "double" },        // kind: absent=single | double | airlock
+    { "id": "o-d3", "type": "door", "x": 9000, "y": 0, "width": 1000,
+      "rotation": 0, "hinge": "left", "swing": "in", "swingAngle": 90,
+      "kind": "airlock", "vestibuleDepth": 1500 },
     { "id": "o-c1", "type": "column", "x": 6000, "y": 6000,
       "w": 400, "d": 400, "shape": "rect" },
     { "id": "c-acme", "type": "cage", "name": "Acme cage",
