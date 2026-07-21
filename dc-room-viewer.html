@@ -541,6 +541,19 @@
 
     <div class="main">
         <aside id="sidebar">
+            <div class="control-section" data-section="view">
+                <label class="section-head">View <span class="chevron">▾</span></label>
+                <div class="section-body">
+                    <div class="view-zoom-row">
+                        <label>Zoom:</label>
+                        <button class="btn btn-secondary" id="view-zoom-out" title="Zoom out  [&minus;]">&minus;</button>
+                        <span id="view-zoom-pct" class="view-zoom-pct" title="Fit room  [0]">100%</span>
+                        <button class="btn btn-secondary" id="view-zoom-in" title="Zoom in  [+]">+</button>
+                        <button class="btn btn-secondary" id="view-zoom-fit" title="Fit room  [0]" aria-label="Fit room">&#10530;</button>
+                        <button class="btn btn-secondary" id="view-zoom-origin" title="Go to top-left corner (keeps zoom)" aria-label="Go to top-left corner">&#8988;</button>
+                    </div>
+                </div>
+            </div>
             <div class="control-section" data-section="palette">
                 <label class="section-head">Component palette <span class="chevron">▾</span></label>
                 <div class="section-body"><div id="palette"></div></div>
@@ -567,19 +580,6 @@
             <div class="control-section" data-section="layers">
                 <label class="section-head">Layers <span class="chevron">▾</span></label>
                 <div class="section-body" id="layers-panel"></div>
-            </div>
-            <div class="control-section" data-section="view">
-                <label class="section-head">View <span class="chevron">▾</span></label>
-                <div class="section-body">
-                    <div class="view-zoom-row">
-                        <label>Zoom:</label>
-                        <button class="btn btn-secondary" id="view-zoom-out" title="Zoom out  [&minus;]">&minus;</button>
-                        <span id="view-zoom-pct" class="view-zoom-pct" title="Fit room  [0]">100%</span>
-                        <button class="btn btn-secondary" id="view-zoom-in" title="Zoom in  [+]">+</button>
-                        <button class="btn btn-secondary" id="view-zoom-fit" title="Fit room  [0]" aria-label="Fit room">&#10530;</button>
-                        <button class="btn btn-secondary" id="view-zoom-origin" title="Go to top-left corner (keeps zoom)" aria-label="Go to top-left corner">&#8988;</button>
-                    </div>
-                </div>
             </div>
             <div class="control-section" data-section="overlay">
                 <label class="section-head">Capacity / status overlay <span class="chevron">▾</span></label>
@@ -1434,7 +1434,7 @@
         // --- UI chrome persistence (never document data) ---
         const UI_STATE_KEY = 'dcRoomViewerUiState';
         const UI_STATE_VERSION = 1;
-        const SECTION_KEYS = ['palette', 'tools', 'layers', 'view', 'summary', 'inspector', 'overlay'];
+        const SECTION_KEYS = ['view', 'palette', 'tools', 'layers', 'summary', 'inspector', 'overlay'];
         // Palette categories are rendered dynamically, so their collapse state
         // lives in its own map rather than SECTION_KEYS.
         let paletteCatsCollapsed = {};

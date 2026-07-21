@@ -1,0 +1,932 @@
+{
+  "format": "dc-room-library",
+  "version": 1,
+  "name": "Standard DC components",
+  "components": [
+    {
+      "id": "rack-600x1070",
+      "name": "Rack 600×1070",
+      "category": "rack",
+      "footprint": {
+        "w": 600,
+        "d": 1070
+      },
+      "visual": {
+        "fill": "#5B7A9D",
+        "stroke": "#3A4A5D",
+        "shortCode": "R",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {
+        "uSpace": 42
+      },
+      "metadataSchema": [
+        {
+          "key": "rackId",
+          "label": "Rack ID",
+          "type": "string"
+        },
+        {
+          "key": "customer",
+          "label": "Customer",
+          "type": "string"
+        },
+        {
+          "key": "usageType",
+          "label": "Usage type",
+          "type": "select",
+          "options": [
+            "leased",
+            "compensation",
+            "unoccupied",
+            "planned",
+            "reserved",
+            "unusable",
+            "internal",
+            "unbuilt"
+          ]
+        },
+        {
+          "key": "contractedKw",
+          "label": "Contracted (kW)",
+          "type": "number"
+        },
+        {
+          "key": "avgKw",
+          "label": "Average (kW)",
+          "type": "number"
+        },
+        {
+          "key": "peakKw",
+          "label": "Peak (kW)",
+          "type": "number"
+        },
+        {
+          "key": "uSpace",
+          "label": "U space",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "rack-600x1200",
+      "name": "Rack 600×1200",
+      "category": "rack",
+      "footprint": {
+        "w": 600,
+        "d": 1200
+      },
+      "visual": {
+        "fill": "#5B7A9D",
+        "stroke": "#3A4A5D",
+        "shortCode": "R",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {
+        "uSpace": 42
+      },
+      "metadataSchema": [
+        {
+          "key": "rackId",
+          "label": "Rack ID",
+          "type": "string"
+        },
+        {
+          "key": "customer",
+          "label": "Customer",
+          "type": "string"
+        },
+        {
+          "key": "usageType",
+          "label": "Usage type",
+          "type": "select",
+          "options": [
+            "leased",
+            "compensation",
+            "unoccupied",
+            "planned",
+            "reserved",
+            "unusable",
+            "internal",
+            "unbuilt"
+          ]
+        },
+        {
+          "key": "contractedKw",
+          "label": "Contracted (kW)",
+          "type": "number"
+        },
+        {
+          "key": "avgKw",
+          "label": "Average (kW)",
+          "type": "number"
+        },
+        {
+          "key": "peakKw",
+          "label": "Peak (kW)",
+          "type": "number"
+        },
+        {
+          "key": "uSpace",
+          "label": "U space",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "rack-800x1200",
+      "name": "Rack 800×1200 (network)",
+      "category": "rack",
+      "footprint": {
+        "w": 800,
+        "d": 1200
+      },
+      "visual": {
+        "fill": "#4E6E8F",
+        "stroke": "#3A4A5D",
+        "shortCode": "N",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {
+        "uSpace": 45
+      },
+      "metadataSchema": [
+        {
+          "key": "rackId",
+          "label": "Rack ID",
+          "type": "string"
+        },
+        {
+          "key": "customer",
+          "label": "Customer",
+          "type": "string"
+        },
+        {
+          "key": "usageType",
+          "label": "Usage type",
+          "type": "select",
+          "options": [
+            "leased",
+            "compensation",
+            "unoccupied",
+            "planned",
+            "reserved",
+            "unusable",
+            "internal",
+            "unbuilt"
+          ]
+        },
+        {
+          "key": "contractedKw",
+          "label": "Contracted (kW)",
+          "type": "number"
+        },
+        {
+          "key": "avgKw",
+          "label": "Average (kW)",
+          "type": "number"
+        },
+        {
+          "key": "peakKw",
+          "label": "Peak (kW)",
+          "type": "number"
+        },
+        {
+          "key": "uSpace",
+          "label": "U space",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "pdu-600x1070",
+      "name": "PDU cabinet",
+      "category": "pdu",
+      "footprint": {
+        "w": 600,
+        "d": 1070
+      },
+      "visual": {
+        "fill": "#8B6F47",
+        "stroke": "#6B5F54",
+        "shortCode": "P",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "pduId",
+          "label": "PDU ID",
+          "type": "string"
+        },
+        {
+          "key": "feed",
+          "label": "Feed (A/B)",
+          "type": "string"
+        },
+        {
+          "key": "capacityKw",
+          "label": "Capacity (kW)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "rpp-800x300",
+      "name": "Remote power panel",
+      "category": "pdu",
+      "footprint": {
+        "w": 800,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#A0855B",
+        "stroke": "#6B5F54",
+        "shortCode": "RPP",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "pduId",
+          "label": "Panel ID",
+          "type": "string"
+        },
+        {
+          "key": "feed",
+          "label": "Feed (A/B)",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "ups-1200x800",
+      "name": "UPS cabinet",
+      "category": "pdu",
+      "footprint": {
+        "w": 1200,
+        "d": 800
+      },
+      "visual": {
+        "fill": "#7D6A4F",
+        "stroke": "#5D4F3A",
+        "shortCode": "UPS",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "unitId",
+          "label": "Unit ID",
+          "type": "string"
+        },
+        {
+          "key": "capacityKw",
+          "label": "Capacity (kW)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "crac-1800x900",
+      "name": "CRAC unit",
+      "category": "cooling",
+      "footprint": {
+        "w": 1800,
+        "d": 900
+      },
+      "visual": {
+        "fill": "#5F8D87",
+        "stroke": "#3F6D67",
+        "shortCode": "AC",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "unitId",
+          "label": "Unit ID",
+          "type": "string"
+        },
+        {
+          "key": "coolingKw",
+          "label": "Cooling (kW)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "inrow-300x1070",
+      "name": "In-row cooler",
+      "category": "cooling",
+      "footprint": {
+        "w": 300,
+        "d": 1070
+      },
+      "visual": {
+        "fill": "#6FA39C",
+        "stroke": "#3F6D67",
+        "shortCode": "IR",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "unitId",
+          "label": "Unit ID",
+          "type": "string"
+        },
+        {
+          "key": "coolingKw",
+          "label": "Cooling (kW)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "column-400",
+      "name": "Column 400×400",
+      "category": "structural",
+      "footprint": {
+        "w": 400,
+        "d": 400
+      },
+      "visual": {
+        "fill": "#9B948B",
+        "stroke": "#6B5F54",
+        "shortCode": "",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": []
+    },
+    {
+      "id": "sts-1200x400",
+      "name": "STS (static transfer switch)",
+      "category": "pdu",
+      "footprint": {
+        "w": 1200,
+        "d": 400
+      },
+      "visual": {
+        "fill": "#A0522D",
+        "stroke": "#6B3A1F",
+        "shortCode": "STS",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "stsId",
+          "label": "STS ID",
+          "type": "string"
+        },
+        {
+          "key": "ampacityA",
+          "label": "Ampacity (A)",
+          "type": "number"
+        },
+        {
+          "key": "capacityKw",
+          "label": "Capacity (kW)",
+          "type": "number"
+        },
+        {
+          "key": "feed",
+          "label": "Feed (A/B)",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "panel-1200x300",
+      "name": "Distribution board",
+      "category": "pdu",
+      "footprint": {
+        "w": 1200,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#96795A",
+        "stroke": "#6B5F54",
+        "shortCode": "DB",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "panelId",
+          "label": "Panel ID",
+          "type": "string"
+        },
+        {
+          "key": "feed",
+          "label": "Feed (A/B)",
+          "type": "string"
+        },
+        {
+          "key": "ampacityA",
+          "label": "Ampacity (A)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "pdu-board-3000x900",
+      "name": "PDU power board",
+      "category": "pdu",
+      "footprint": {
+        "w": 3000,
+        "d": 900
+      },
+      "visual": {
+        "fill": "#8A8563",
+        "stroke": "#5D5940",
+        "shortCode": "PDU",
+        "front": "south"
+      },
+      "resizable": true,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "pduId",
+          "label": "PDU ID",
+          "type": "string"
+        },
+        {
+          "key": "feed",
+          "label": "Feed (A/B)",
+          "type": "string"
+        },
+        {
+          "key": "capacityKw",
+          "label": "Capacity (kW)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "busway-2400x300",
+      "name": "Overhead busway",
+      "category": "pdu",
+      "footprint": {
+        "w": 2400,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#C9A227",
+        "stroke": "#8B6F47",
+        "shortCode": "BW",
+        "front": null
+      },
+      "resizable": true,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "buswayId",
+          "label": "Busway ID",
+          "type": "string"
+        },
+        {
+          "key": "ampacityA",
+          "label": "Ampacity (A)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "rcu-3000x900",
+      "name": "RCU perimeter cooler",
+      "category": "cooling",
+      "footprint": {
+        "w": 3000,
+        "d": 900
+      },
+      "visual": {
+        "fill": "#4E7A9B",
+        "stroke": "#365D7A",
+        "shortCode": "RCU",
+        "front": "south"
+      },
+      "resizable": true,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "unitId",
+          "label": "Unit ID",
+          "type": "string"
+        },
+        {
+          "key": "coolingKw",
+          "label": "Cooling (kW)",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "odf-900x300",
+      "name": "ODF frame",
+      "category": "other",
+      "footprint": {
+        "w": 900,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#7D7A8C",
+        "stroke": "#55526B",
+        "shortCode": "ODF",
+        "front": "south"
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "odfId",
+          "label": "ODF ID",
+          "type": "string"
+        },
+        {
+          "key": "fibreCount",
+          "label": "Fibre count",
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "id": "ramp-1800x1200",
+      "name": "Access ramp",
+      "category": "structural",
+      "footprint": {
+        "w": 1800,
+        "d": 1200
+      },
+      "visual": {
+        "fill": "#C4BEB4",
+        "stroke": "#8A8378",
+        "shortCode": "RAMP",
+        "front": "south"
+      },
+      "resizable": true,
+      "metadata": {},
+      "metadataSchema": []
+    },
+    {
+      "id": "vent-tile-600",
+      "name": "Perforated / vent tile",
+      "category": "structural",
+      "footprint": {
+        "w": 600,
+        "d": 600
+      },
+      "visual": {
+        "fill": "#AECBAE",
+        "stroke": "#6E8F6E",
+        "shortCode": "V",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": []
+    },
+    {
+      "id": "cam-dome-300",
+      "name": "CCTV dome camera",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#3B8749",
+        "stroke": "#28632F",
+        "shortCode": "CAM",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "cameraId",
+          "label": "Camera ID",
+          "type": "string"
+        },
+        {
+          "key": "installer",
+          "label": "Installed by",
+          "type": "string"
+        },
+        {
+          "key": "cabling",
+          "label": "Cabling",
+          "type": "string"
+        },
+        {
+          "key": "termination",
+          "label": "Termination",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "sensor-temp-300",
+      "name": "Temperature sensor",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#C0663B",
+        "stroke": "#8F4826",
+        "shortCode": "T",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "sensorId",
+          "label": "Sensor ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "Monitored by",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "sensor-humidity-300",
+      "name": "Humidity sensor",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#4E8FB5",
+        "stroke": "#376B8A",
+        "shortCode": "H",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "sensorId",
+          "label": "Sensor ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "Monitored by",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "sensor-th-300",
+      "name": "Temp / humidity sensor",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#7B6FA0",
+        "stroke": "#5A5178",
+        "shortCode": "TH",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "sensorId",
+          "label": "Sensor ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "Monitored by",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "smoke-detector-300",
+      "name": "Smoke detector",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#A65D5D",
+        "stroke": "#7A3F3F",
+        "shortCode": "SD",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "sensorId",
+          "label": "Sensor ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "Monitored by",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "leak-sensor-300",
+      "name": "Water leak sensor",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#3F7D8C",
+        "stroke": "#2C5A66",
+        "shortCode": "LK",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "sensorId",
+          "label": "Sensor ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "Monitored by",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "door-contact-300",
+      "name": "Door contact",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#8B6F47",
+        "stroke": "#655030",
+        "shortCode": "DC",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "sensorId",
+          "label": "Sensor ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "Monitored by",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "motion-pir-300",
+      "name": "Motion sensor (PIR)",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#6B8E5A",
+        "stroke": "#4C6940",
+        "shortCode": "PIR",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "sensorId",
+          "label": "Sensor ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "Monitored by",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "access-reader-300",
+      "name": "Access-control reader",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#5D5D80",
+        "stroke": "#42425E",
+        "shortCode": "ACC",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": [
+        {
+          "key": "readerId",
+          "label": "Reader ID",
+          "type": "string"
+        },
+        {
+          "key": "system",
+          "label": "System",
+          "type": "string"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "exit-sign-300",
+      "name": "Emergency exit sign",
+      "category": "monitoring",
+      "footprint": {
+        "w": 300,
+        "d": 300
+      },
+      "visual": {
+        "fill": "#2E9E4F",
+        "stroke": "#1F7038",
+        "shortCode": "EXIT",
+        "front": null
+      },
+      "resizable": false,
+      "metadata": {},
+      "metadataSchema": []
+    }
+  ]
+}
