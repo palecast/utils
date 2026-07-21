@@ -275,7 +275,7 @@
             <ol class="steps">
                 <li><strong>New</strong> creates a room — give it a name and its width/depth in metres.</li>
                 <li>Click a component in the <strong>palette</strong> (left sidebar), then click the canvas to place it. The mode stays armed so you can click out a whole row; <kbd>R</kbd> rotates before placing, <kbd>Esc</kbd> exits. Palette category headers collapse on click and remember their state between sessions.</li>
-                <li>Zoom with the mouse wheel (zooms to the pointer), pan with <kbd>Space</kbd>+drag or middle-drag, press <kbd>0</kbd> to fit the room.</li>
+                <li>Zoom with the mouse wheel (zooms to the pointer), pan with <kbd>Space</kbd>+drag or middle-drag, press <kbd>0</kbd> to fit the room. The <strong>View</strong> section in the left sidebar has the same controls as buttons: −/+, a clickable percentage badge (100% = the fitted view), a fit button, and a button that jumps back to the room's top-left corner without changing the zoom.</li>
                 <li><strong>Save As…</strong> writes the room to a <code>.json</code> file. In Chrome and Edge the file stays linked, so <strong>Save</strong> overwrites it in place.</li>
             </ol>
         </section>
@@ -295,7 +295,7 @@
                 <li><strong>Rotate</strong> in 90° steps with <kbd>R</kbd>, the rotation handle, or the context menu.</li>
                 <li><strong>Align</strong> a multi-selection from the Inspector or right-click menu: left/right/top/bottom edges, centres on either axis, and distribute with equal gaps (needs three or more).</li>
                 <li><strong>Resize</strong> resizable components by their corner handles — a tooltip shows the live width × depth in mm while you drag.</li>
-                <li>The <strong>Inspector</strong> shows exact x/y coordinates, rotation, the display label, and all metadata fields — rack ID, customer, contracted/average/peak kW, plus any custom field you add.</li>
+                <li>The <strong>Inspector</strong> — in the collapsible right-hand sidebar — shows exact x/y coordinates, rotation, the display label, and all metadata fields — rack ID, customer, contracted/average/peak kW, plus any custom field you add.</li>
                 <li>The white tick on a rack marks its <strong>front face</strong>.</li>
             </ul>
             <h3>The properties dialog</h3>
@@ -431,17 +431,19 @@
                 racks' standard <code>usageType</code> field.
             </p>
             <p>
-                The <strong>key</strong> is drawn on the canvas itself (drag it anywhere; its position
-                is saved in the room file), so it appears in PNG/PDF exports, and each entry shows a
-                live count — "Leased (96)". With no overlay active it shows the equipment category
-                colours instead.
+                The <strong>key</strong> is drawn on the canvas itself, floating <strong>below the
+                drawing</strong> by default so it never covers equipment. Drag it anywhere — its
+                position is saved in the room file, and <em>Reset key position</em> (in the overlay
+                section) returns it below the room. It appears in PNG/PDF exports, and each entry
+                shows a live count — "Leased (96)". With no overlay active it shows the equipment
+                category colours instead.
             </p>
         </section>
 
         <section id="summary">
             <h2>9. The Summary panel</h2>
             <p>
-                The <em>Summary</em> sidebar section aggregates the room live as you edit:
+                The <em>Summary</em> section in the right-hand sidebar aggregates the room live as you edit:
                 floor area (outline-aware) and usable area, rack count with a usage-type breakdown,
                 total contracted / average / peak kW across racks — with a utilisation percentage
                 against the room's contracted power when set — PDU and cooling capacity totals,
@@ -466,7 +468,8 @@
             <p>
                 <em>Export ▾ → PNG image</em> renders the room at print quality with a title block —
                 room name, site, dimensions, floor area, contracted power, grid pitch, export date,
-                updated-by, a capacity summary line and a scale bar — plus the on-canvas key.
+                updated-by, a capacity summary line and a scale bar — plus the on-canvas key
+                (the exported page grows to include the key wherever you have placed it).
                 <em>Export ▾ → PDF drawing</em> wraps the same rendering on an A3 page
                 (orientation chosen automatically), with the room name as the document title.
             </p>
@@ -493,7 +496,7 @@
                 <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>G</kbd> / +<kbd>Shift</kbd>+<kbd>G</kbd></td><td>Group / ungroup</td></tr>
                 <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>A</kbd></td><td>Select all (on visible, unlocked layers)</td></tr>
                 <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>S</kbd></td><td>Save</td></tr>
-                <tr><td><kbd>+</kbd> / <kbd>−</kbd> / <kbd>0</kbd></td><td>Zoom in / out / fit room</td></tr>
+                <tr><td><kbd>+</kbd> / <kbd>−</kbd> / <kbd>0</kbd></td><td>Zoom in / out / fit room &amp; key (also in the View section)</td></tr>
                 <tr><td><kbd>G</kbd></td><td>Toggle grid</td></tr>
                 <tr><td><kbd>Space</kbd>+drag, middle-drag</td><td>Pan</td></tr>
                 <tr><td><kbd>Alt</kbd> while dragging</td><td>Bypass grid and edge snapping</td></tr>

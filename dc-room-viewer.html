@@ -194,6 +194,46 @@
         }
         #sidebar.collapsed + #sidebar-toggle { left: 0; }
         #sidebar-toggle:hover { color: var(--text); background: var(--tint); }
+        #right-sidebar {
+            width: 280px;
+            flex: 0 0 auto;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: margin-right 0.2s ease;
+            z-index: 20;
+        }
+        #right-sidebar.collapsed { margin-right: -280px; }
+        #right-sidebar-toggle {
+            position: absolute;
+            right: 280px; top: 10px;
+            transition: right 0.2s ease;
+            z-index: 21;
+            width: 22px; height: 44px;
+            border: 1px solid var(--border);
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+            background: var(--surface);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 11px;
+        }
+        #right-sidebar.collapsed + #right-sidebar-toggle { right: 0; }
+        #right-sidebar-toggle:hover { color: var(--text); background: var(--tint); }
+
+        /* View section: zoom row */
+        .view-zoom-row { display: flex; align-items: center; gap: 6px; }
+        .view-zoom-row > label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        .view-zoom-row button { width: 28px; height: 28px; padding: 0; font-size: 14px; line-height: 26px; text-align: center; }
+        .view-zoom-pct {
+            cursor: pointer;
+            font-variant-numeric: tabular-nums;
+            font-size: 12px; font-weight: 500;
+            min-width: 44px; text-align: center;
+            color: var(--text);
+        }
+        .view-zoom-pct:hover { color: var(--accent); }
 
         .control-section { border-bottom: 1px solid var(--border); }
         .control-section > label.section-head {
@@ -442,6 +482,8 @@
         @media (max-width: 768px) {
             #sidebar { position: absolute; top: 0; bottom: 0; left: 0; box-shadow: 0 10px 30px rgba(58,47,40,0.12); }
             #sidebar.collapsed { margin-left: -280px; box-shadow: none; }
+            #right-sidebar { position: absolute; top: 0; bottom: 0; right: 0; box-shadow: 0 10px 30px rgba(58,47,40,0.12); }
+            #right-sidebar.collapsed { margin-right: -280px; box-shadow: none; }
             header { flex-wrap: wrap; }
             .header-center { order: 3; flex-basis: 100%; text-align: left; }
         }
@@ -526,13 +568,18 @@
                 <label class="section-head">Layers <span class="chevron">▾</span></label>
                 <div class="section-body" id="layers-panel"></div>
             </div>
-            <div class="control-section" data-section="summary">
-                <label class="section-head">Summary <span class="chevron">▾</span></label>
-                <div class="section-body" id="summary-panel"></div>
-            </div>
-            <div class="control-section" data-section="inspector">
-                <label class="section-head">Inspector <span class="chevron">▾</span></label>
-                <div class="section-body" id="inspector"></div>
+            <div class="control-section" data-section="view">
+                <label class="section-head">View <span class="chevron">▾</span></label>
+                <div class="section-body">
+                    <div class="view-zoom-row">
+                        <label>Zoom:</label>
+                        <button class="btn btn-secondary" id="view-zoom-out" title="Zoom out  [&minus;]">&minus;</button>
+                        <span id="view-zoom-pct" class="view-zoom-pct" title="Fit room  [0]">100%</span>
+                        <button class="btn btn-secondary" id="view-zoom-in" title="Zoom in  [+]">+</button>
+                        <button class="btn btn-secondary" id="view-zoom-fit" title="Fit room  [0]" aria-label="Fit room">&#10530;</button>
+                        <button class="btn btn-secondary" id="view-zoom-origin" title="Go to top-left corner (keeps zoom)" aria-label="Go to top-left corner">&#8988;</button>
+                    </div>
+                </div>
             </div>
             <div class="control-section" data-section="overlay">
                 <label class="section-head">Capacity / status overlay <span class="chevron">▾</span></label>
@@ -549,6 +596,17 @@
                 <span id="sb-count"></span>
             </div>
         </div>
+        <aside id="right-sidebar">
+            <div class="control-section" data-section="inspector">
+                <label class="section-head">Inspector <span class="chevron">▾</span></label>
+                <div class="section-body" id="inspector"></div>
+            </div>
+            <div class="control-section" data-section="summary">
+                <label class="section-head">Summary <span class="chevron">▾</span></label>
+                <div class="section-body" id="summary-panel"></div>
+            </div>
+        </aside>
+        <button id="right-sidebar-toggle" title="Toggle inspector sidebar">▶</button>
     </div>
 
     <div id="context-menu" hidden></div>
@@ -1376,7 +1434,7 @@
         // --- UI chrome persistence (never document data) ---
         const UI_STATE_KEY = 'dcRoomViewerUiState';
         const UI_STATE_VERSION = 1;
-        const SECTION_KEYS = ['palette', 'tools', 'layers', 'summary', 'inspector', 'overlay'];
+        const SECTION_KEYS = ['palette', 'tools', 'layers', 'view', 'summary', 'inspector', 'overlay'];
         // Palette categories are rendered dynamically, so their collapse state
         // lives in its own map rather than SECTION_KEYS.
         let paletteCatsCollapsed = {};
@@ -1397,6 +1455,7 @@
             const state = {
                 v: UI_STATE_VERSION,
                 sidebarCollapsed: document.getElementById('sidebar').classList.contains('collapsed'),
+                rightSidebarCollapsed: document.getElementById('right-sidebar').classList.contains('collapsed'),
                 sectionsCollapsed: sectionsCollapsed,
                 paletteCats: paletteCatsCollapsed
             };
@@ -1406,6 +1465,7 @@
             const s = readUiState();
             if (!s) return;
             if (s.sidebarCollapsed) document.getElementById('sidebar').classList.add('collapsed');
+            if (s.rightSidebarCollapsed) document.getElementById('right-sidebar').classList.add('collapsed');
             if (s.paletteCats && typeof s.paletteCats === 'object') paletteCatsCollapsed = s.paletteCats;
             SECTION_KEYS.forEach(function(k) {
                 if (s.sectionsCollapsed && s.sectionsCollapsed[k]) {
@@ -1466,6 +1526,9 @@
 
             new ResizeObserver(function() {
                 stage.size({ width: container.clientWidth, height: container.clientHeight });
+                // Container size changes the fit reference, so refresh the zoom badge.
+                // Guard: the observer fires once on observe(), before doc exists.
+                if (doc) updateZoomIndicator();
             }).observe(container);
 
             canvasTooltipEl = el('div', { id: 'canvas-tooltip' });
@@ -1588,12 +1651,21 @@
         }
         function fitRoom() {
             if (!doc) return;
-            const scale = clamp(0.9 * Math.min(stage.width() / doc.room.width, stage.height() / doc.room.depth), MIN_SCALE, MAX_SCALE);
+            const b = contentWorldAABB();
+            const scale = clamp(0.9 * Math.min(stage.width() / b.width, stage.height() / b.height), MIN_SCALE, MAX_SCALE);
             stage.scale({ x: scale, y: scale });
             stage.position({
-                x: (stage.width() - doc.room.width * scale) / 2,
-                y: (stage.height() - doc.room.depth * scale) / 2
+                x: (stage.width() - b.width * scale) / 2 - b.x * scale,
+                y: (stage.height() - b.height * scale) / 2 - b.y * scale
             });
+            afterViewChanged();
+        }
+        // 800 mm clears the grid coordinate labels drawn outside the top/left walls.
+        const VIEW_ORIGIN_PAD = 800;
+        function viewTopLeft() {
+            if (!stage) return;
+            const s = stage.scaleX();
+            stage.position({ x: VIEW_ORIGIN_PAD * s, y: VIEW_ORIGIN_PAD * s });
             afterViewChanged();
         }
         let cullTimer = null;
@@ -2051,8 +2123,11 @@
             const entries = legendEntries();
             const title = (doc.statusOverlay.enabled ? ('Key — ' + doc.statusOverlay.field) : 'Key');
             const FS = 260, ROW = 400, SW = 300, PAD = 260;
-            const x0 = (doc.legend.x != null) ? doc.legend.x : doc.room.width - 5200;
-            const y0 = (doc.legend.y != null) ? doc.legend.y : 600;
+            // Default: below the room's bottom edge (clear of the boundary wall),
+            // left-aligned — so the key never covers the drawing. Saved x/y win.
+            const x0 = (doc.legend.x != null) ? doc.legend.x : 0;
+            const y0 = (doc.legend.y != null) ? doc.legend.y
+                : doc.room.depth + (doc.room.wallThickness || 200) / 2 + 400;
             legendNode = new Konva.Group({ x: x0, y: y0, draggable: true, name: 'legend' });
             const rows = [new Konva.Text({
                 x: PAD, y: PAD, text: title,
@@ -2087,6 +2162,27 @@
             });
             sceneGroups.labels.add(legendNode);
             roomLayer.batchDraw();
+        }
+        // World-space AABB of the key, or null when it won't render (hidden via
+        // doc.legend, not built, or its layer hidden — a hidden layer clones as
+        // invisible in export, so its bounds must not grow the page).
+        function legendWorldAABB() {
+            if (!legendNode || !doc.legend || doc.legend.visible === false) return null;
+            if (!sceneGroups.labels || !sceneGroups.labels.visible()) return null;
+            const r = legendNode.getClientRect({ relativeTo: roomLayer });
+            return (r.width > 0 && r.height > 0) ? r : null;
+        }
+        // Room rect ∪ key AABB — what fit-to-view and export must show.
+        function contentWorldAABB() {
+            let x0 = 0, y0 = 0, x1 = doc.room.width, y1 = doc.room.depth;
+            const lr = legendWorldAABB();
+            if (lr) {
+                x0 = Math.min(x0, lr.x);
+                y0 = Math.min(y0, lr.y);
+                x1 = Math.max(x1, lr.x + lr.width);
+                y1 = Math.max(y1, lr.y + lr.height);
+            }
+            return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
         }
 
         // --- Layer state (visibility / locking) ---
@@ -3550,8 +3646,20 @@
             }
             document.getElementById('sb-pos').textContent = text;
         }
+        // The fit-to-view scale is the 100% reference for the View section's badge.
+        function fitScaleRef() {
+            if (!stage || !doc || !stage.width() || !stage.height()) return null;
+            const b = contentWorldAABB();
+            if (!b.width || !b.height) return null;
+            return clamp(0.9 * Math.min(stage.width() / b.width, stage.height() / b.height), MIN_SCALE, MAX_SCALE);
+        }
         function updateZoomIndicator() {
             document.getElementById('sb-zoom').textContent = '1 m = ' + Math.round(stage.scaleX() * 1000) + ' px';
+            const badge = document.getElementById('view-zoom-pct');
+            if (badge) {
+                const ref = fitScaleRef();
+                badge.textContent = ref ? Math.round(stage.scaleX() / ref * 100) + '%' : '—';
+            }
         }
         function updateObjectCount() {
             const n = doc ? doc.objects.length : 0;
@@ -4217,13 +4325,32 @@
                 renderOverlayPanel();
             });
             root.appendChild(preset);
+            // The key exists with or without an overlay (it falls back to equipment
+            // category colours), so its controls render in every branch.
+            function appendKeyControls() {
+                const legendBox = el('input', { type: 'checkbox', checked: doc.legend.visible !== false });
+                legendBox.addEventListener('change', function() {
+                    doc.legend.visible = legendBox.checked;
+                    markDirty(); rebuildLegendNode();
+                });
+                root.appendChild(el('label', { class: 'checkbox-row' }, [legendBox, el('span', { text: 'Show key on canvas' })]));
+                const resetKeyBtn = el('button', { class: 'btn btn-sm btn-secondary', type: 'button',
+                    text: 'Reset key position', title: 'Move the key back below the room' });
+                resetKeyBtn.addEventListener('click', function() {
+                    doc.legend.x = null; doc.legend.y = null;
+                    markDirty(); rebuildLegendNode();
+                });
+                root.appendChild(el('div', { style: 'margin-top:6px' }, [resetKeyBtn]));
+            }
             if (!so.enabled) {
                 root.appendChild(el('div', { class: 'inspector-empty', text: 'Tint racks by customer, capacity, or any metadata field, with an on-canvas key.' }));
+                appendKeyControls();
                 return;
             }
             const fields = metadataFieldOptions();
             if (!fields.length) {
                 root.appendChild(el('div', { class: 'inspector-empty', text: 'No metadata fields in use yet — set some on placed equipment first.' }));
+                appendKeyControls();
                 return;
             }
             if (fields.indexOf(so.field) === -1) so.field = fields[0];
@@ -4281,12 +4408,7 @@
                 if (!wrap.children.length) wrap.appendChild(el('div', { class: 'inspector-empty', text: 'No values set for "' + so.field + '" yet.' }));
                 root.appendChild(wrap);
             }
-            const legendBox = el('input', { type: 'checkbox', checked: doc.legend.visible !== false });
-            legendBox.addEventListener('change', function() {
-                doc.legend.visible = legendBox.checked;
-                markDirty(); rebuildLegendNode();
-            });
-            root.appendChild(el('label', { class: 'checkbox-row' }, [legendBox, el('span', { text: 'Show key on canvas' })]));
+            appendKeyControls();
         }
         // --- Summary panel (live capacity aggregates) ---
         let summaryTimer = null;
@@ -4739,8 +4861,11 @@
             const wasCulled = labelsCulledNow;
             if (wasCulled) equipmentTexts.forEach(function(t) { t.visible(true); });
 
-            const worldW = doc.room.width + EXPORT_MARGIN * 2;
-            const worldH = doc.room.depth + EXPORT_MARGIN * 2 + EXPORT_TITLE_H;
+            // Bounds cover the room plus the key wherever it sits (e.g. below the
+            // room), so nothing gets clipped off the page.
+            const content = contentWorldAABB();
+            const worldW = content.width + EXPORT_MARGIN * 2;
+            const worldH = content.height + EXPORT_MARGIN * 2 + EXPORT_TITLE_H;
             const baseScale = 1400 / Math.max(worldW, worldH);
             const container = document.createElement('div');
             container.style.position = 'fixed';
@@ -4752,19 +4877,19 @@
                 height: Math.ceil(worldH * baseScale)
             });
             exportStage.scale({ x: baseScale, y: baseScale });
-            exportStage.position({ x: EXPORT_MARGIN * baseScale, y: EXPORT_MARGIN * baseScale });
+            exportStage.position({ x: (EXPORT_MARGIN - content.x) * baseScale, y: (EXPORT_MARGIN - content.y) * baseScale });
             const layer = new Konva.Layer({ listening: false });
             exportStage.add(layer);
             // Page background
             layer.add(new Konva.Rect({
-                x: -EXPORT_MARGIN, y: -EXPORT_MARGIN, width: worldW, height: worldH, fill: '#FAF8F5'
+                x: content.x - EXPORT_MARGIN, y: content.y - EXPORT_MARGIN, width: worldW, height: worldH, fill: '#FAF8F5'
             }));
             layer.add(gridShape.clone());
             // A Layer clone can't be added to a layer — clone its groups in z-order.
             ['building', 'containment', 'equipment', 'status', 'monitoring', 'labels'].forEach(function(key) {
                 layer.add(sceneGroups[key].clone({ listening: false }));
             });
-            layer.add(buildTitleBlock());
+            layer.add(buildTitleBlock(content.y + content.height, content.x + content.width + EXPORT_MARGIN * 0.5));
             exportStage.batchDraw();
 
             if (wasCulled) equipmentTexts.forEach(function(t) { t.visible(false); });
@@ -4780,10 +4905,14 @@
                 destroy: function() { exportStage.destroy(); container.remove(); }
             };
         }
-        function buildTitleBlock() {
-            const g = new Konva.Group({ x: 0, y: doc.room.depth + EXPORT_MARGIN * 0.6 });
+        function buildTitleBlock(contentBottom, maxTextWidth) {
+            // Anchored below the exported content (room + key), not the room alone,
+            // so a key below the room never overlaps the title block. Text lines are
+            // ellipsis-truncated at the page edge rather than running off it.
+            const g = new Konva.Group({ x: 0, y: (contentBottom != null ? contentBottom : doc.room.depth) + EXPORT_MARGIN * 0.6 });
+            const tw = maxTextWidth || undefined;
             g.add(new Konva.Text({
-                x: 0, y: 0, text: doc.meta.name || 'Untitled room',
+                x: 0, y: 0, text: doc.meta.name || 'Untitled room', width: tw, wrap: 'none', ellipsis: true,
                 fontFamily: 'Inter, sans-serif', fontSize: 620, fontStyle: '600', fill: '#3A2F28'
             }));
             const s = computeSummary();
@@ -4796,7 +4925,7 @@
             sub.push('exported ' + new Date().toISOString().slice(0, 10));
             if (doc.meta.updatedBy) sub.push('by ' + doc.meta.updatedBy);
             g.add(new Konva.Text({
-                x: 0, y: 800, text: sub.join('  ·  '),
+                x: 0, y: 800, text: sub.join('  ·  '), width: tw, wrap: 'none', ellipsis: true,
                 fontFamily: 'Inter, sans-serif', fontSize: 330, fill: '#6B5F54'
             }));
             // Capacity summary line
@@ -4812,7 +4941,7 @@
             }
             if (line2.length) {
                 g.add(new Konva.Text({
-                    x: 0, y: 1250, text: line2.join('  ·  '),
+                    x: 0, y: 1250, text: line2.join('  ·  '), width: tw, wrap: 'none', ellipsis: true,
                     fontFamily: 'Inter, sans-serif', fontSize: 330, fill: '#6B5F54'
                 }));
             }
@@ -4927,6 +5056,17 @@
                 this.textContent = document.getElementById('sidebar').classList.contains('collapsed') ? '▶' : '◀';
                 saveUiState();
             });
+            document.getElementById('right-sidebar-toggle').addEventListener('click', function() {
+                const sb = document.getElementById('right-sidebar');
+                sb.classList.toggle('collapsed');
+                this.textContent = sb.classList.contains('collapsed') ? '◀' : '▶';
+                saveUiState();
+            });
+            document.getElementById('view-zoom-out').addEventListener('click', function() { zoomBy(0.8); });
+            document.getElementById('view-zoom-in').addEventListener('click', function() { zoomBy(1.25); });
+            document.getElementById('view-zoom-fit').addEventListener('click', fitRoom);
+            document.getElementById('view-zoom-pct').addEventListener('click', fitRoom);
+            document.getElementById('view-zoom-origin').addEventListener('click', viewTopLeft);
             document.querySelectorAll('.control-section > .section-head').forEach(function(head) {
                 head.addEventListener('click', function() {
                     const sec = head.parentElement;
@@ -4980,6 +5120,9 @@
         restoreUiState();
         if (document.getElementById('sidebar').classList.contains('collapsed')) {
             document.getElementById('sidebar-toggle').textContent = '▶';
+        }
+        if (document.getElementById('right-sidebar').classList.contains('collapsed')) {
+            document.getElementById('right-sidebar-toggle').textContent = '◀';
         }
         document.querySelectorAll('.control-section.collapsed > .section-head .chevron').forEach(function(c) { c.textContent = '▸'; });
         createStage();
