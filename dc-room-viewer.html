@@ -519,6 +519,7 @@
                 <div class="menu" id="export-menu" hidden>
                     <button id="btn-export-png">PNG image</button>
                     <button id="btn-export-pdf">PDF drawing</button>
+                    <button id="btn-export-vsdx">Visio drawing (.vsdx)</button>
                 </div>
             </div>
             <button class="icon-btn" id="undo-btn" title="Undo (Ctrl/Cmd+Z)" disabled>↺</button>
@@ -5007,6 +5008,981 @@
             return ((doc.meta.name || 'dc-room').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'dc-room');
         }
 
+        // --- Export (VSDX / Visio drawing) ---
+        // Emits a native, editable Visio drawing: every object becomes a real Visio
+        // shape (not an image) on a metric to-scale page, mapped onto Visio layers,
+        // with equipment metadata exposed as Visio Shape Data rows.
+        // OPC/XML scaffolding adapted from vsdx-builder.js in McMarius11/svgtovisio
+        // (MIT licensed), rewritten as plain functions and extended with scaled-page,
+        // layer, group-shape and Shape Data support. The ZIP container is a minimal
+        // store-only (uncompressed) writer so the export needs no new dependencies.
+        const VSDX_MM_IN = 25.4;      // Visio drawing units are inches; 1 world unit = 1 mm
+        const VSDX_MM = 1 / VSDX_MM_IN; // 1 mm expressed in inches (PageScale base)
+
+        // - ZIP container (store-only) -
+        let vsdxCrcTable = null;
+        function zipCrc32(bytes) {
+            if (!vsdxCrcTable) {
+                vsdxCrcTable = new Uint32Array(256);
+                for (let n = 0; n < 256; n++) {
+                    let c = n;
+                    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+                    vsdxCrcTable[n] = c >>> 0;
+                }
+            }
+            let crc = 0xFFFFFFFF;
+            for (let i = 0; i < bytes.length; i++) crc = vsdxCrcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+        function buildStoredZip(files) {
+            const enc = new TextEncoder();
+            const now = new Date();
+            const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+            const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+            const u16 = function(v) { return [v & 0xFF, (v >>> 8) & 0xFF]; };
+            const u32 = function(v) { return [v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF]; };
+            const chunks = [], central = [];
+            let offset = 0;
+            files.forEach(function(f) {
+                const nameB = enc.encode(f.name);
+                const dataB = enc.encode(f.data);
+                const crc = zipCrc32(dataB);
+                // Local file header: method 0 (stored), flag bit 11 (UTF-8 names)
+                const head = new Uint8Array([].concat(
+                    u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+                    u32(crc), u32(dataB.length), u32(dataB.length), u16(nameB.length), u16(0)));
+                chunks.push(head, nameB, dataB);
+                central.push({ nameB: nameB, crc: crc, size: dataB.length, offset: offset });
+                offset += head.length + nameB.length + dataB.length;
+            });
+            const cdStart = offset;
+            central.forEach(function(e) {
+                const rec = new Uint8Array([].concat(
+                    u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+                    u32(e.crc), u32(e.size), u32(e.size), u16(e.nameB.length), u16(0), u16(0),
+                    u16(0), u16(0), u32(0), u32(e.offset)));
+                chunks.push(rec, e.nameB);
+                offset += rec.length + e.nameB.length;
+            });
+            chunks.push(new Uint8Array([].concat(
+                u32(0x06054b50), u16(0), u16(0), u16(central.length), u16(central.length),
+                u32(offset - cdStart), u32(cdStart), u16(0))));
+            return new Blob(chunks, { type: 'application/vnd.ms-visio.drawing' });
+        }
+
+        // - Small conversion helpers -
+        function vsdxNum(v) {
+            const n = Math.round(Number(v) * 1e6) / 1e6;
+            return String(Object.is(n, -0) ? 0 : n);
+        }
+        function vsdxEsc(s) {
+            return String(s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+        }
+        // CSS colour → { hex, trans } (trans = 1 - alpha, Visio's transparency cells)
+        function vsdxColor(css) {
+            if (!css || css === 'none' || css === 'transparent') return null;
+            const m = String(css).match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/);
+            if (m) {
+                const hex = '#' + [m[1], m[2], m[3]].map(function(v) {
+                    return Math.round(Number(v)).toString(16).padStart(2, '0');
+                }).join('');
+                return { hex: hex.toUpperCase(), trans: m[4] !== undefined ? 1 - Number(m[4]) : 0 };
+            }
+            return { hex: toHexColor(css).toUpperCase(), trans: 0 };
+        }
+        // Text width in world mm, matching the on-canvas Inter metrics (1 mm = 1 px).
+        let vsdxTextCtx = null;
+        function vsdxMeasureTextMm(text, fsMm, weight) {
+            if (!vsdxTextCtx) vsdxTextCtx = document.createElement('canvas').getContext('2d');
+            vsdxTextCtx.font = (weight || 400) + ' ' + fsMm + 'px Inter, sans-serif';
+            let w = 0;
+            String(text).split('\n').forEach(function(line) {
+                w = Math.max(w, vsdxTextCtx.measureText(line).width);
+            });
+            return w;
+        }
+        // The status overlay tints equipment at ~55% opacity on canvas; Visio gets a
+        // single flattened fill colour instead of a second stacked shape.
+        function vsdxEquipmentFill(obj, baseCss) {
+            const so = doc.statusOverlay;
+            const statusVisible = (doc.layers.status || {}).visible !== false;
+            if (!so.enabled || !statusVisible) return vsdxColor(baseCss);
+            const v = overlayValue(obj);
+            if (v === undefined || v === null || v === '') return vsdxColor(baseCss);
+            const over = overlayColorFor(v);
+            if (!over) return vsdxColor(baseCss);
+            const op = so.opacity != null ? so.opacity : 0.55;
+            const b = toHexColor(baseCss), o = toHexColor(over);
+            const mix = function(i) {
+                const bb = parseInt(b.slice(i, i + 2), 16), oo = parseInt(o.slice(i, i + 2), 16);
+                return Math.round(oo * op + bb * (1 - op)).toString(16).padStart(2, '0');
+            };
+            return { hex: ('#' + mix(1) + mix(3) + mix(5)).toUpperCase(), trans: 0 };
+        }
+        const VSDX_LAYER_ORDER = ['building', 'containment', 'equipment', 'monitoring', 'labels'];
+        function vsdxLayerIx(key) {
+            const ix = VSDX_LAYER_ORDER.indexOf(key);
+            return ix === -1 ? null : ix;
+        }
+
+        // - Generic shape emitter -
+        // s: { group, pinX/pinY/w/h (drawing-unit inches), locPinX/locPinY, angleDeg,
+        //      fill:{hex,trans}|null, line:{hex,weightIn,pattern,trans,cap,beginArrow,endArrow}|null,
+        //      roundingIn, geoms:[{noFill,noLine,rows}], text:{str,fsIn,colorHex,bold,hAlign},
+        //      props:[{key,label,value,type}], layerIx, childXml }
+        function vsdxShapeXml(cx, s) {
+            const id = cx.nextId++;
+            const w = Math.max(s.w, 0.001), h = Math.max(s.h, 0.001);
+            const cell = function(n, v) { return '      <Cell N="' + n + '" V="' + vsdxNum(v) + '"/>\n'; };
+            const cellS = function(n, v) { return '      <Cell N="' + n + '" V="' + vsdxEsc(v) + '"/>\n'; };
+            let x = '    <Shape ID="' + id + '" Type="' + (s.group ? 'Group' : 'Shape') + '" LineStyle="0" FillStyle="0" TextStyle="0">\n';
+            x += cell('PinX', s.pinX) + cell('PinY', s.pinY) + cell('Width', w) + cell('Height', h);
+            x += cell('LocPinX', s.locPinX != null ? s.locPinX : w / 2);
+            x += cell('LocPinY', s.locPinY != null ? s.locPinY : h / 2);
+            // V2: Konva rotation is clockwise-positive in a y-down world; Visio's
+            // Angle is counterclockwise-positive in y-up — negate. Radians in XML.
+            x += cell('Angle', -((s.angleDeg || 0) * Math.PI / 180));
+            if (s.fill) {
+                x += cellS('FillForegnd', s.fill.hex) + cell('FillPattern', 1);
+                if (s.fill.trans) x += cell('FillForegndTrans', s.fill.trans);
+            } else {
+                x += cell('FillPattern', 0);
+            }
+            if (s.line) {
+                x += cell('LineWeight', s.line.weightIn) + cellS('LineColor', s.line.hex);
+                x += cell('LinePattern', s.line.pattern || 1);
+                if (s.line.trans) x += cell('LineColorTrans', s.line.trans);
+                if (s.line.cap != null) x += cell('LineCap', s.line.cap);
+                if (s.line.beginArrow) x += cell('BeginArrow', 5) + cell('BeginArrowSize', 2);
+                if (s.line.endArrow) x += cell('EndArrow', 5) + cell('EndArrowSize', 2);
+            } else {
+                x += cell('LinePattern', 0);
+            }
+            if (s.roundingIn) x += cell('Rounding', s.roundingIn);
+            if (s.text) {
+                // Zero text-block margins so anchored text lands exactly where Konva puts it
+                x += cell('LeftMargin', 0) + cell('RightMargin', 0) + cell('TopMargin', 0) + cell('BottomMargin', 0);
+            }
+            if (s.layerIx != null) x += '      <Cell N="LayerMember" V="' + s.layerIx + '"/>\n';
+            (s.geoms || []).forEach(function(g, i) {
+                x += '      <Section N="Geometry" IX="' + i + '">\n';
+                x += '        <Cell N="NoFill" V="' + (g.noFill ? 1 : 0) + '"/>\n';
+                x += '        <Cell N="NoLine" V="' + (g.noLine ? 1 : 0) + '"/>\n';
+                x += g.rows;
+                x += '      </Section>\n';
+            });
+            if (s.text) {
+                // V3: Char Size is in page units, so /scale keeps on-paper size in step
+                // with the drawing (applied by callers via fsIn = fsMm/scale/25.4).
+                x += '      <Section N="Character">\n        <Row IX="0">\n'
+                   + '          <Cell N="Font" V="1"/>\n'
+                   + '          <Cell N="Color" V="' + s.text.colorHex + '"/>\n'
+                   + '          <Cell N="Size" V="' + vsdxNum(s.text.fsIn) + '"/>\n'
+                   + '          <Cell N="Style" V="' + (s.text.bold ? 1 : 0) + '"/>\n'
+                   + '        </Row>\n      </Section>\n'
+                   + '      <Section N="Paragraph">\n        <Row IX="0">\n'
+                   + '          <Cell N="HorzAlign" V="' + (s.text.hAlign != null ? s.text.hAlign : 1) + '"/>\n'
+                   + '        </Row>\n      </Section>\n';
+            }
+            if (s.props && s.props.length) x += vsdxPropertySection(s.props);
+            if (s.text) x += '      <Text>' + vsdxEsc(s.text.str) + '</Text>\n';
+            if (s.group) x += '      <Shapes>\n' + (s.childXml || '') + '      </Shapes>\n';
+            x += '    </Shape>\n';
+            return x;
+        }
+        // V5: Shape Data rows. Type 0 = string, 2 = number; row names must be
+        // alphanumeric/underscore and unique within the section.
+        function vsdxPropertySection(props) {
+            const used = {};
+            let x = '      <Section N="Property">\n';
+            props.forEach(function(p) {
+                let key = String(p.key || 'Prop').replace(/[^A-Za-z0-9_]/g, '_');
+                if (/^[0-9]/.test(key)) key = '_' + key;
+                let k = key, n = 2;
+                while (used[k]) k = key + '_' + (n++);
+                used[k] = true;
+                const isNum = p.type === 'number' && p.value !== '' && p.value != null && isFinite(Number(p.value));
+                const val = p.value == null ? '' : String(p.value);
+                x += '        <Row N="' + k + '">\n'
+                   + '          <Cell N="Value" V="' + vsdxEsc(isNum ? String(Number(val)) : val) + '"' + (isNum ? '' : ' U="STR"') + '/>\n'
+                   + '          <Cell N="Label" V="' + vsdxEsc(p.label || p.key) + '"/>\n'
+                   + '          <Cell N="Type" V="' + (isNum ? 2 : 0) + '"/>\n'
+                   + '          <Cell N="Invisible" V="0"/>\n'
+                   + '        </Row>\n';
+            });
+            x += '      </Section>\n';
+            return x;
+        }
+
+        // - Geometry row builders (shape-local inches, y-up) -
+        function vsdxRectRows() {
+            return '        <Row T="RelMoveTo" IX="1"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row>\n'
+                 + '        <Row T="RelLineTo" IX="2"><Cell N="X" V="1"/><Cell N="Y" V="0"/></Row>\n'
+                 + '        <Row T="RelLineTo" IX="3"><Cell N="X" V="1"/><Cell N="Y" V="1"/></Row>\n'
+                 + '        <Row T="RelLineTo" IX="4"><Cell N="X" V="0"/><Cell N="Y" V="1"/></Row>\n'
+                 + '        <Row T="RelLineTo" IX="5"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row>\n';
+        }
+        function vsdxEllipseRows(w, h) {
+            return '        <Row T="Ellipse" IX="1">'
+                 + '<Cell N="X" V="' + vsdxNum(w / 2) + '"/><Cell N="Y" V="' + vsdxNum(h / 2) + '"/>'
+                 + '<Cell N="A" V="' + vsdxNum(w) + '"/><Cell N="B" V="' + vsdxNum(h / 2) + '"/>'
+                 + '<Cell N="C" V="' + vsdxNum(w / 2) + '"/><Cell N="D" V="' + vsdxNum(h) + '"/></Row>\n';
+        }
+        function vsdxPathRows(pts, closed, lx, ly) {
+            let rows = '', ix = 1;
+            pts.forEach(function(p, i) {
+                rows += '        <Row T="' + (i ? 'LineTo' : 'MoveTo') + '" IX="' + (ix++) + '">'
+                      + '<Cell N="X" V="' + vsdxNum(lx(p[0])) + '"/><Cell N="Y" V="' + vsdxNum(ly(p[1])) + '"/></Row>\n';
+            });
+            if (closed && pts.length) {
+                rows += '        <Row T="LineTo" IX="' + ix + '">'
+                      + '<Cell N="X" V="' + vsdxNum(lx(pts[0][0])) + '"/><Cell N="Y" V="' + vsdxNum(ly(pts[0][1])) + '"/></Row>\n';
+            }
+            return rows;
+        }
+        // Circular arc as ArcTo rows (≤90° per row). The bulge A — the signed
+        // distance from the arc's midpoint to the chord midpoint — is computed
+        // numerically in the local y-up frame, so no sign-convention guessing.
+        function vsdxArcRows(prim, lx, ly) {
+            const chunks = Math.max(1, Math.ceil(Math.abs(prim.sweep) / 90));
+            const pt = function(deg) {
+                const r = deg * Math.PI / 180;
+                return [prim.cx + prim.r * Math.cos(r), prim.cy + prim.r * Math.sin(r)];
+            };
+            const p0 = pt(prim.a0);
+            let rows = '        <Row T="MoveTo" IX="1"><Cell N="X" V="' + vsdxNum(lx(p0[0])) + '"/><Cell N="Y" V="' + vsdxNum(ly(p0[1])) + '"/></Row>\n';
+            for (let i = 0; i < chunks; i++) {
+                const aA = prim.a0 + prim.sweep * i / chunks;
+                const aB = prim.a0 + prim.sweep * (i + 1) / chunks;
+                const A = pt(aA), B = pt(aB), M = pt((aA + aB) / 2);
+                const ax = lx(A[0]), ay = ly(A[1]), bx = lx(B[0]), by = ly(B[1]), mx = lx(M[0]), my = ly(M[1]);
+                const dx = bx - ax, dy = by - ay;
+                const dl = Math.hypot(dx, dy) || 1;
+                const bulge = ((mx - (ax + bx) / 2) * (-dy) + (my - (ay + by) / 2) * dx) / dl;
+                rows += '        <Row T="ArcTo" IX="' + (i + 2) + '"><Cell N="X" V="' + vsdxNum(bx) + '"/><Cell N="Y" V="' + vsdxNum(by) + '"/><Cell N="A" V="' + vsdxNum(bulge) + '"/></Row>\n';
+            }
+            return rows;
+        }
+
+        // - Drawing primitives -
+        // Prims are declarative shapes in a Konva-style frame (mm, y-down). A frame
+        // maps that space to target inches: the page for top-level shapes, the parent
+        // bbox for group children. Kinds: rect, ellipse, line, poly, multiline, arc, text.
+        function vsdxPrimBBox(prim) {
+            switch (prim.kind) {
+                case 'rect': return { x1: prim.x, y1: prim.y, x2: prim.x + prim.w, y2: prim.y + prim.h };
+                case 'ellipse': return { x1: prim.cx - prim.rx, y1: prim.cy - prim.ry, x2: prim.cx + prim.rx, y2: prim.cy + prim.ry };
+                case 'line': case 'poly': {
+                    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+                    prim.pts.forEach(function(p) {
+                        x1 = Math.min(x1, p[0]); y1 = Math.min(y1, p[1]);
+                        x2 = Math.max(x2, p[0]); y2 = Math.max(y2, p[1]);
+                    });
+                    return { x1: x1, y1: y1, x2: x2, y2: y2 };
+                }
+                case 'multiline': {
+                    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+                    prim.segs.forEach(function(seg) {
+                        seg.forEach(function(p) {
+                            x1 = Math.min(x1, p[0]); y1 = Math.min(y1, p[1]);
+                            x2 = Math.max(x2, p[0]); y2 = Math.max(y2, p[1]);
+                        });
+                    });
+                    return { x1: x1, y1: y1, x2: x2, y2: y2 };
+                }
+                case 'arc': {
+                    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+                    for (let i = 0; i <= 24; i++) {
+                        const a = (prim.a0 + prim.sweep * i / 24) * Math.PI / 180;
+                        const px = prim.cx + prim.r * Math.cos(a), py = prim.cy + prim.r * Math.sin(a);
+                        x1 = Math.min(x1, px); y1 = Math.min(y1, py);
+                        x2 = Math.max(x2, px); y2 = Math.max(y2, py);
+                    }
+                    return { x1: x1, y1: y1, x2: x2, y2: y2 };
+                }
+                case 'text': {
+                    // Visio substitutes Inter with a (usually wider) font, so give the
+                    // text box directional slack to prevent wrapping. HorzAlign pins
+                    // the text to the anchored edge, so the slack side is invisible.
+                    const wMm = vsdxMeasureTextMm(prim.str, prim.fsMm, prim.weight) * 1.3 + prim.fsMm;
+                    const hMm = String(prim.str).split('\n').length * prim.fsMm;
+                    if (prim.anchor === 'cc') return { x1: prim.x - wMm / 2, y1: prim.y - hMm / 2, x2: prim.x + wMm / 2, y2: prim.y + hMm / 2 };
+                    if (prim.anchor === 'rc') return { x1: prim.x - wMm, y1: prim.y - hMm / 2, x2: prim.x, y2: prim.y + hMm / 2 };
+                    return { x1: prim.x, y1: prim.y, x2: prim.x + wMm, y2: prim.y + hMm }; // top-left (Konva default)
+                }
+                default: return { x1: 0, y1: 0, x2: 1, y2: 1 };
+            }
+        }
+        function vsdxPrimShape(cx, prim, frame, extra) {
+            extra = extra || {};
+            const bb = vsdxPrimBBox(prim);
+            const w = (bb.x2 - bb.x1) / VSDX_MM_IN, h = (bb.y2 - bb.y1) / VSDX_MM_IN;
+            const lx = function(x) { return (x - bb.x1) / VSDX_MM_IN; };
+            const ly = function(y) { return (bb.y2 - y) / VSDX_MM_IN; };
+            const s = { w: w, h: h, angleDeg: extra.angleDeg, layerIx: extra.layerIx, props: extra.props };
+            if (extra.pivotMm) {
+                s.pinX = frame.toX(extra.pivotMm.x);
+                s.pinY = frame.toY(extra.pivotMm.y);
+                s.locPinX = lx(extra.pivotMm.x);
+                s.locPinY = ly(extra.pivotMm.y);
+            } else {
+                s.pinX = frame.toX((bb.x1 + bb.x2) / 2);
+                s.pinY = frame.toY((bb.y1 + bb.y2) / 2);
+            }
+            s.fill = prim.fillResolved || (prim.fill ? vsdxColor(prim.fill) : null);
+            if (prim.stroke) {
+                s.line = vsdxColor(prim.stroke);
+                s.line.weightIn = prim.weightIn != null ? prim.weightIn : (prim.weightMm || 25) / cx.scale / VSDX_MM_IN; // V4: page units
+                s.line.pattern = prim.dash ? 2 : 1;
+                if (prim.trans != null) s.line.trans = prim.trans;
+                if (prim.cap != null) s.line.cap = prim.cap;
+                if (prim.arrows) { s.line.beginArrow = true; s.line.endArrow = true; }
+            } else {
+                s.line = null;
+            }
+            if (prim.roundingMm) s.roundingIn = prim.roundingMm / VSDX_MM_IN;
+            switch (prim.kind) {
+                case 'rect': s.geoms = [{ noFill: !s.fill, noLine: !s.line, rows: vsdxRectRows() }]; break;
+                case 'ellipse': s.geoms = [{ noFill: !s.fill, noLine: !s.line, rows: vsdxEllipseRows(w, h) }]; break;
+                case 'poly': s.geoms = [{ noFill: !s.fill, noLine: !s.line, rows: vsdxPathRows(prim.pts, true, lx, ly) }]; break;
+                case 'line': s.geoms = [{ noFill: true, noLine: false, rows: vsdxPathRows(prim.pts, false, lx, ly) }]; break;
+                case 'multiline':
+                    s.geoms = prim.segs.map(function(seg) {
+                        return { noFill: true, noLine: false, rows: vsdxPathRows(seg, false, lx, ly) };
+                    });
+                    break;
+                case 'arc': s.geoms = [{ noFill: true, noLine: false, rows: vsdxArcRows(prim, lx, ly) }]; break;
+                case 'text': break; // text-only shape, no geometry
+            }
+            const textSrc = prim.kind === 'text' ? prim : extra.text;
+            if (textSrc && textSrc.str) {
+                s.text = {
+                    str: textSrc.str,
+                    fsIn: textSrc.fsMm / cx.scale / VSDX_MM_IN, // V3: page units
+                    colorHex: vsdxColor(textSrc.color || '#000000').hex,
+                    bold: (textSrc.weight || 400) >= 600,
+                    hAlign: prim.kind === 'text'
+                        ? (prim.anchor === 'cc' ? 1 : prim.anchor === 'rc' ? 2 : 0)
+                        : (textSrc.hAlign != null ? textSrc.hAlign : 1)
+                };
+            }
+            return vsdxShapeXml(cx, s);
+        }
+        // A Visio shape has a single line/fill style, so any object drawn with more
+        // than one style becomes a group (V6). Children live in the group's local
+        // bbox frame; rotation happens once, at group level, around pivotMm.
+        function vsdxGroupXml(cx, prims, opts) {
+            if (!prims.length) return '';
+            let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+            prims.forEach(function(p) {
+                const b = vsdxPrimBBox(p);
+                x1 = Math.min(x1, b.x1); y1 = Math.min(y1, b.y1);
+                x2 = Math.max(x2, b.x2); y2 = Math.max(y2, b.y2);
+            });
+            const w = (x2 - x1) / VSDX_MM_IN, h = (y2 - y1) / VSDX_MM_IN;
+            const frame = {
+                toX: function(x) { return (x - x1) / VSDX_MM_IN; },
+                toY: function(y) { return (y2 - y) / VSDX_MM_IN; }
+            };
+            let childXml = '';
+            prims.forEach(function(p) { childXml += vsdxPrimShape(cx, p, frame); });
+            const s = {
+                group: true, w: w, h: h, childXml: childXml,
+                angleDeg: opts.angleDeg, layerIx: opts.layerIx, props: opts.props
+            };
+            if (opts.pivotWorld) {
+                const pm = opts.pivotMm || { x: 0, y: 0 };
+                s.pinX = cx.pageX(opts.pivotWorld.x);
+                s.pinY = cx.pageY(opts.pivotWorld.y);
+                s.locPinX = (pm.x - x1) / VSDX_MM_IN;
+                s.locPinY = (y2 - pm.y) / VSDX_MM_IN;
+            } else {
+                s.pinX = cx.pageX((x1 + x2) / 2);
+                s.pinY = cx.pageY((y1 + y2) / 2);
+            }
+            if (opts.text) {
+                s.text = {
+                    str: opts.text.str,
+                    fsIn: opts.text.fsMm / cx.scale / VSDX_MM_IN,
+                    colorHex: vsdxColor(opts.text.color || '#000000').hex,
+                    bold: (opts.text.weight || 400) >= 600,
+                    hAlign: opts.text.hAlign != null ? opts.text.hAlign : 1
+                };
+            }
+            return vsdxShapeXml(cx, s);
+        }
+
+        // - Per-object emitters -
+        function vsdxEquipmentProps(obj, def) {
+            const md = obj.metadata || {};
+            const g = doc.room.grid;
+            const props = [
+                { key: 'Name', label: 'Name', value: equipmentDisplayText(obj) },
+                { key: 'Component', label: 'Component', value: def ? def.name : (obj.defId || '') },
+                { key: 'Category', label: 'Category', value: def ? (CATEGORY_LABELS[def.category] || def.category) : '' }
+            ];
+            const skip = String((g.labels && g.labels.skip) || '').toUpperCase();
+            const col = Math.floor((obj.x - g.originX) / g.pitch);
+            const row = Math.floor((obj.y - g.originY) / g.pitch);
+            if (col >= 0 && row >= 0) props.push({ key: 'GridRef', label: 'Grid ref', value: gridLetterFor(col, skip) + (row + 1) });
+            if (obj.cageId) {
+                const cage = getObj(obj.cageId);
+                if (cage) props.push({ key: 'Cage', label: 'Cage', value: cage.name || 'Cage' });
+            }
+            const seen = {};
+            ((def && def.metadataSchema) || []).forEach(function(f) {
+                seen[f.key] = true;
+                props.push({ key: f.key, label: f.label || f.key, value: md[f.key] != null ? md[f.key] : '', type: f.type });
+            });
+            Object.keys(md).forEach(function(k) {
+                if (!seen[k]) props.push({ key: k, label: k, value: md[k] });
+            });
+            return props;
+        }
+        function vsdxEquipmentXml(cx, obj) {
+            const def = getDef(obj.defId);
+            const size = equipmentSize(obj);
+            const visual = (def && def.visual) || {};
+            const isMonitoring = def && def.category === 'monitoring';
+            const layerIx = vsdxLayerIx(layerKeyFor(obj));
+            const props = vsdxEquipmentProps(obj, def);
+            const textStr = equipmentDisplayText(obj);
+            const angle = obj.rotation || 0;
+            if (isMonitoring) {
+                const r = Math.max(size.w, size.d) / 2;
+                const fs = textStr ? Math.min(size.w * 0.45, size.w * 1.5 / Math.max(1, textStr.length)) : 0;
+                return vsdxPrimShape(cx, {
+                    kind: 'ellipse', cx: obj.x, cy: obj.y, rx: r, ry: r,
+                    fill: visual.fill || '#4E7A50', stroke: visual.stroke || '#3B5D3C', weightMm: 20
+                }, cx.frame, {
+                    angleDeg: angle, layerIx: layerIx, props: props,
+                    text: textStr ? { str: textStr, fsMm: fs, color: '#FFFFFF', weight: 500, hAlign: 1 } : null
+                });
+            }
+            const fill = vsdxEquipmentFill(obj, visual.fill || '#9B948B');
+            const fs = clamp(size.w * 0.28, 110, 230);
+            const textOpt = textStr ? { str: textStr, fsMm: fs, color: '#FFFFFF', weight: 500, hAlign: 1 } : null;
+            if (!visual.front) {
+                return vsdxPrimShape(cx, {
+                    kind: 'rect', x: obj.x - size.w / 2, y: obj.y - size.d / 2, w: size.w, h: size.d,
+                    fillResolved: fill, stroke: visual.stroke || '#6B5F54', weightMm: 20
+                }, cx.frame, { angleDeg: angle, layerIx: layerIx, props: props, text: textOpt });
+            }
+            // Front indicator uses a second line style → group (body + white tick)
+            const inset = 70;
+            let pts = null;
+            if (visual.front === 'south') pts = [[-size.w / 2 + inset, size.d / 2 - inset], [size.w / 2 - inset, size.d / 2 - inset]];
+            if (visual.front === 'north') pts = [[-size.w / 2 + inset, -size.d / 2 + inset], [size.w / 2 - inset, -size.d / 2 + inset]];
+            if (visual.front === 'east') pts = [[size.w / 2 - inset, -size.d / 2 + inset], [size.w / 2 - inset, size.d / 2 - inset]];
+            if (visual.front === 'west') pts = [[-size.w / 2 + inset, -size.d / 2 + inset], [-size.w / 2 + inset, size.d / 2 - inset]];
+            const prims = [{
+                kind: 'rect', x: -size.w / 2, y: -size.d / 2, w: size.w, h: size.d,
+                fillResolved: fill, stroke: visual.stroke || '#6B5F54', weightMm: 20
+            }];
+            if (pts) prims.push({ kind: 'line', pts: pts, stroke: 'rgba(255,255,255,0.8)', weightMm: 45 });
+            return vsdxGroupXml(cx, prims, {
+                pivotMm: { x: 0, y: 0 }, pivotWorld: { x: obj.x, y: obj.y },
+                angleDeg: angle, layerIx: layerIx, props: props, text: textOpt
+            });
+        }
+        function vsdxWallXml(cx, obj) {
+            if (!obj.points || obj.points.length < 2) return '';
+            return vsdxPrimShape(cx, {
+                kind: 'line', pts: obj.points, stroke: '#5D5248',
+                weightMm: obj.thickness || 100, cap: 1
+            }, cx.frame, { layerIx: 0 });
+        }
+        function vsdxDoorXml(cx, obj) {
+            // Transliteration of createDoorNode(), in door-local mm (y-down)
+            const w = obj.width || 900;
+            const swingAngle = obj.swingAngle || 90;
+            const kind = obj.kind || 'single';
+            const prims = [];
+            const addGap = function(y0) {
+                prims.push({ kind: 'line', pts: [[0, y0], [w, y0]], stroke: '#FAF8F5', weightMm: 260, cap: 1 });
+                prims.push({ kind: 'line', pts: [[0, y0], [w, y0]], stroke: '#8B6F47', weightMm: 24, dash: true, cap: 1 });
+            };
+            const addLeaf = function(pivotX, leafW, hingeRight, dirIn, y0) {
+                let arcRotation, openAngleDeg;
+                if (hingeRight) {
+                    arcRotation = dirIn === -1 ? 180 : 180 - swingAngle;
+                    openAngleDeg = dirIn === -1 ? 180 + swingAngle : 180 - swingAngle;
+                } else {
+                    arcRotation = dirIn === -1 ? -swingAngle : 0;
+                    openAngleDeg = dirIn === -1 ? -swingAngle : swingAngle;
+                }
+                prims.push({ kind: 'arc', cx: pivotX, cy: y0, r: leafW, a0: arcRotation, sweep: swingAngle, stroke: '#8B6F47', weightMm: 18, dash: true });
+                const rad = openAngleDeg * Math.PI / 180;
+                prims.push({ kind: 'line', pts: [[pivotX, y0], [pivotX + leafW * Math.cos(rad), y0 + leafW * Math.sin(rad)]], stroke: '#6B5F54', weightMm: 45 });
+            };
+            const dirIn = obj.swing === 'out' ? 1 : -1;
+            const hingeRight = obj.hinge === 'right';
+            if (kind === 'double') {
+                addGap(0);
+                addLeaf(0, w / 2, false, dirIn, 0);
+                addLeaf(w, w / 2, true, dirIn, 0);
+            } else if (kind === 'airlock') {
+                const vd = obj.vestibuleDepth || 1500;
+                const off = dirIn * vd;
+                prims.push({
+                    kind: 'rect', x: 0, y: Math.min(0, off), w: w, h: Math.abs(off),
+                    fill: 'rgba(139, 111, 71, 0.08)', stroke: '#8B6F47', weightMm: 18, dash: true
+                });
+                addGap(0);
+                addGap(off);
+                addLeaf(hingeRight ? w : 0, w, hingeRight, -dirIn, 0);
+                addLeaf(hingeRight ? w : 0, w, hingeRight, dirIn, off);
+            } else {
+                addGap(0);
+                addLeaf(hingeRight ? w : 0, w, hingeRight, dirIn, 0);
+            }
+            return vsdxGroupXml(cx, prims, {
+                pivotMm: { x: 0, y: 0 }, pivotWorld: { x: obj.x, y: obj.y },
+                angleDeg: obj.rotation || 0, layerIx: 0
+            });
+        }
+        function vsdxColumnXml(cx, obj) {
+            const w = obj.w || 400, d = obj.d || 400;
+            const prim = obj.shape === 'round'
+                ? { kind: 'ellipse', cx: obj.x, cy: obj.y, rx: w / 2, ry: w / 2, fill: '#B5AFA6', stroke: '#6B5F54', weightMm: 25 }
+                : { kind: 'rect', x: obj.x - w / 2, y: obj.y - d / 2, w: w, h: d, fill: '#B5AFA6', stroke: '#6B5F54', weightMm: 25 };
+            return vsdxPrimShape(cx, prim, cx.frame, { layerIx: 0 });
+        }
+        function vsdxZoneXml(cx, obj) {
+            if (!obj.points || obj.points.length < 3) return '';
+            const base = ZONE_STYLES[zoneStyleKey(obj)];
+            const style = obj.style || {};
+            const polyPrim = {
+                kind: 'poly', pts: obj.points,
+                fill: style.fill || base.fill, stroke: style.stroke || base.stroke,
+                weightMm: 40, dash: true
+            };
+            if (!obj.name) return vsdxPrimShape(cx, polyPrim, cx.frame, { layerIx: 1 });
+            const bb = objectAABB(obj);
+            return vsdxGroupXml(cx, [
+                polyPrim,
+                { kind: 'text', x: bb.x1 + 120, y: bb.y1 + 100, str: obj.name, fsMm: 260, weight: 600, color: style.stroke || base.stroke }
+            ], { layerIx: 1 });
+        }
+        function vsdxLabelXml(cx, obj) {
+            return vsdxPrimShape(cx, {
+                kind: 'text', x: obj.x, y: obj.y, str: obj.text || 'Label',
+                fsMm: obj.fontSize || 300, weight: 600, color: '#3A2F28'
+            }, cx.frame, {
+                // Konva rotates text about its top-left anchor — pivot there
+                pivotMm: { x: obj.x, y: obj.y }, angleDeg: obj.rotation || 0, layerIx: 4
+            });
+        }
+        function vsdxDimensionXml(cx, obj) {
+            const dx = obj.x2 - obj.x1, dy = obj.y2 - obj.y1;
+            const len = Math.hypot(dx, dy);
+            const ux = len ? dx / len : 1, uy = len ? dy / len : 0;
+            const px = -uy, py = ux;
+            const tick = 160, fs = 300;
+            return vsdxGroupXml(cx, [
+                { kind: 'line', pts: [[obj.x1, obj.y1], [obj.x2, obj.y2]], stroke: '#3A2F28', weightMm: 30, arrows: true },
+                { kind: 'multiline', segs: [
+                    [[obj.x1 - px * tick, obj.y1 - py * tick], [obj.x1 + px * tick, obj.y1 + py * tick]],
+                    [[obj.x2 - px * tick, obj.y2 - py * tick], [obj.x2 + px * tick, obj.y2 + py * tick]]
+                ], stroke: '#3A2F28', weightMm: 25 },
+                { kind: 'text', anchor: 'cc',
+                  x: (obj.x1 + obj.x2) / 2 + px * (fs * 0.9), y: (obj.y1 + obj.y2) / 2 + py * (fs * 0.9),
+                  str: (len / 1000).toFixed(len < 10000 ? 2 : 1) + ' m', fsMm: fs, weight: 600, color: '#3A2F28' }
+            ], { layerIx: 4 });
+        }
+        // Even-odd clip of a grid line against the room outline polygon.
+        function vsdxClipToOutline(vertical, c, poly) {
+            const cross = [];
+            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                const a = poly[j], b = poly[i];
+                const a0 = vertical ? a[0] : a[1], b0 = vertical ? b[0] : b[1];
+                if ((a0 > c) === (b0 > c)) continue;
+                const t = (c - a0) / (b0 - a0);
+                cross.push(vertical ? a[1] + t * (b[1] - a[1]) : a[0] + t * (b[0] - a[0]));
+            }
+            cross.sort(function(x, y) { return x - y; });
+            const runs = [];
+            for (let i = 0; i + 1 < cross.length; i += 2) {
+                if (cross[i + 1] - cross[i] > 1) runs.push([cross[i], cross[i + 1]]);
+            }
+            return runs;
+        }
+        function vsdxGridXml(cx) {
+            const g = doc.room.grid;
+            const W = doc.room.width, D = doc.room.depth;
+            const outline = roomOutline();
+            const prims = [];
+            if (g.show) {
+                const minor = [], major = [];
+                const startX = ((g.originX % g.pitch) + g.pitch) % g.pitch;
+                const startY = ((g.originY % g.pitch) + g.pitch) % g.pitch;
+                for (let x = startX; x <= W; x += g.pitch) {
+                    const k = Math.round((x - g.originX) / g.pitch);
+                    (outline ? vsdxClipToOutline(true, x, outline) : [[0, D]]).forEach(function(r) {
+                        (k % 5 === 0 ? major : minor).push([[x, r[0]], [x, r[1]]]);
+                    });
+                }
+                for (let y = startY; y <= D; y += g.pitch) {
+                    const k = Math.round((y - g.originY) / g.pitch);
+                    (outline ? vsdxClipToOutline(false, y, outline) : [[0, W]]).forEach(function(r) {
+                        (k % 5 === 0 ? major : minor).push([[r[0], y], [r[1], y]]);
+                    });
+                }
+                // Hairlines on canvas; a fixed thin page weight (~0.24 pt) in print.
+                // ≤100 Geometry sections per shape, spilling into sibling shapes.
+                const batch = function(segs, trans) {
+                    for (let i = 0; i < segs.length; i += 100) {
+                        prims.push({ kind: 'multiline', segs: segs.slice(i, i + 100), stroke: '#4A5D47', weightIn: 0.0033, trans: trans });
+                    }
+                };
+                batch(minor, 0.87);
+                batch(major, 0.70);
+            }
+            if (g.labels && g.labels.show !== false) {
+                const skip = String(g.labels.skip || '').toUpperCase();
+                const fs = Math.min(g.pitch * 0.45, 400);
+                const off = (doc.room.wallThickness || 200) / 2 + fs * 0.9;
+                const i0 = Math.max(0, Math.round(-g.originX / g.pitch) - 1);
+                for (let i = i0; i < i0 + 5000; i++) {
+                    const cxx = g.originX + (i + 0.5) * g.pitch;
+                    if (cxx >= W) break;
+                    if (cxx < 0) continue;
+                    prims.push({ kind: 'text', anchor: 'cc', x: cxx, y: -off, str: gridLetterFor(i, skip), fsMm: fs, weight: 500, color: '#6B5F54' });
+                }
+                const j0 = Math.max(0, Math.round(-g.originY / g.pitch) - 1);
+                for (let j = j0; j < j0 + 5000; j++) {
+                    const cyy = g.originY + (j + 0.5) * g.pitch;
+                    if (cyy >= D) break;
+                    if (cyy < 0) continue;
+                    prims.push({ kind: 'text', anchor: 'rc', x: -off * 0.6, y: cyy, str: String(j + 1), fsMm: fs, weight: 500, color: '#6B5F54' });
+                }
+            }
+            if (!prims.length) return '';
+            return vsdxGroupXml(cx, prims, { layerIx: 5 });
+        }
+        function vsdxLegendXml(cx) {
+            const entries = legendEntries();
+            const title = doc.statusOverlay.enabled ? ('Key — ' + doc.statusOverlay.field) : 'Key';
+            const FS = 260, ROW = 400, SW = 300, PAD = 260;
+            const x0 = (doc.legend.x != null) ? doc.legend.x : 0;
+            const y0 = (doc.legend.y != null) ? doc.legend.y
+                : doc.room.depth + (doc.room.wallThickness || 200) / 2 + 400;
+            const texts = [{ kind: 'text', x: PAD, y: PAD, str: title, fsMm: FS, weight: 600, color: '#3A2F28' }];
+            const swatches = [];
+            entries.forEach(function(e, i) {
+                swatches.push({
+                    kind: 'rect', x: PAD, y: PAD + ROW * (i + 1) + (ROW - SW) / 2, w: SW, h: SW,
+                    fill: e.color, stroke: 'rgba(58,47,40,0.3)', weightMm: 12
+                });
+                texts.push({ kind: 'text', x: PAD + SW + 160, y: PAD + ROW * (i + 1) + (ROW - FS) / 2, str: e.label, fsMm: FS, weight: 400, color: '#3A2F28' });
+            });
+            let maxW = 0;
+            // 1.15 slack: substituted fonts run wider than the Inter canvas metrics
+            texts.forEach(function(t) { maxW = Math.max(maxW, t.x + vsdxMeasureTextMm(t.str, t.fsMm, t.weight) * 1.15); });
+            const prims = [{
+                kind: 'rect', x: 0, y: 0, w: maxW + PAD, h: PAD * 2 + ROW * (entries.length + 1),
+                fill: '#FFFFFF', stroke: 'rgba(74,93,71,0.35)', weightMm: 16, roundingMm: 160
+            }].concat(swatches, texts);
+            return vsdxGroupXml(cx, prims, {
+                pivotMm: { x: 0, y: 0 }, pivotWorld: { x: x0, y: y0 }, layerIx: 4
+            });
+        }
+        function vsdxTitleBlockXml(cx, contentBottom) {
+            // Mirrors buildTitleBlock(), minus the ellipsis truncation (Visio text
+            // simply extends). Prims are local to the block's top-left.
+            const s = computeSummary();
+            const prims = [{ kind: 'text', x: 0, y: 0, str: doc.meta.name || 'Untitled room', fsMm: 620, weight: 600, color: '#3A2F28' }];
+            const sub = [];
+            if (doc.meta.site) sub.push(doc.meta.site);
+            sub.push((doc.room.width / 1000) + ' × ' + (doc.room.depth / 1000) + ' m');
+            sub.push(Math.round(s.areaM2) + ' m²' + (doc.meta.usableM2 != null ? ' (' + doc.meta.usableM2 + ' m² usable)' : ''));
+            if (doc.meta.contractedKw != null) sub.push('contract ' + doc.meta.contractedKw + ' kW');
+            sub.push('grid ' + doc.room.grid.pitch + ' mm');
+            sub.push('exported ' + new Date().toISOString().slice(0, 10));
+            if (doc.meta.updatedBy) sub.push('by ' + doc.meta.updatedBy);
+            prims.push({ kind: 'text', x: 0, y: 800, str: sub.join('  ·  '), fsMm: 330, weight: 400, color: '#6B5F54' });
+            const line2 = [];
+            if (s.racks) {
+                line2.push(s.racks + ' rack' + (s.racks === 1 ? '' : 's'));
+                if (s.contractedKw) {
+                    line2.push('Σ contracted ' + (Math.round(s.contractedKw * 10) / 10) + ' kW'
+                        + (doc.meta.contractedKw ? ' of ' + doc.meta.contractedKw + ' kW ('
+                            + Math.round(s.contractedKw / doc.meta.contractedKw * 100) + '%)' : ''));
+                }
+                if (s.peakKw) line2.push('peak ' + (Math.round(s.peakKw * 10) / 10) + ' kW');
+            }
+            if (line2.length) prims.push({ kind: 'text', x: 0, y: 1250, str: line2.join('  ·  '), fsMm: 330, weight: 400, color: '#6B5F54' });
+            const barLen = doc.room.grid.pitch * 5;
+            const barY = 1900;
+            prims.push({ kind: 'multiline', segs: [
+                [[0, barY], [barLen, barY]]
+            ], stroke: '#3A2F28', weightMm: 60 });
+            prims.push({ kind: 'multiline', segs: [
+                [[0, barY - 120], [0, barY + 120]],
+                [[barLen, barY - 120], [barLen, barY + 120]]
+            ], stroke: '#3A2F28', weightMm: 40 });
+            prims.push({ kind: 'text', x: barLen + 250, y: barY - 170, str: (barLen / 1000) + ' m', fsMm: 330, weight: 400, color: '#3A2F28' });
+            return vsdxGroupXml(cx, prims, {
+                pivotMm: { x: 0, y: 0 },
+                pivotWorld: { x: 0, y: contentBottom + EXPORT_MARGIN * 0.6 }
+            });
+        }
+        function vsdxObjectXml(cx, obj) {
+            switch (obj.type) {
+                case 'equipment': return vsdxEquipmentXml(cx, obj);
+                case 'wall': return vsdxWallXml(cx, obj);
+                case 'door': return vsdxDoorXml(cx, obj);
+                case 'column': return vsdxColumnXml(cx, obj);
+                case 'cage': case 'zone': return vsdxZoneXml(cx, obj);
+                case 'label': return vsdxLabelXml(cx, obj);
+                case 'dimension': return vsdxDimensionXml(cx, obj);
+                default: return ''; // unknown types are preserved in JSON, not exported
+            }
+        }
+
+        // - OPC package parts -
+        function vsdxContentTypes() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/visio/document.xml" ContentType="application/vnd.ms-visio.drawing.main+xml"/>
+  <Override PartName="/visio/pages/pages.xml" ContentType="application/vnd.ms-visio.pages+xml"/>
+  <Override PartName="/visio/pages/page1.xml" ContentType="application/vnd.ms-visio.page+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/visio/windows.xml" ContentType="application/vnd.ms-visio.windows+xml"/>
+</Types>`;
+        }
+        function vsdxRootRels() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/document" Target="visio/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+</Relationships>`;
+        }
+        function vsdxDocumentXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<VisioDocument xmlns="http://schemas.microsoft.com/office/visio/2012/main"
+               xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+               xml:space="preserve">
+  <DocumentSettings TopPage="0" DefaultTextStyle="0" DefaultLineStyle="0" DefaultFillStyle="0">
+    <GlueSettings>9</GlueSettings>
+    <SnapSettings>65847</SnapSettings>
+    <SnapExtensions>34</SnapExtensions>
+  </DocumentSettings>
+  <FaceNames>
+    <FaceName ID="1" Name="Inter" UnicodeRanges="-536870145 1073786111 0 0" CharSets="536871327 0" Panos="2 11 6 4 2 2 2 2 2 4"/>
+  </FaceNames>
+  <StyleSheets>
+    <StyleSheet ID="0" Name="No Style" NameU="No Style">
+      <Cell N="LineWeight" V="0.01041666666666667"/>
+      <Cell N="LineColor" V="#000000"/>
+      <Cell N="LinePattern" V="1"/>
+      <Cell N="LineCap" V="0"/>
+      <Cell N="BeginArrow" V="0"/>
+      <Cell N="EndArrow" V="0"/>
+      <Cell N="BeginArrowSize" V="2"/>
+      <Cell N="EndArrowSize" V="2"/>
+      <Cell N="FillForegnd" V="#FFFFFF"/>
+      <Cell N="FillBkgnd" V="#000000"/>
+      <Cell N="FillPattern" V="1"/>
+      <Cell N="ShdwForegnd" V="#D8D8D8"/>
+      <Cell N="ShdwPattern" V="0"/>
+      <Section N="Character">
+        <Row IX="0">
+          <Cell N="Font" V="1"/>
+          <Cell N="Color" V="#000000"/>
+          <Cell N="Size" V="0.1111111111111111"/>
+        </Row>
+      </Section>
+      <Section N="Paragraph">
+        <Row IX="0">
+          <Cell N="HorzAlign" V="1"/>
+        </Row>
+      </Section>
+    </StyleSheet>
+  </StyleSheets>
+</VisioDocument>`;
+        }
+        function vsdxDocumentRels() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/pages" Target="pages/pages.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.microsoft.com/visio/2010/relationships/windows" Target="windows.xml"/>
+</Relationships>`;
+        }
+        function vsdxPagesXml(cx) {
+            // V1: metric drawing scale — PageScale : DrawingScale = 1 mm : S mm, so the
+            // page prints at 1:S and Visio's rulers/dimensions read in real mm.
+            // Shape XForm/geometry values are drawing-unit inches (world mm / 25.4).
+            const pageW = (cx.box.x1 - cx.box.x0) / VSDX_MM_IN;
+            const pageH = (cx.box.y1 - cx.box.y0) / VSDX_MM_IN;
+            const layers = [
+                { name: 'Building', st: doc.layers.building },
+                { name: 'Containment', st: doc.layers.containment },
+                { name: 'Equipment', st: doc.layers.equipment },
+                { name: 'Monitoring', st: doc.layers.monitoring },
+                { name: 'Labels & legends', st: doc.layers.labels },
+                { name: 'Grid', st: { visible: true, locked: true } }
+            ];
+            let rows = '';
+            layers.forEach(function(l, i) {
+                const st = l.st || {};
+                rows += '        <Row IX="' + i + '">'
+                    + '<Cell N="Name" V="' + vsdxEsc(l.name) + '"/>'
+                    + '<Cell N="Color" V="255"/><Cell N="Status" V="0"/>'
+                    + '<Cell N="Visible" V="' + (st.visible === false ? 0 : 1) + '"/>'
+                    + '<Cell N="Print" V="1"/><Cell N="Active" V="0"/>'
+                    + '<Cell N="Lock" V="' + (st.locked ? 1 : 0) + '"/>'
+                    + '<Cell N="Snap" V="1"/><Cell N="Glue" V="1"/>'
+                    + '<Cell N="NameUniv" V="' + vsdxEsc(l.name) + '"/>'
+                    + '<Cell N="ColorTrans" V="0"/></Row>\n';
+            });
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Pages xmlns="http://schemas.microsoft.com/office/visio/2012/main"
+       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <Page ID="0" Name="Page-1" NameU="Page-1">
+    <PageSheet>
+      <Cell N="PageWidth" V="${vsdxNum(pageW)}"/>
+      <Cell N="PageHeight" V="${vsdxNum(pageH)}"/>
+      <Cell N="PageScale" V="${vsdxNum(VSDX_MM)}" U="MM"/>
+      <Cell N="DrawingScale" V="${vsdxNum(cx.scale * VSDX_MM)}" U="MM"/>
+      <Cell N="DrawingSizeType" V="3"/>
+      <Cell N="DrawingScaleType" V="4"/>
+      <Section N="Layer">
+${rows}      </Section>
+    </PageSheet>
+    <Rel r:id="rId1"/>
+  </Page>
+</Pages>`;
+        }
+        function vsdxPagesRels() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/page" Target="page1.xml"/>
+</Relationships>`;
+        }
+        function vsdxAppProps() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+  <Application>DC Room Viewer</Application>
+  <AppVersion>15.00</AppVersion>
+</Properties>`;
+        }
+        function vsdxCoreProps() {
+            const now = new Date().toISOString();
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+                   xmlns:dc="http://purl.org/dc/elements/1.1/"
+                   xmlns:dcterms="http://purl.org/dc/terms/"
+                   xmlns:dcmitype="http://purl.org/dc/dcmitype/"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${vsdxEsc(doc.meta.name || 'DC room')}</dc:title>
+  <dc:creator>DC Room Viewer</dc:creator>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
+</cp:coreProperties>`;
+        }
+        function vsdxWindowsXml() {
+            return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Windows xmlns="http://schemas.microsoft.com/office/visio/2012/main"
+         xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <Window ID="0" WindowType="Drawing" WindowState="1073741824"
+          WindowLeft="-1" WindowTop="-1" WindowWidth="1024" WindowHeight="768"
+          Page="0">
+    <ShowGrid>0</ShowGrid>
+    <ShowGuides>0</ShowGuides>
+    <ShowConnectionPoints>0</ShowConnectionPoints>
+    <ShowPageBreaks>0</ShowPageBreaks>
+    <TabSplitterPos>0.5</TabSplitterPos>
+  </Window>
+</Windows>`;
+        }
+
+        // - Orchestrator -
+        function buildVsdxFiles() {
+            const content = contentWorldAABB();
+            const box = {
+                x0: content.x - EXPORT_MARGIN,
+                y0: content.y - EXPORT_MARGIN,
+                x1: content.x + content.width + EXPORT_MARGIN,
+                y1: content.y + content.height + EXPORT_MARGIN + EXPORT_TITLE_H
+            };
+            const worldW = box.x1 - box.x0, worldH = box.y1 - box.y0;
+            // First metric scale that fits an A1 sheet in either orientation
+            let scale = 200;
+            [10, 20, 25, 50, 75, 100, 200].some(function(s) {
+                if ((worldW / s <= 841 && worldH / s <= 594) || (worldW / s <= 594 && worldH / s <= 841)) {
+                    scale = s;
+                    return true;
+                }
+                return false;
+            });
+            const cx = {
+                nextId: 1, box: box, scale: scale,
+                pageX: function(x) { return (x - box.x0) / VSDX_MM_IN; },
+                pageY: function(y) { return (box.y1 - y) / VSDX_MM_IN; }
+            };
+            cx.frame = { toX: cx.pageX, toY: cx.pageY };
+
+            // Z-order = document order: background, room surface, grid, boundary
+            // wall, then objects per layer in doc order, legend, title block.
+            const roomPts = roomOutline() || [[0, 0], [doc.room.width, 0], [doc.room.width, doc.room.depth], [0, doc.room.depth]];
+            let shapes = '';
+            shapes += vsdxPrimShape(cx, {
+                kind: 'rect', x: box.x0, y: box.y0, w: worldW, h: worldH, fill: '#FAF8F5'
+            }, cx.frame, {});
+            shapes += vsdxPrimShape(cx, { kind: 'poly', pts: roomPts, fill: '#FFFFFF' }, cx.frame, {});
+            shapes += vsdxGridXml(cx);
+            shapes += vsdxPrimShape(cx, {
+                kind: 'poly', pts: roomPts, stroke: '#3A2F28', weightMm: doc.room.wallThickness || 200
+            }, cx.frame, { layerIx: 0 });
+            VSDX_LAYER_ORDER.forEach(function(key) {
+                doc.objects.forEach(function(o) {
+                    if (o.visible === false) return;
+                    if (layerKeyFor(o) !== key) return;
+                    shapes += vsdxObjectXml(cx, o);
+                });
+            });
+            if (doc.legend && doc.legend.visible !== false) shapes += vsdxLegendXml(cx);
+            shapes += vsdxTitleBlockXml(cx, content.y + content.height);
+
+            const page1 = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                + '<PageContents xmlns="http://schemas.microsoft.com/office/visio/2012/main"\n'
+                + '              xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"\n'
+                + '              xml:space="preserve">\n'
+                + '  <Shapes>\n' + shapes + '  </Shapes>\n'
+                + '</PageContents>';
+
+            return [
+                { name: '[Content_Types].xml', data: vsdxContentTypes() },
+                { name: '_rels/.rels', data: vsdxRootRels() },
+                { name: 'visio/document.xml', data: vsdxDocumentXml() },
+                { name: 'visio/_rels/document.xml.rels', data: vsdxDocumentRels() },
+                { name: 'visio/pages/pages.xml', data: vsdxPagesXml(cx) },
+                { name: 'visio/pages/_rels/pages.xml.rels', data: vsdxPagesRels() },
+                { name: 'visio/pages/page1.xml', data: page1 },
+                { name: 'docProps/app.xml', data: vsdxAppProps() },
+                { name: 'docProps/core.xml', data: vsdxCoreProps() },
+                { name: 'visio/windows.xml', data: vsdxWindowsXml() }
+            ];
+        }
+        function exportVsdx() {
+            if (!doc) return;
+            try {
+                const blob = buildStoredZip(buildVsdxFiles());
+                const url = URL.createObjectURL(blob);
+                triggerDownload(url, exportBaseName() + '.vsdx');
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                showToast('Visio export failed: ' + ((err && err.message) || err));
+            }
+        }
+
         // --- Header chrome ---
         function closeMenus() {
             document.getElementById('library-menu').hidden = true;
@@ -5037,6 +6013,7 @@
             document.getElementById('btn-export-library').addEventListener('click', function() { closeMenus(); exportLibrary(); });
             document.getElementById('btn-export-png').addEventListener('click', function() { closeMenus(); exportPng(); });
             document.getElementById('btn-export-pdf').addEventListener('click', function() { closeMenus(); exportPdf(); });
+            document.getElementById('btn-export-vsdx').addEventListener('click', function() { closeMenus(); exportVsdx(); });
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.menu-wrap')) closeMenus();
                 const pop = document.getElementById('info-popover');

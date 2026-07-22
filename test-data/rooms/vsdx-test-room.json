@@ -1,0 +1,118 @@
+{
+  "format": "dc-room",
+  "version": 1,
+  "meta": { "name": "VSDX Test Hall", "site": "TST01", "contractedKw": 500, "usableM2": 80, "updatedBy": "Test", "created": "2026-07-22T00:00:00.000Z", "modified": "" },
+  "room": {
+    "width": 12000, "depth": 9000,
+    "grid": { "pitch": 600, "originX": 0, "originY": 0, "show": true, "snap": true, "labels": { "show": true, "skip": "IU" } },
+    "wallThickness": 200,
+    "outline": [[0, 0], [12000, 0], [12000, 6000], [7200, 6000], [7200, 9000], [0, 9000]]
+  },
+  "defs": {
+    "rack-600x1070": { "id": "rack-600x1070", "name": "Rack 600×1070", "category": "rack",
+      "footprint": { "w": 600, "d": 1070 },
+      "visual": { "fill": "#5B7A9D", "stroke": "#3A4A5D", "shortCode": "R", "front": "south" },
+      "resizable": false, "metadata": { "uSpace": 42 },
+      "metadataSchema": [
+        { "key": "rackId", "label": "Rack ID", "type": "string" },
+        { "key": "customer", "label": "Customer", "type": "string" },
+        { "key": "usageType", "label": "Usage", "type": "select", "options": ["leased", "internal"] },
+        { "key": "contractedKw", "label": "Contracted (kW)", "type": "number" },
+        { "key": "peakKw", "label": "Peak (kW)", "type": "number" },
+        { "key": "uSpace", "label": "U space", "type": "number" }
+      ] },
+    "pdu-600x1070": { "id": "pdu-600x1070", "name": "PDU cabinet", "category": "pdu",
+      "footprint": { "w": 600, "d": 1070 },
+      "visual": { "fill": "#8B6F47", "stroke": "#6B5F54", "shortCode": "P", "front": "south" },
+      "resizable": false, "metadata": {},
+      "metadataSchema": [
+        { "key": "pduId", "label": "PDU ID", "type": "string" },
+        { "key": "feed", "label": "Feed (A/B)", "type": "string" },
+        { "key": "capacityKw", "label": "Capacity (kW)", "type": "number" }
+      ] },
+    "crac-1800x900": { "id": "crac-1800x900", "name": "CRAC unit", "category": "cooling",
+      "footprint": { "w": 1800, "d": 900 },
+      "visual": { "fill": "#5F8D87", "stroke": "#3F6D67", "shortCode": "AC", "front": "south" },
+      "resizable": false, "metadata": {},
+      "metadataSchema": [
+        { "key": "unitId", "label": "Unit ID", "type": "string" },
+        { "key": "coolingKw", "label": "Cooling (kW)", "type": "number" }
+      ] },
+    "busway-2400x300": { "id": "busway-2400x300", "name": "Overhead busway", "category": "pdu",
+      "footprint": { "w": 2400, "d": 300 },
+      "visual": { "fill": "#C9A227", "stroke": "#8B6F47", "shortCode": "BW", "front": null },
+      "resizable": true, "metadata": {},
+      "metadataSchema": [
+        { "key": "buswayId", "label": "Busway ID", "type": "string" },
+        { "key": "ampacityA", "label": "Ampacity (A)", "type": "number" }
+      ] },
+    "sensor-temp-300": { "id": "sensor-temp-300", "name": "Temperature sensor", "category": "monitoring",
+      "footprint": { "w": 300, "d": 300 },
+      "visual": { "fill": "#C0663B", "stroke": "#8F4826", "shortCode": "T", "front": null },
+      "resizable": false, "metadata": {},
+      "metadataSchema": [
+        { "key": "sensorId", "label": "Sensor ID", "type": "string" },
+        { "key": "system", "label": "System", "type": "string" },
+        { "key": "notes", "label": "Notes", "type": "string" }
+      ] },
+    "cam-dome-300": { "id": "cam-dome-300", "name": "CCTV dome camera", "category": "monitoring",
+      "footprint": { "w": 300, "d": 300 },
+      "visual": { "fill": "#3B8749", "stroke": "#28632F", "shortCode": "CAM", "front": null },
+      "resizable": false, "metadata": {},
+      "metadataSchema": [
+        { "key": "cameraId", "label": "Camera ID", "type": "string" }
+      ] }
+  },
+  "objects": [
+    { "id": "w-int", "type": "wall", "points": [[4800, 0], [4800, 2400], [6000, 2400]], "thickness": 150 },
+    { "id": "d-single", "type": "door", "x": 1200, "y": 0, "width": 900, "rotation": 0, "hinge": "left", "swing": "in", "swingAngle": 90 },
+    { "id": "d-double", "type": "door", "x": 1800, "y": 9000, "width": 1800, "rotation": 180, "kind": "double", "swing": "in", "swingAngle": 90 },
+    { "id": "d-airlock", "type": "door", "x": 12000, "y": 4800, "width": 1200, "rotation": 270, "kind": "airlock", "hinge": "right", "swing": "out", "swingAngle": 110, "vestibuleDepth": 1500 },
+    { "id": "c-a", "type": "cage", "kind": "cage", "name": "Cage A", "autoCapture": false,
+      "points": [[900, 900], [3900, 900], [3900, 2700], [900, 2700]] },
+    { "id": "z-cold", "type": "zone", "kind": "cold-aisle", "name": "Cold aisle 1", "points": [[900, 3000], [3900, 3000], [3900, 3600], [900, 3600]] },
+    { "id": "z-hot", "type": "zone", "kind": "hot-aisle", "name": "Hot aisle 1", "points": [[900, 600], [3900, 600], [3900, 900], [900, 900]] },
+    { "id": "z-restricted", "type": "zone", "kind": "restricted", "name": "UPS room",
+      "style": { "stroke": "#123456", "fill": "rgba(18,52,86,0.15)" },
+      "points": [[8400, 300], [11700, 300], [11700, 2100], [8400, 2100]] },
+    { "id": "r-01", "type": "equipment", "defId": "rack-600x1070", "x": 1500, "y": 1800, "rotation": 0, "cageId": "c-a",
+      "metadata": { "rackId": "R01", "customer": "Acme", "usageType": "leased", "contractedKw": 4, "peakKw": 3.2, "uSpace": 42 } },
+    { "id": "r-02", "type": "equipment", "defId": "rack-600x1070", "x": 2100, "y": 1800, "rotation": 0, "cageId": "c-a",
+      "metadata": { "rackId": "R02", "customer": "Acme", "usageType": "leased", "contractedKw": 6, "uSpace": 42, "serial": "XY-123" } },
+    { "id": "r-03", "type": "equipment", "defId": "rack-600x1070", "x": 2700, "y": 1800, "rotation": 0,
+      "metadata": { "rackId": "R03", "customer": "Beta", "usageType": "internal", "contractedKw": 5.5 } },
+    { "id": "r-hidden", "type": "equipment", "defId": "rack-600x1070", "x": 3300, "y": 1800, "rotation": 0, "visible": false,
+      "metadata": { "rackId": "RHIDE", "customer": "Beta" } },
+    { "id": "r-rot", "type": "equipment", "defId": "rack-600x1070", "x": 5700, "y": 4200, "rotation": 90, "label": "R-ROT",
+      "metadata": { "rackId": "R90", "customer": "Acme", "contractedKw": 4 } },
+    { "id": "p-01", "type": "equipment", "defId": "pdu-600x1070", "x": 900, "y": 4800, "rotation": 0,
+      "metadata": { "pduId": "PDU-A", "feed": "A", "capacityKw": 120 } },
+    { "id": "ac-01", "type": "equipment", "defId": "crac-1800x900", "x": 10200, "y": 5100, "rotation": 0,
+      "metadata": { "unitId": "AC-1", "coolingKw": 90 } },
+    { "id": "bw-01", "type": "equipment", "defId": "busway-2400x300", "x": 2400, "y": 4200, "rotation": 0, "w": 3600, "d": 300,
+      "metadata": { "buswayId": "BW-1", "ampacityA": 400 } },
+    { "id": "s-t1", "type": "equipment", "defId": "sensor-temp-300", "x": 4500, "y": 4800, "rotation": 0,
+      "metadata": { "sensorId": "T-01", "system": "BMS" } },
+    { "id": "s-cam", "type": "equipment", "defId": "cam-dome-300", "x": 600, "y": 600, "rotation": 0,
+      "metadata": { "cameraId": "CAM-01" } },
+    { "id": "col-1", "type": "column", "x": 7200, "y": 3000, "w": 400, "d": 400 },
+    { "id": "col-2", "type": "column", "x": 3600, "y": 6600, "w": 500, "d": 500, "shape": "round" },
+    { "id": "lbl-1", "type": "label", "text": "Test Hall\nPhase 1", "x": 8400, "y": 3600, "fontSize": 400, "rotation": 15 },
+    { "id": "dim-1", "type": "dimension", "x1": 0, "y1": 8400, "x2": 7200, "y2": 8400 }
+  ],
+  "groups": [],
+  "layers": {
+    "building": { "visible": true, "locked": false },
+    "containment": { "visible": true, "locked": true },
+    "equipment": { "visible": true, "locked": false },
+    "status": { "visible": true },
+    "monitoring": { "visible": false, "locked": false },
+    "labels": { "visible": true, "locked": false }
+  },
+  "statusOverlay": {
+    "enabled": true, "mode": "categorical", "field": "customer", "opacity": 0.55,
+    "categorical": { "overrides": { "Acme": "#4e79a7" } },
+    "numeric": { "stops": [] }
+  },
+  "legend": { "visible": true, "x": 8400, "y": 6600 }
+}

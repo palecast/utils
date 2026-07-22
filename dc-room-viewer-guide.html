@@ -216,7 +216,7 @@
             Place racks, PDUs, cooling units, sensors and cameras from a component library
             onto a raised-floor tile grid, draw walls, doors, cages and containment, colour
             equipment by any metadata field, watch live capacity totals in the Summary panel,
-            and export the drawing as PNG or PDF. Everything is stored in plain JSON files
+            and export the drawing as PNG, PDF or an editable Visio (.vsdx) file. Everything is stored in plain JSON files
             on your machine — nothing leaves your browser.
         </p>
 
@@ -233,7 +233,7 @@
                 <li><a href="#overlay">Status overlays and the key</a></li>
                 <li><a href="#summary">The Summary panel</a></li>
                 <li><a href="#files">Saving, autosave and files</a></li>
-                <li><a href="#export">Exporting PNG and PDF</a></li>
+                <li><a href="#export">Exporting PNG, PDF and Visio</a></li>
                 <li><a href="#shortcuts">Keyboard shortcuts</a></li>
                 <li><a href="#json">JSON file reference</a></li>
                 <li><a href="#privacy">Privacy</a></li>
@@ -464,7 +464,7 @@
         </section>
 
         <section id="export">
-            <h2>11. Exporting PNG and PDF</h2>
+            <h2>11. Exporting PNG, PDF and Visio</h2>
             <p>
                 <em>Export ▾ → PNG image</em> renders the room at print quality with a title block —
                 room name, site, dimensions, floor area, contracted power, grid pitch, export date,
@@ -476,6 +476,19 @@
             <p>
                 Exports always include everything visible on unhidden layers, regardless of the
                 current zoom. Hide layers first to produce, say, an equipment-only drawing.
+            </p>
+            <p>
+                <em>Export ▾ → Visio drawing (.vsdx)</em> produces a native Microsoft Visio file
+                rather than an image: every rack, door, zone, label and dimension becomes a real,
+                editable Visio shape, placed to scale on a metric page (Visio's rulers and
+                dimensions read in real millimetres). The tool's layers map onto Visio layers —
+                layers hidden or locked here arrive hidden or locked in Visio — and each piece of
+                equipment carries its metadata (rack ID, customer, power figures, grid reference,
+                cage…) as Visio <strong>Shape Data</strong>, visible via
+                <em>right-click → Data → Shape Data</em> in Visio. When the capacity/status overlay
+                is on, its colouring is baked into the shape fills. The export uses plain shapes
+                rather than a stencil, so no masters are installed; everything remains editable
+                with standard Visio tools.
             </p>
         </section>
 

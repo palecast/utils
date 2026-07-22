@@ -54,7 +54,7 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 - **html2canvas** (`cdn.jsdelivr.net/npm/html2canvas@1.4.1`, SRI-pinned) — used by `org-chart.html` for PNG export/print
 - **SheetJS (xlsx)** (`cdn.jsdelivr.net/npm/xlsx@0.18.5`, SRI-pinned; the npm package is frozen at 0.18.5) — used by `org-chart.html` for Excel import/export
 - **pdf-lib** (`cdn.jsdelivr.net/npm/pdf-lib@1.17.1`, SRI-pinned) — used by `pdf-toolbox.html` for PDF assembly (merge/split/rotate/extract) and by `dc-room-viewer.html` for PDF export (embeds the rendered PNG on an A3 page)
-- **Konva** (`cdn.jsdelivr.net/npm/konva@10.3.0`, SRI-pinned) — used by `dc-room-viewer.html` as its canvas engine (stage, layers, selection/transform, export raster)
+- **Konva** (`cdn.jsdelivr.net/npm/konva@10.3.0`, SRI-pinned) — used by `dc-room-viewer.html` as its canvas engine (stage, layers, selection/transform, export raster). Its Visio (.vsdx) export needs no dependency: the OPC/XML is built inline and zipped by a built-in store-only ZIP writer (adapted from MIT-licensed `McMarius11/svgtovisio`)
 - **pdfjs-dist** (`cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200`, ESM dynamic import + CDN worker via `GlobalWorkerOptions.workerSrc`) — used by `pdf-toolbox.html` for page thumbnails. v4+ is ESM-only, so no SRI is possible on the dynamic import; the exact version pin is the mitigation
 - **fflate** (`cdn.jsdelivr.net/npm/fflate@0.8.3`, SRI-pinned) — used by `pdf-toolbox.html` for the split-to-ZIP export (store-only zipping)
 - **frankfurter.dev API** (`api.frankfurter.dev/v1`) — live and historical ECB exchange rates, used by both currency tools. No API key required.
