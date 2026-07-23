@@ -261,7 +261,10 @@
                 its definition is <strong>copied into the room file</strong>, so a room always opens
                 standalone — you never need the original library to view or edit it.
                 <em>Library ▾ → Export room components as library</em> turns a room's embedded
-                definitions back into a shareable library file.
+                definitions back into a shareable library file. You can also design your own
+                components — appearance and metadata fields — directly in the app with the
+                <strong>component editor</strong> (see
+                <a href="#placing">Placing and editing equipment</a>).
             </p>
             <p>
                 All coordinates and dimensions are in <strong>millimetres</strong>. The default grid
@@ -311,6 +314,36 @@
                 Right-click any object for the context menu: properties, rotate, duplicate, lock,
                 bring to front/send to back, cage membership, delete.
             </p>
+            <h3>Creating and editing components</h3>
+            <p>
+                <strong>+ New component…</strong> at the top of the palette opens the component
+                editor. The pencil that appears when you hover a palette entry edits that
+                component, as does <em>Edit component…</em> in a placed object's right-click menu.
+                Saved components live in the room file (they export with
+                <em>Library ▾ → Export room components as library</em>); editing a component
+                updates every placed instance immediately, as one undo step.
+            </p>
+            <ul>
+                <li><strong>Basics</strong> — name, category (which decides the layer and, for
+                    <em>Monitoring &amp; safety</em>, the round-marker look), footprint in mm,
+                    whether instances are resizable, base fill/outline colours, the short code
+                    shown on the body, and which edge carries the white front tick.</li>
+                <li><strong>Appearance</strong> — build the component's face from
+                    <strong>rectangles, ellipses and lines</strong> on a mini canvas with a
+                    configurable snap grid (10–100&nbsp;mm). Drag to move, handles resize, line
+                    endpoints drag individually; each shape has its own fill/outline and can be
+                    reordered or removed. <kbd>Delete</kbd> removes the selected shape. Shape
+                    coordinates are in footprint millimetres, so resizable instances scale the
+                    artwork with them; PNG, PDF and Visio exports all reproduce it.</li>
+                <li><strong>Metadata fields</strong> — define the fields instances carry: key,
+                    label, type (text, number, or a dropdown with its own options list) and an
+                    optional default applied at placement. Leave the key blank and it is derived
+                    from the label. Renaming a key migrates existing data on this room's placed
+                    instances.</li>
+                <li><strong>Save as copy</strong> duplicates a component under a new id;
+                    <strong>Delete component</strong> removes an unused one (refused while
+                    placed objects still reference it).</li>
+            </ul>
         </section>
 
         <section id="drawing">
@@ -532,7 +565,15 @@
       "category": "rack",   // rack | pdu | cooling | structural | monitoring | other
       "footprint": { "w": 600, "d": 1200 },   // mm
       "visual": { "fill": "#5B7A9D", "stroke": "#3A4A5D",
-                  "shortCode": "R", "front": "south" },
+                  "shortCode": "R", "front": "south",
+                  "shapes": [    // optional custom artwork, footprint mm, drawn in order
+                    { "kind": "rect",    "x": 200, "y": 200, "w": 200, "h": 200,
+                      "fill": "#FFFFFF", "stroke": "#6B5F54", "strokeWidth": 20 },
+                    { "kind": "ellipse", "cx": 300, "cy": 300, "rx": 100, "ry": 100,
+                      "fill": "#FFFFFF" },
+                    { "kind": "line",    "x1": 100, "y1": 450, "x2": 500, "y2": 450,
+                      "stroke": "#FFFFFF", "strokeWidth": 30 }
+                  ] },
       "resizable": false,
       "metadata": { "uSpace": 42 },    // defaults copied to new instances
       "metadataSchema": [

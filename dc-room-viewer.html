@@ -280,6 +280,18 @@
         .palette-chip .chip-name { font-size: 12px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 5px; }
         .palette-chip .chip-dims { font-size: 10.5px; color: var(--text-muted); }
         .chip-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid rgba(58,47,40,0.25); }
+        .palette-chip-wrap { position: relative; display: inline-flex; }
+        .chip-edit {
+            position: absolute; top: -5px; right: -5px;
+            width: 18px; height: 18px; padding: 0;
+            border: 1px solid var(--border-strong); border-radius: 50%;
+            background: var(--surface); color: var(--text-muted);
+            font-size: 10px; line-height: 1; cursor: pointer;
+            opacity: 0; transition: opacity 0.15s ease;
+        }
+        .palette-chip-wrap:hover .chip-edit, .chip-edit:focus-visible { opacity: 1; }
+        .chip-edit:hover { color: var(--accent); border-color: var(--accent); }
+        #btn-new-component { width: 100%; margin-bottom: 8px; }
 
         /* Tools */
         .tool-grid { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -479,6 +491,54 @@
         #props-dialog { max-width: 440px; }
         #props-fields { max-height: 60vh; overflow-y: auto; padding-right: 2px; }
 
+        /* Component editor dialog */
+        #comp-dialog { max-width: 900px; }
+        #comp-dialog .dialog-buttons { align-items: center; }
+        .btn.danger-text { color: #c0392b; }
+        #comp-scroll { max-height: 74vh; overflow-y: auto; padding-right: 4px; }
+        #comp-body { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+        #comp-basics { flex: 1 1 240px; min-width: 230px; }
+        #comp-visual { flex: 1 1 400px; min-width: 320px; }
+        #comp-canvas-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+        #comp-canvas-toolbar .spacer { flex: 1; }
+        #comp-canvas-toolbar label { font-size: 11.5px; color: var(--text-muted); }
+        #comp-canvas {
+            border: 1px solid var(--border-strong); border-radius: 8px;
+            background: var(--surface); overflow: hidden; height: 300px;
+        }
+        #comp-canvas-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        #comp-shape-props {
+            margin-top: 8px; padding: 8px 10px;
+            border: 1px solid var(--border); border-radius: 8px; background: var(--tint);
+        }
+        #comp-shape-props:empty { display: none; }
+        #comp-shape-props .shape-props-head {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .shape-num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0; }
+        .shape-num-grid label { font-size: 10.5px; color: var(--text-muted); display: block; }
+        .shape-num-grid input { width: 100%; }
+        #comp-schema { margin-top: 16px; }
+        .comp-section-head {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;
+        }
+        .schema-row {
+            display: grid; grid-template-columns: 1fr 1.2fr auto auto; gap: 6px;
+            align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border);
+        }
+        .schema-row .schema-btns { display: flex; gap: 3px; }
+        .schema-row .schema-btns button {
+            border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface);
+            cursor: pointer; font-size: 11px; padding: 3px 6px; color: var(--text-muted);
+        }
+        .schema-row .schema-btns button:hover { background: var(--tint); color: var(--text); }
+        .schema-row-extra { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .schema-row-extra label { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+        .schema-row-extra input, .schema-row-extra select { flex: 1; min-width: 120px; }
+
         @media (max-width: 768px) {
             #sidebar { position: absolute; top: 0; bottom: 0; left: 0; box-shadow: 0 10px 30px rgba(58,47,40,0.12); }
             #sidebar.collapsed { margin-left: -280px; box-shadow: none; }
@@ -653,6 +713,31 @@
             <div id="props-fields"></div>
             <div class="dialog-buttons">
                 <button type="button" class="btn btn-secondary" id="props-cancel">Cancel</button>
+                <button type="submit" class="btn" value="save">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="comp-dialog">
+        <h2 id="comp-title">Edit component</h2>
+        <form method="dialog" id="comp-form">
+            <div id="comp-scroll">
+                <div id="comp-body">
+                    <div id="comp-basics"></div>
+                    <div id="comp-visual">
+                        <div id="comp-canvas-toolbar"></div>
+                        <div id="comp-canvas"></div>
+                        <div id="comp-canvas-hint">Click a shape to select it — drag to move, handles resize. Delete removes it.</div>
+                        <div id="comp-shape-props"></div>
+                    </div>
+                </div>
+                <div id="comp-schema"></div>
+            </div>
+            <div class="dialog-buttons">
+                <button type="button" class="btn btn-secondary danger-text" id="comp-delete" hidden>Delete component</button>
+                <button type="button" class="btn btn-secondary" id="comp-duplicate" hidden>Save as copy</button>
+                <span style="flex:1"></span>
+                <button type="button" class="btn btn-secondary" id="comp-cancel">Cancel</button>
                 <button type="submit" class="btn" value="save">Save</button>
             </div>
         </form>
@@ -1785,6 +1870,49 @@
             const def = getDef(obj.defId);
             return (def && def.visual && def.visual.shortCode) || '';
         }
+        // One custom-shape primitive (mm, relative to the footprint's top-left
+        // corner) as a Konva node. Shared by the room canvas and the component
+        // editor so what you draw is exactly what gets placed.
+        function equipmentShapeNode(s) {
+            const common = { perfectDrawEnabled: false, shadowForStrokeEnabled: false, listening: false };
+            if (s.kind === 'rect') {
+                return new Konva.Rect(Object.assign({}, common, {
+                    x: s.x, y: s.y, width: s.w, height: s.h,
+                    fill: s.fill || undefined,
+                    stroke: s.stroke || undefined, strokeWidth: s.stroke ? (s.strokeWidth || 20) : 0
+                }));
+            }
+            if (s.kind === 'ellipse') {
+                return new Konva.Ellipse(Object.assign({}, common, {
+                    x: s.cx, y: s.cy, radiusX: s.rx, radiusY: s.ry,
+                    fill: s.fill || undefined,
+                    stroke: s.stroke || undefined, strokeWidth: s.stroke ? (s.strokeWidth || 20) : 0
+                }));
+            }
+            if (s.kind === 'line') {
+                return new Konva.Line(Object.assign({}, common, {
+                    points: [s.x1, s.y1, s.x2, s.y2],
+                    stroke: s.stroke || '#3A2F28', strokeWidth: s.strokeWidth || 20, lineCap: 'round'
+                }));
+            }
+            return null; // unknown kind — preserved in JSON, not rendered
+        }
+        // Custom shapes live in footprint coordinates; resizable instances scale them.
+        function addCustomShapes(group, def, size) {
+            const shapes = def && def.visual && def.visual.shapes;
+            if (!shapes || !shapes.length) return;
+            const fw = (def.footprint && def.footprint.w) || size.w;
+            const fd = (def.footprint && def.footprint.d) || size.d;
+            const sub = new Konva.Group({
+                x: -size.w / 2, y: -size.d / 2,
+                scaleX: size.w / fw, scaleY: size.d / fd, listening: false
+            });
+            shapes.forEach(function(s) {
+                const n = equipmentShapeNode(s);
+                if (n) sub.add(n);
+            });
+            group.add(sub);
+        }
         function createEquipmentNode(obj) {
             const def = getDef(obj.defId);
             const size = equipmentSize(obj);
@@ -1805,6 +1933,7 @@
                     strokeWidth: 20, perfectDrawEnabled: false, shadowForStrokeEnabled: false
                 }));
             }
+            addCustomShapes(group, def, size);
             if (!isMonitoring && visual.front) {
                 const inset = 70, t = 45;
                 let pts = null;
@@ -3095,11 +3224,13 @@
             return activePalette().find(function(c) { return c.id === id; }) || null;
         }
         // Palette = opened/starter libraries merged with the room's own embedded defs.
+        // The room's defs win on id clashes: placed instances always render from
+        // doc.defs, so the palette must show the same thing (e.g. after an edit).
         function activePalette() {
             const seen = new Map();
             paletteDefs.forEach(function(c) { seen.set(c.id, c); });
             Object.keys(doc && doc.defs || {}).forEach(function(id) {
-                if (!seen.has(id)) seen.set(id, doc.defs[id]);
+                seen.set(id, doc.defs[id]);
             });
             return Array.from(seen.values());
         }
@@ -3339,6 +3470,9 @@
                 menu.appendChild(b);
             };
             if (single) add('Properties…', function() { openPropertiesDialog(single); });
+            if (single && single.type === 'equipment' && getDef(single.defId)) {
+                add('Edit component…', function() { openComponentEditor(getDef(single.defId)); });
+            }
             const rotatable = objs.some(function(o) { return o.type === 'equipment' || o.type === 'door' || o.type === 'label'; });
             if (rotatable) add('Rotate 90°', function() { rotateSelection(90); });
             if (objs.length >= 2) {
@@ -3672,6 +3806,12 @@
         function renderPalette() {
             const root = document.getElementById('palette');
             root.textContent = '';
+            const newBtn = el('button', {
+                class: 'btn btn-sm btn-outline', id: 'btn-new-component',
+                type: 'button', text: '+ New component…'
+            });
+            newBtn.addEventListener('click', function() { openComponentEditor(null); });
+            root.appendChild(newBtn);
             const byCat = {};
             activePalette().forEach(function(c) {
                 const cat = CATEGORY_ORDER.indexOf(c.category) === -1 ? 'other' : c.category;
@@ -3706,7 +3846,13 @@
                         setActiveTool('place', c.id);
                         chip.classList.add('active');
                     });
-                    wrap.appendChild(chip);
+                    // Edit pencil is a sibling (buttons can't nest) overlaid on the chip.
+                    const edit = el('button', { class: 'chip-edit', type: 'button', text: '✎', title: 'Edit component' });
+                    edit.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        openComponentEditor(c);
+                    });
+                    wrap.appendChild(el('span', { class: 'palette-chip-wrap' }, [chip, edit]));
                 });
                 root.appendChild(wrap);
             });
@@ -4285,6 +4431,606 @@
             dlg.showModal();
         }
 
+        // --- Component editor ---
+        // Opened from the palette ("+ New component…" / chip pencil) or an
+        // equipment object's context menu. Edits a working clone; Save writes the
+        // def into doc.defs (the room is self-contained), re-renders every placed
+        // instance, and is one undo step. Custom appearance lives in
+        // def.visual.shapes: rect/ellipse/line primitives in footprint mm.
+        let compEdit = null; // transient state while the dialog is open
+        const COMP_MAX_SHAPES = 40;
+
+        function componentIdFromName(name, w, d) {
+            const base = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'component';
+            let id = base + '-' + w + 'x' + d, n = 2;
+            const taken = function(x) {
+                return !!doc.defs[x] || paletteDefs.some(function(p) { return p.id === x; });
+            };
+            while (taken(id)) id = base + '-' + w + 'x' + d + '-' + (n++);
+            return id;
+        }
+        function keyFromLabel(label) {
+            const words = String(label).split(/[^A-Za-z0-9]+/).filter(Boolean);
+            if (!words.length) return '';
+            return words.map(function(w, i) {
+                const lower = w.toLowerCase();
+                return i ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+            }).join('');
+        }
+        function compSnapVal(v) { return Math.round(v / compEdit.snap) * compEdit.snap; }
+
+        function compTeardown() {
+            if (!compEdit) return;
+            if (compEdit.stage) compEdit.stage.destroy();
+            compEdit = null;
+        }
+        function openComponentEditor(def) {
+            compTeardown(); // a previous session may not have been torn down (see onclose note)
+            const isNew = !def;
+            const work = isNew ? {
+                id: '', name: 'New component', category: 'other',
+                footprint: { w: 600, d: 600 },
+                visual: { fill: '#7A8B99', stroke: '#55626E', shortCode: '', front: null },
+                resizable: false, metadata: {}, metadataSchema: []
+            } : JSON.parse(JSON.stringify(def));
+            work.footprint = work.footprint || { w: 600, d: 600 };
+            work.visual = work.visual || {};
+            if (!Array.isArray(work.visual.shapes)) delete work.visual.shapes;
+            work.visual.shapes = work.visual.shapes || [];
+            const rows = (Array.isArray(work.metadataSchema) ? work.metadataSchema : []).map(function(f) {
+                return {
+                    key: f.key || '', label: f.label || '', type: f.type === 'number' ? 'number' : (f.type === 'select' ? 'select' : 'string'),
+                    options: Array.isArray(f.options) ? f.options.map(String) : [],
+                    _origKey: f.key || null,
+                    def: work.metadata ? work.metadata[f.key] : undefined
+                };
+            });
+            compEdit = {
+                work: work, isNew: isNew, origId: def ? def.id : null, origName: def ? def.name : '',
+                rows: rows, selIx: -1, snap: 50, saveAsNew: false, stage: null, scale: 1
+            };
+            const dlg = document.getElementById('comp-dialog');
+            document.getElementById('comp-title').textContent = isNew ? 'New component' : 'Edit component';
+            document.getElementById('comp-delete').hidden = isNew;
+            document.getElementById('comp-duplicate').hidden = isNew;
+            compRenderBasics();
+            compRenderToolbar();
+            compRenderSchema();
+            compRenderShapeProps();
+            dlg.returnValue = '';
+            // Saving happens in the form's submit handler, not here: some
+            // embedded-browser environments never fire dialog close events, and
+            // requestSubmit() (Save as copy) closes with an empty returnValue.
+            dlg.onclose = compTeardown;
+            dlg.showModal();
+            // Deferred: the dialog's flex layout (and scrollbars) settle a frame
+            // after showModal, and clientWidth read too early bakes in a stale size.
+            requestAnimationFrame(compRebuildCanvas);
+        }
+        // Self-heal if the container's size changes while the editor is open
+        // (viewport resize, scrollbar appearing).
+        new ResizeObserver(function() {
+            if (!compEdit || !compEdit.stage) return;
+            const w = document.getElementById('comp-canvas').clientWidth;
+            if (w && Math.abs(compEdit.stage.width() - w) > 2) compRebuildCanvas();
+        }).observe(document.getElementById('comp-canvas'));
+
+        // - Basics panel -
+        function compRenderBasics() {
+            const c = compEdit, v = c.work.visual;
+            const root = document.getElementById('comp-basics');
+            root.textContent = '';
+            root.appendChild(el('div', { class: 'comp-section-head', text: 'Component' }));
+            root.appendChild(fieldRow('Name', textInput(c.work.name, function(x) { c.work.name = x; })));
+            root.appendChild(fieldRow('Category', selectInput(c.work.category || 'other',
+                CATEGORY_ORDER.map(function(k) { return { value: k, label: CATEGORY_LABELS[k] }; }),
+                function(x) { c.work.category = x; compRebuildCanvas(); })));
+            root.appendChild(fieldRow('Width (mm)', numInput(c.work.footprint.w, function(x) {
+                if (x >= 50) { c.work.footprint.w = Math.round(x); compRebuildCanvas(); }
+            }, { step: 50 })));
+            root.appendChild(fieldRow('Depth (mm)', numInput(c.work.footprint.d, function(x) {
+                if (x >= 50) { c.work.footprint.d = Math.round(x); compRebuildCanvas(); }
+            }, { step: 50 })));
+            const resiz = el('input', { type: 'checkbox', checked: !!c.work.resizable });
+            resiz.addEventListener('change', function() { c.work.resizable = resiz.checked; });
+            root.appendChild(el('label', { class: 'checkbox-row' }, [resiz, el('span', { text: 'Resizable when placed' })]));
+            root.appendChild(el('div', { class: 'comp-section-head', text: 'Base appearance', style: 'margin-top:12px' }));
+            const fillIn = el('input', { type: 'color', value: toHexColor(v.fill || '#9B948B') });
+            fillIn.addEventListener('change', function() { v.fill = fillIn.value; compRebuildCanvas(); });
+            root.appendChild(fieldRow('Fill', fillIn));
+            const strokeIn = el('input', { type: 'color', value: toHexColor(v.stroke || '#6B5F54') });
+            strokeIn.addEventListener('change', function() { v.stroke = strokeIn.value; compRebuildCanvas(); });
+            root.appendChild(fieldRow('Outline', strokeIn));
+            const codeIn = textInput(v.shortCode || '', function(x) { v.shortCode = x.trim().slice(0, 6); compRebuildCanvas(); });
+            root.appendChild(fieldRow('Short code', codeIn));
+            root.appendChild(fieldRow('Front edge', selectInput(v.front || '', [
+                { value: '', label: 'None' }, { value: 'south', label: 'South (bottom)' },
+                { value: 'north', label: 'North (top)' }, { value: 'east', label: 'East (right)' },
+                { value: 'west', label: 'West (left)' }
+            ], function(x) { v.front = x || null; compRebuildCanvas(); })));
+            if ((c.work.category || 'other') === 'monitoring') {
+                root.appendChild(el('p', { text: 'Monitoring components are drawn as round markers on the plan.', style: 'margin-top:8px' }));
+            }
+        }
+
+        // - Shape editor canvas -
+        function compRenderToolbar() {
+            const c = compEdit;
+            const root = document.getElementById('comp-canvas-toolbar');
+            root.textContent = '';
+            const addBtn = function(label, kind) {
+                const b = el('button', { class: 'btn btn-sm btn-outline', type: 'button', text: label });
+                b.addEventListener('click', function() { compAddShape(kind); });
+                root.appendChild(b);
+            };
+            addBtn('+ Rect', 'rect');
+            addBtn('+ Ellipse', 'ellipse');
+            addBtn('+ Line', 'line');
+            root.appendChild(el('span', { class: 'spacer' }));
+            root.appendChild(el('label', { text: 'Snap' }));
+            root.appendChild(selectInput(String(c.snap), [
+                { value: '10', label: '10 mm' }, { value: '25', label: '25 mm' },
+                { value: '50', label: '50 mm' }, { value: '100', label: '100 mm' }
+            ], function(x) { c.snap = Number(x); compRebuildCanvas(); }));
+        }
+        function compAddShape(kind) {
+            const c = compEdit;
+            if (c.work.visual.shapes.length >= COMP_MAX_SHAPES) { showToast('A component can hold up to ' + COMP_MAX_SHAPES + ' shapes.'); return; }
+            const fw = c.work.footprint.w, fd = c.work.footprint.d;
+            let s;
+            if (kind === 'rect') {
+                const w = Math.max(c.snap, compSnapVal(fw / 3)), h = Math.max(c.snap, compSnapVal(fd / 3));
+                s = { kind: 'rect', x: compSnapVal((fw - w) / 2), y: compSnapVal((fd - h) / 2), w: w, h: h,
+                      fill: '#FFFFFF', stroke: '#6B5F54', strokeWidth: 20 };
+            } else if (kind === 'ellipse') {
+                const r = Math.max(c.snap, compSnapVal(Math.min(fw, fd) / 6));
+                s = { kind: 'ellipse', cx: compSnapVal(fw / 2), cy: compSnapVal(fd / 2), rx: r, ry: r,
+                      fill: '#FFFFFF', stroke: '#6B5F54', strokeWidth: 20 };
+            } else {
+                s = { kind: 'line', x1: compSnapVal(fw * 0.25), y1: compSnapVal(fd / 2),
+                      x2: compSnapVal(fw * 0.75), y2: compSnapVal(fd / 2), stroke: '#FFFFFF', strokeWidth: 30 };
+            }
+            c.work.visual.shapes.push(s);
+            c.selIx = c.work.visual.shapes.length - 1;
+            compRebuildCanvas();
+            compRenderShapeProps();
+        }
+        function compDeleteShape() {
+            const c = compEdit;
+            if (c.selIx < 0) return;
+            c.work.visual.shapes.splice(c.selIx, 1);
+            c.selIx = -1;
+            compRebuildCanvas();
+            compRenderShapeProps();
+        }
+        function compMoveShape(dir) {
+            const c = compEdit, arr = c.work.visual.shapes, i = c.selIx, j = i + dir;
+            if (i < 0 || j < 0 || j >= arr.length) return;
+            const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+            c.selIx = j;
+            compRebuildCanvas();
+        }
+        function compSelectShape(ix) {
+            compEdit.selIx = ix;
+            compApplyCanvasSelection();
+            compRenderShapeProps();
+        }
+        function compRebuildCanvas() {
+            const c = compEdit;
+            if (!c) return;
+            const container = document.getElementById('comp-canvas');
+            if (c.stage) { c.stage.destroy(); c.stage = null; }
+            if (!container.clientWidth) return; // dialog not laid out yet
+            const cw = container.clientWidth, ch = container.clientHeight || 300;
+            const fw = c.work.footprint.w, fd = c.work.footprint.d;
+            const pad = 26;
+            const scale = Math.min((cw - pad * 2) / fw, (ch - pad * 2) / fd);
+            c.scale = scale;
+            const hair = 1 / scale;
+            const stage = new Konva.Stage({ container: container, width: cw, height: ch });
+            stage.scale({ x: scale, y: scale });
+            stage.position({ x: (cw - fw * scale) / 2, y: (ch - fd * scale) / 2 });
+            c.stage = stage;
+            const baseLayer = new Konva.Layer({ listening: false });
+            const shapeLayer = new Konva.Layer();
+            const uiLayer = new Konva.Layer();
+            c.shapeLayer = shapeLayer; c.uiLayer = uiLayer;
+            stage.add(baseLayer); stage.add(shapeLayer); stage.add(uiLayer);
+            // Base body preview (as createEquipmentNode draws it, in top-left coords)
+            const v = c.work.visual;
+            if ((c.work.category || 'other') === 'monitoring') {
+                baseLayer.add(new Konva.Circle({
+                    x: fw / 2, y: fd / 2, radius: Math.max(fw, fd) / 2,
+                    fill: v.fill || '#4E7A50', stroke: v.stroke || '#3B5D3C', strokeWidth: 20
+                }));
+            } else {
+                baseLayer.add(new Konva.Rect({
+                    x: 0, y: 0, width: fw, height: fd,
+                    fill: v.fill || '#9B948B', stroke: v.stroke || '#6B5F54', strokeWidth: 20
+                }));
+            }
+            // Snap grid over the body so it stays visible (skipped when denser than ~5px)
+            if (c.snap * scale >= 5) {
+                for (let x = 0; x <= fw; x += c.snap) {
+                    baseLayer.add(new Konva.Line({ points: [x, 0, x, fd], stroke: 'rgba(255,255,255,0.35)', strokeWidth: hair }));
+                }
+                for (let y = 0; y <= fd; y += c.snap) {
+                    baseLayer.add(new Konva.Line({ points: [0, y, fw, y], stroke: 'rgba(255,255,255,0.35)', strokeWidth: hair }));
+                }
+            }
+            // Interactive custom shapes
+            c.work.visual.shapes.forEach(function(s, ix) {
+                const n = equipmentShapeNode(s);
+                if (!n) return;
+                n.listening(true);
+                n.draggable(true);
+                if (s.kind === 'line') n.hitStrokeWidth(Math.max(s.strokeWidth || 20, 10 * hair));
+                n.setAttr('shapeIx', ix);
+                n.on('mousedown touchstart', function() {
+                    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                    if (c.selIx !== ix) compSelectShape(ix);
+                });
+                n.on('dragend', function() { compCommitNode(ix, n); });
+                shapeLayer.add(n);
+            });
+            // Front tick + short-code preview on top, like the room canvas
+            if ((c.work.category || 'other') !== 'monitoring' && v.front) {
+                const inset = 70;
+                let pts = null;
+                if (v.front === 'south') pts = [inset, fd - inset, fw - inset, fd - inset];
+                if (v.front === 'north') pts = [inset, inset, fw - inset, inset];
+                if (v.front === 'east') pts = [fw - inset, inset, fw - inset, fd - inset];
+                if (v.front === 'west') pts = [inset, inset, inset, fd - inset];
+                if (pts) uiLayer.add(new Konva.Line({ points: pts, stroke: 'rgba(255,255,255,0.8)', strokeWidth: 45, listening: false }));
+            }
+            if (v.shortCode) {
+                const fs = (c.work.category || 'other') === 'monitoring'
+                    ? Math.min(fw * 0.45, fw * 1.5 / Math.max(1, v.shortCode.length))
+                    : clamp(fw * 0.28, 110, 230);
+                uiLayer.add(new Konva.Text({
+                    x: 0, y: fd / 2 - fs / 2, width: fw, align: 'center', text: v.shortCode,
+                    fontFamily: 'Inter, sans-serif', fontSize: fs, fontStyle: '500',
+                    fill: '#FFFFFF', listening: false
+                }));
+            }
+            // Footprint bounds
+            uiLayer.add(new Konva.Rect({
+                x: 0, y: 0, width: fw, height: fd, stroke: '#4A5D47',
+                strokeWidth: hair, dash: [8 * hair, 6 * hair], listening: false
+            }));
+            stage.on('mousedown touchstart', function(e) {
+                if (e.target === stage) compSelectShape(-1);
+            });
+            compApplyCanvasSelection();
+        }
+        // Reflect selIx on the canvas: transformer for rect/ellipse, endpoint
+        // anchors for lines.
+        function compApplyCanvasSelection() {
+            const c = compEdit;
+            if (!c || !c.stage) return;
+            if (c.transformer) { c.transformer.destroy(); c.transformer = null; }
+            (c.lineAnchors || []).forEach(function(a) { a.destroy(); });
+            c.lineAnchors = [];
+            const s = c.work.visual.shapes[c.selIx];
+            if (!s) { c.uiLayer.batchDraw(); return; }
+            const node = c.shapeLayer.getChildren(function(n) { return n.getAttr('shapeIx') === c.selIx; })[0];
+            if (!node) return;
+            if (s.kind === 'line') {
+                const hair = 1 / c.scale;
+                [['x1', 'y1'], ['x2', 'y2']].forEach(function(kp) {
+                    const a = new Konva.Circle({
+                        x: s[kp[0]], y: s[kp[1]], radius: 7 * hair,
+                        fill: '#4A5D47', stroke: '#FFFFFF', strokeWidth: 2 * hair, draggable: true
+                    });
+                    a.on('dragmove', function() {
+                        s[kp[0]] = a.x(); s[kp[1]] = a.y();
+                        node.points([s.x1, s.y1, s.x2, s.y2]);
+                        c.shapeLayer.batchDraw();
+                    });
+                    a.on('dragend', function() {
+                        s[kp[0]] = compSnapVal(a.x()); s[kp[1]] = compSnapVal(a.y());
+                        a.position({ x: s[kp[0]], y: s[kp[1]] });
+                        node.points([s.x1, s.y1, s.x2, s.y2]);
+                        c.shapeLayer.batchDraw(); c.uiLayer.batchDraw();
+                        compRenderShapeProps();
+                    });
+                    c.uiLayer.add(a);
+                    c.lineAnchors.push(a);
+                });
+            } else {
+                c.transformer = new Konva.Transformer({
+                    rotateEnabled: false, flipEnabled: false, keepRatio: false, ignoreStroke: true,
+                    anchorSize: 8, borderStroke: '#4A5D47', anchorStroke: '#4A5D47', anchorFill: '#FFFFFF'
+                });
+                c.uiLayer.add(c.transformer);
+                c.transformer.nodes([node]);
+                node.off('transformend');
+                node.on('transformend', function() { compCommitNode(c.selIx, node); });
+            }
+            c.uiLayer.batchDraw();
+        }
+        // Bake a node's drag/transform back into the shape model (with snapping),
+        // then rebuild so model and canvas can't drift apart.
+        function compCommitNode(ix, node) {
+            const c = compEdit, s = c.work.visual.shapes[ix];
+            if (!s) return;
+            if (s.kind === 'rect') {
+                s.w = Math.max(10, Math.round(node.width() * node.scaleX()));
+                s.h = Math.max(10, Math.round(node.height() * node.scaleY()));
+                if (c.snap > 1) { s.w = Math.max(c.snap, compSnapVal(s.w)); s.h = Math.max(c.snap, compSnapVal(s.h)); }
+                s.x = compSnapVal(node.x()); s.y = compSnapVal(node.y());
+            } else if (s.kind === 'ellipse') {
+                s.rx = Math.max(5, Math.round(node.radiusX() * node.scaleX() / 5) * 5);
+                s.ry = Math.max(5, Math.round(node.radiusY() * node.scaleY() / 5) * 5);
+                s.cx = compSnapVal(node.x()); s.cy = compSnapVal(node.y());
+            } else if (s.kind === 'line') {
+                const dx = compSnapVal(node.x()), dy = compSnapVal(node.y());
+                s.x1 += dx; s.y1 += dy; s.x2 += dx; s.y2 += dy;
+            }
+            compRebuildCanvas();
+            compRenderShapeProps();
+        }
+
+        // - Selected-shape properties -
+        function compRenderShapeProps() {
+            const c = compEdit;
+            const root = document.getElementById('comp-shape-props');
+            root.textContent = '';
+            const s = c && c.work.visual.shapes[c.selIx];
+            if (!s) return;
+            const names = { rect: 'Rectangle', ellipse: 'Ellipse', line: 'Line' };
+            const btn = function(label, title, fn, cls) {
+                const b = el('button', { class: 'btn btn-sm ' + (cls || 'btn-outline'), type: 'button', text: label, title: title });
+                b.addEventListener('click', fn);
+                return b;
+            };
+            root.appendChild(el('div', { class: 'shape-props-head' }, [
+                el('span', { text: names[s.kind] || s.kind }),
+                el('span', { class: 'schema-btns' }, [
+                    btn('▲', 'Bring forward', function() { compMoveShape(1); }),
+                    btn('▼', 'Send backward', function() { compMoveShape(-1); }),
+                    btn('✕ Remove', 'Delete this shape', compDeleteShape, 'btn-outline danger-text')
+                ])
+            ]));
+            const refresh = function() { compRebuildCanvas(); compRenderShapeProps(); };
+            if (s.kind !== 'line') {
+                // At least one of fill/outline must stay on, or the shape vanishes.
+                const fillOn = el('input', { type: 'checkbox', checked: !!s.fill });
+                const fillCol = el('input', { type: 'color', value: toHexColor(s.fill || '#FFFFFF'), disabled: !s.fill });
+                fillOn.addEventListener('change', function() {
+                    s.fill = fillOn.checked ? fillCol.value : null;
+                    if (!s.fill && !s.stroke) s.stroke = '#6B5F54';
+                    refresh();
+                });
+                fillCol.addEventListener('change', function() { s.fill = fillCol.value; refresh(); });
+                root.appendChild(el('div', { class: 'field-row' }, [
+                    el('label', { text: 'Fill' }), fillOn, fillCol
+                ]));
+                const strokeOn = el('input', { type: 'checkbox', checked: !!s.stroke });
+                const strokeCol = el('input', { type: 'color', value: toHexColor(s.stroke || '#6B5F54'), disabled: !s.stroke });
+                strokeOn.addEventListener('change', function() {
+                    s.stroke = strokeOn.checked ? strokeCol.value : null;
+                    if (!s.fill && !s.stroke) s.fill = '#FFFFFF';
+                    refresh();
+                });
+                strokeCol.addEventListener('change', function() { s.stroke = strokeCol.value; refresh(); });
+                root.appendChild(el('div', { class: 'field-row' }, [
+                    el('label', { text: 'Outline' }), strokeOn, strokeCol,
+                    numInput(s.strokeWidth || 20, function(x) { if (x > 0) { s.strokeWidth = Math.round(x); refresh(); } }, { step: 5 })
+                ]));
+            } else {
+                root.appendChild(el('div', { class: 'field-row' }, [
+                    el('label', { text: 'Colour' }),
+                    (function() {
+                        const i = el('input', { type: 'color', value: toHexColor(s.stroke || '#FFFFFF') });
+                        i.addEventListener('change', function() { s.stroke = i.value; refresh(); });
+                        return i;
+                    })(),
+                    el('label', { text: 'Width' }),
+                    numInput(s.strokeWidth || 30, function(x) { if (x > 0) { s.strokeWidth = Math.round(x); refresh(); } }, { step: 5 })
+                ]));
+            }
+            const grid = el('div', { class: 'shape-num-grid' });
+            const cell = function(label, value, apply) {
+                const wrap = el('span');
+                wrap.appendChild(el('label', { text: label }));
+                wrap.appendChild(numInput(value, function(x) { if (x != null) { apply(Math.round(x)); refresh(); } }, { step: 10 }));
+                grid.appendChild(wrap);
+            };
+            if (s.kind === 'rect') {
+                cell('X', s.x, function(x) { s.x = x; });
+                cell('Y', s.y, function(x) { s.y = x; });
+                cell('W', s.w, function(x) { if (x > 0) s.w = x; });
+                cell('H', s.h, function(x) { if (x > 0) s.h = x; });
+            } else if (s.kind === 'ellipse') {
+                cell('Centre X', s.cx, function(x) { s.cx = x; });
+                cell('Centre Y', s.cy, function(x) { s.cy = x; });
+                cell('Radius X', s.rx, function(x) { if (x > 0) s.rx = x; });
+                cell('Radius Y', s.ry, function(x) { if (x > 0) s.ry = x; });
+            } else {
+                cell('X1', s.x1, function(x) { s.x1 = x; });
+                cell('Y1', s.y1, function(x) { s.y1 = x; });
+                cell('X2', s.x2, function(x) { s.x2 = x; });
+                cell('Y2', s.y2, function(x) { s.y2 = x; });
+            }
+            root.appendChild(grid);
+        }
+
+        // - Metadata schema editor -
+        function compRenderSchema() {
+            const c = compEdit;
+            const root = document.getElementById('comp-schema');
+            root.textContent = '';
+            const addBtn = el('button', { class: 'btn btn-sm btn-outline', type: 'button', text: '+ Add field' });
+            addBtn.addEventListener('click', function() {
+                c.rows.push({ key: '', label: '', type: 'string', options: [], _origKey: null, def: undefined });
+                compRenderSchema();
+            });
+            root.appendChild(el('div', { class: 'shape-props-head' }, [
+                el('span', { class: 'comp-section-head', text: 'Metadata fields', style: 'margin:0' }), addBtn
+            ]));
+            root.appendChild(el('p', { text: 'These fields appear in the properties dialog of every placed instance. Renaming a key migrates existing data on this room’s instances.' }));
+            c.rows.forEach(function(row, ix) {
+                const rowEl = el('div', { class: 'schema-row' });
+                const keyIn = el('input', { type: 'text', value: row.key, placeholder: 'key (e.g. serialNo)' });
+                keyIn.addEventListener('change', function() { row.key = keyIn.value.trim(); });
+                const labelIn = el('input', { type: 'text', value: row.label, placeholder: 'Label' });
+                labelIn.addEventListener('change', function() { row.label = labelIn.value; });
+                const typeSel = selectInput(row.type, [
+                    { value: 'string', label: 'Text' }, { value: 'number', label: 'Number' },
+                    { value: 'select', label: 'Dropdown' }
+                ], function(v) { row.type = v; row.def = undefined; compRenderSchema(); });
+                const btn = function(label, title, fn) {
+                    const b = el('button', { type: 'button', text: label, title: title });
+                    b.addEventListener('click', fn);
+                    return b;
+                };
+                const btns = el('span', { class: 'schema-btns' }, [
+                    btn('↑', 'Move up', function() {
+                        if (ix > 0) { c.rows.splice(ix - 1, 0, c.rows.splice(ix, 1)[0]); compRenderSchema(); }
+                    }),
+                    btn('↓', 'Move down', function() {
+                        if (ix < c.rows.length - 1) { c.rows.splice(ix + 1, 0, c.rows.splice(ix, 1)[0]); compRenderSchema(); }
+                    }),
+                    btn('✕', 'Remove field', function() { c.rows.splice(ix, 1); compRenderSchema(); })
+                ]);
+                rowEl.appendChild(keyIn); rowEl.appendChild(labelIn); rowEl.appendChild(typeSel); rowEl.appendChild(btns);
+                const extra = el('div', { class: 'schema-row-extra' });
+                if (row.type === 'select') {
+                    extra.appendChild(el('label', { text: 'Options' }));
+                    const optsIn = el('input', {
+                        type: 'text', value: row.options.join(', '),
+                        placeholder: 'comma-separated, e.g. a-feed, b-feed'
+                    });
+                    optsIn.addEventListener('change', function() {
+                        row.options = optsIn.value.split(',').map(function(o) { return o.trim(); }).filter(Boolean);
+                        if (row.def != null && row.options.indexOf(String(row.def)) === -1) row.def = undefined;
+                        compRenderSchema();
+                    });
+                    extra.appendChild(optsIn);
+                }
+                extra.appendChild(el('label', { text: 'Default' }));
+                extra.appendChild(schemaFieldInput(
+                    { type: row.type, options: row.options }, row.def,
+                    function(v) { row.def = (v === null || v === '') ? undefined : (row.type === 'number' ? Number(v) : v); }
+                ));
+                rowEl.appendChild(extra);
+                root.appendChild(rowEl);
+            });
+            if (!c.rows.length) {
+                root.appendChild(el('p', { text: 'No fields yet — instances will still accept ad-hoc custom fields.' }));
+            }
+        }
+
+        // - Validate / save / delete -
+        function compValidate() {
+            const c = compEdit;
+            if (!String(c.work.name || '').trim()) return 'Component name is required.';
+            if (!(c.work.footprint.w >= 50) || !(c.work.footprint.d >= 50)) return 'Footprint must be at least 50 × 50 mm.';
+            c.rows = c.rows.filter(function(r) { return r.key || r.label; }); // drop blank rows quietly
+            const seen = {};
+            for (let i = 0; i < c.rows.length; i++) {
+                const r = c.rows[i];
+                if (!r.key) r.key = keyFromLabel(r.label);
+                if (!r.key) return 'Every metadata field needs a key.';
+                if (seen[r.key]) return 'Metadata field keys must be unique ("' + r.key + '" repeats).';
+                seen[r.key] = true;
+            }
+            return null;
+        }
+        function compApplySave() {
+            const c = compEdit, work = c.work;
+            const asNew = c.isNew || c.saveAsNew;
+            work.name = String(work.name).trim();
+            if (c.saveAsNew && work.name === c.origName) work.name += ' (copy)';
+            const id = asNew ? componentIdFromName(work.name, work.footprint.w, work.footprint.d) : c.origId;
+            pushUndo(asNew ? 'New component' : 'Edit component');
+            work.id = id;
+            work.metadataSchema = c.rows.map(function(r) {
+                const f = { key: r.key, label: r.label || r.key, type: r.type };
+                if (r.type === 'select') f.options = r.options.slice();
+                return f;
+            });
+            const defaults = {};
+            c.rows.forEach(function(r) { if (r.def !== undefined) defaults[r.key] = r.def; });
+            work.metadata = defaults;
+            if (!work.visual.shapes.length) delete work.visual.shapes;
+            doc.defs[id] = work;
+            if (!asNew) {
+                // Renamed keys migrate instance data so nothing silently orphans.
+                const renames = c.rows.filter(function(r) { return r._origKey && r._origKey !== r.key; });
+                doc.objects.forEach(function(o) {
+                    if (o.type !== 'equipment' || o.defId !== id || !o.metadata) return;
+                    renames.forEach(function(r) {
+                        if (r._origKey in o.metadata && !(r.key in o.metadata)) {
+                            o.metadata[r.key] = o.metadata[r._origKey];
+                            delete o.metadata[r._origKey];
+                        }
+                    });
+                });
+            }
+            doc.objects.forEach(function(o) {
+                if (o.type === 'equipment' && o.defId === id) syncObjectNode(o);
+            });
+            if (activeTool === 'place' && placeDefId === id) makeGhost(doc.defs[id]);
+            renderPalette();
+            renderLayersPanel();
+            rebuildStatusOverlay();
+            renderInspector();
+            markDirty();
+            showToast('Component "' + work.name + '" saved.');
+        }
+        function compDeleteComponent() {
+            const c = compEdit, id = c.origId;
+            const used = doc.objects.filter(function(o) { return o.type === 'equipment' && o.defId === id; }).length;
+            if (used) {
+                showToast('Cannot delete: ' + used + ' placed object' + (used === 1 ? '' : 's') + ' still use' + (used === 1 ? 's' : '') + ' this component.');
+                return;
+            }
+            const wasInRoom = !!doc.defs[id]; // palette-only defs aren't covered by undo
+            pushUndo('Delete component');
+            delete doc.defs[id];
+            const libIx = paletteDefs.findIndex(function(p) { return p.id === id; });
+            if (libIx !== -1) paletteDefs.splice(libIx, 1);
+            renderPalette();
+            markDirty();
+            showToast('Component deleted.' + (wasInRoom ? ' Undo restores it.' : ''));
+            document.getElementById('comp-dialog').close('deleted');
+            compTeardown();
+        }
+        document.getElementById('comp-cancel').addEventListener('click', function() {
+            document.getElementById('comp-dialog').close('cancel');
+            compTeardown();
+        });
+        document.getElementById('comp-delete').addEventListener('click', compDeleteComponent);
+        document.getElementById('comp-duplicate').addEventListener('click', function() {
+            if (compEdit) compEdit.saveAsNew = true;
+            document.getElementById('comp-form').requestSubmit();
+        });
+        document.getElementById('comp-form').addEventListener('submit', function(e) {
+            const err = compValidate();
+            if (err) {
+                e.preventDefault();
+                if (compEdit) compEdit.saveAsNew = false;
+                compRenderSchema(); // blank rows may have been dropped
+                showToast(err);
+                return;
+            }
+            // Apply now — the dialog closes right after this handler, and close
+            // events can't be relied on for the save (see onclose note above).
+            compApplySave();
+            compTeardown();
+        });
+        // Delete/Backspace removes the selected shape while the editor is open
+        // (the room-canvas shortcut handler bails out whenever a dialog is open).
+        window.addEventListener('keydown', function(e) {
+            if (!compEdit || !document.getElementById('comp-dialog').open) return;
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !isTypingTarget(e) && compEdit.selIx >= 0) {
+                e.preventDefault();
+                compDeleteShape();
+            }
+        });
+
         // --- Status overlay panel ---
         function metadataFieldOptions() {
             const keys = new Set();
@@ -4526,6 +5272,9 @@
             return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
         }
         window.addEventListener('keydown', function(e) {
+            // While a modal dialog is open, canvas shortcuts must not fire —
+            // e.g. Delete inside the component editor edits shapes, not the room.
+            if (document.querySelector('dialog[open]')) return;
             if (e.key === ' ' && !isTypingTarget(e)) {
                 if (!spaceDown) {
                     spaceDown = true;
@@ -5441,6 +6190,38 @@
             });
             return props;
         }
+        // Custom def.visual.shapes as prims in the equipment group's local frame
+        // (centre-origin mm), mirroring addCustomShapes() including the scaling
+        // that resizable instances apply.
+        function vsdxCustomShapePrims(def, size) {
+            const shapes = (def && def.visual && def.visual.shapes) || [];
+            if (!shapes.length) return [];
+            const fw = (def.footprint && def.footprint.w) || size.w;
+            const fd = (def.footprint && def.footprint.d) || size.d;
+            const sx = size.w / fw, sy = size.d / fd;
+            const ox = -size.w / 2, oy = -size.d / 2;
+            const prims = [];
+            shapes.forEach(function(s) {
+                const weight = s.strokeWidth || 20;
+                if (s.kind === 'rect') {
+                    prims.push({
+                        kind: 'rect', x: ox + s.x * sx, y: oy + s.y * sy, w: s.w * sx, h: s.h * sy,
+                        fill: s.fill || undefined, stroke: s.stroke || undefined, weightMm: weight
+                    });
+                } else if (s.kind === 'ellipse') {
+                    prims.push({
+                        kind: 'ellipse', cx: ox + s.cx * sx, cy: oy + s.cy * sy, rx: s.rx * sx, ry: s.ry * sy,
+                        fill: s.fill || undefined, stroke: s.stroke || undefined, weightMm: weight
+                    });
+                } else if (s.kind === 'line') {
+                    prims.push({
+                        kind: 'line', pts: [[ox + s.x1 * sx, oy + s.y1 * sy], [ox + s.x2 * sx, oy + s.y2 * sy]],
+                        stroke: s.stroke || '#3A2F28', weightMm: weight
+                    });
+                }
+            });
+            return prims;
+        }
         function vsdxEquipmentXml(cx, obj) {
             const def = getDef(obj.defId);
             const size = equipmentSize(obj);
@@ -5450,27 +6231,37 @@
             const props = vsdxEquipmentProps(obj, def);
             const textStr = equipmentDisplayText(obj);
             const angle = obj.rotation || 0;
+            const custom = vsdxCustomShapePrims(def, size);
             if (isMonitoring) {
                 const r = Math.max(size.w, size.d) / 2;
                 const fs = textStr ? Math.min(size.w * 0.45, size.w * 1.5 / Math.max(1, textStr.length)) : 0;
-                return vsdxPrimShape(cx, {
-                    kind: 'ellipse', cx: obj.x, cy: obj.y, rx: r, ry: r,
+                const textOptM = textStr ? { str: textStr, fsMm: fs, color: '#FFFFFF', weight: 500, hAlign: 1 } : null;
+                if (!custom.length) {
+                    return vsdxPrimShape(cx, {
+                        kind: 'ellipse', cx: obj.x, cy: obj.y, rx: r, ry: r,
+                        fill: visual.fill || '#4E7A50', stroke: visual.stroke || '#3B5D3C', weightMm: 20
+                    }, cx.frame, {
+                        angleDeg: angle, layerIx: layerIx, props: props, text: textOptM
+                    });
+                }
+                return vsdxGroupXml(cx, [{
+                    kind: 'ellipse', cx: 0, cy: 0, rx: r, ry: r,
                     fill: visual.fill || '#4E7A50', stroke: visual.stroke || '#3B5D3C', weightMm: 20
-                }, cx.frame, {
-                    angleDeg: angle, layerIx: layerIx, props: props,
-                    text: textStr ? { str: textStr, fsMm: fs, color: '#FFFFFF', weight: 500, hAlign: 1 } : null
+                }].concat(custom), {
+                    pivotMm: { x: 0, y: 0 }, pivotWorld: { x: obj.x, y: obj.y },
+                    angleDeg: angle, layerIx: layerIx, props: props, text: textOptM
                 });
             }
             const fill = vsdxEquipmentFill(obj, visual.fill || '#9B948B');
             const fs = clamp(size.w * 0.28, 110, 230);
             const textOpt = textStr ? { str: textStr, fsMm: fs, color: '#FFFFFF', weight: 500, hAlign: 1 } : null;
-            if (!visual.front) {
+            if (!visual.front && !custom.length) {
                 return vsdxPrimShape(cx, {
                     kind: 'rect', x: obj.x - size.w / 2, y: obj.y - size.d / 2, w: size.w, h: size.d,
                     fillResolved: fill, stroke: visual.stroke || '#6B5F54', weightMm: 20
                 }, cx.frame, { angleDeg: angle, layerIx: layerIx, props: props, text: textOpt });
             }
-            // Front indicator uses a second line style → group (body + white tick)
+            // More than one style (front tick and/or custom shapes) → group
             const inset = 70;
             let pts = null;
             if (visual.front === 'south') pts = [[-size.w / 2 + inset, size.d / 2 - inset], [size.w / 2 - inset, size.d / 2 - inset]];
@@ -5480,7 +6271,7 @@
             const prims = [{
                 kind: 'rect', x: -size.w / 2, y: -size.d / 2, w: size.w, h: size.d,
                 fillResolved: fill, stroke: visual.stroke || '#6B5F54', weightMm: 20
-            }];
+            }].concat(custom);
             if (pts) prims.push({ kind: 'line', pts: pts, stroke: 'rgba(255,255,255,0.8)', weightMm: 45 });
             return vsdxGroupXml(cx, prims, {
                 pivotMm: { x: 0, y: 0 }, pivotWorld: { x: obj.x, y: obj.y },
