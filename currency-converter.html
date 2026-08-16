@@ -65,7 +65,8 @@
             font-size: 0.9em;
         }
 
-        input[type="number"] {
+        input[type="number"],
+        input[type="text"] {
             padding: 12px;
             border: 2px solid rgba(74, 93, 71, 0.12);
             border-radius: 8px;
@@ -75,9 +76,30 @@
             max-width: 100%;
         }
 
-        input[type="number"]:focus {
+        input[type="number"]:focus,
+        input[type="text"]:focus {
             outline: none;
             border-color: #4A5D47;
+        }
+
+        #fromAmount.invalid {
+            border-color: #c33;
+        }
+
+        .amount-hint {
+            font-size: 12px;
+            line-height: 16px;
+            min-height: 16px; /* reserve space so the row never jumps */
+            color: #6B5F54;
+        }
+
+        .amount-hint.value {
+            font-weight: 600;
+            color: #4A5D47;
+        }
+
+        .amount-hint.error {
+            color: #c33;
         }
 
         select {
@@ -236,7 +258,10 @@
             <div class="currency-row">
                 <div class="currency-input">
                     <label for="fromAmount">Amount</label>
-                    <input type="number" id="fromAmount" value="100" min="0" step="0.01">
+                    <input type="text" id="fromAmount" value="100"
+                           autocomplete="off" autocorrect="off" spellcheck="false"
+                           enterkeyhint="done" aria-describedby="amountHint">
+                    <div class="amount-hint" id="amountHint" aria-live="polite"></div>
                 </div>
                 <div class="currency-input">
                     <label for="fromCurrency">From</label>
@@ -287,6 +312,175 @@
     </div>
 
     <script>
+        // --- expression evaluator (start) ---
+        // Small recursive-descent arithmetic evaluator for the Amount field.
+        // Deliberately hand-rolled rather than eval()/new Function() so the tool
+        // stays compatible with a strict CSP (no 'unsafe-eval'), as used elsewhere
+        // in this repo. Grammar:
+        //   expr    := term (('+' | '-') term)*
+        //   term    := factor (('*' | '/') factor)*
+        //   factor  := unary ('^' factor)?        // right-associative
+        //   unary   := ('+' | '-') unary | postfix
+        //   postfix := primary '%'*
+        //   primary := number | '(' expr ')'
+
+        // Turn an expression string into a list of tokens. Throws on bad input.
+        function tokenizeExpression(input) {
+            const tokens = [];
+            let i = 0;
+
+            while (i < input.length) {
+                const ch = input[i];
+
+                if (/\s/.test(ch)) { i++; continue; }
+
+                if (/[0-9.]/.test(ch)) {
+                    // Digits, optionally with 1,234,567-style grouping. A comma only
+                    // counts as a separator when followed by exactly three digits, so
+                    // the European decimal "1234,56" is a visible error rather than
+                    // silently meaning 123456.
+                    const number = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?|^\d*\.?\d+/.exec(input.slice(i));
+                    if (!number) throw new Error(`Unexpected "${ch}"`);
+                    let text = number[0];
+                    i += text.length;
+
+                    // A second '.' immediately after (e.g. "2..5") is malformed.
+                    if (input[i] === '.') throw new Error('Malformed number');
+
+                    let value = parseFloat(text.replace(/,/g, ''));
+                    if (!Number.isFinite(value)) throw new Error('Malformed number');
+
+                    // k / m magnitude suffix fused onto the literal.
+                    const suffix = input[i];
+                    if (suffix === 'k' || suffix === 'K') { value *= 1e3; i++; }
+                    else if (suffix === 'm' || suffix === 'M') { value *= 1e6; i++; }
+
+                    tokens.push({ type: 'number', value });
+                    continue;
+                }
+
+                if ('+-*/^%()'.includes(ch)) {
+                    tokens.push({ type: ch });
+                    i++;
+                    continue;
+                }
+
+                throw new Error(`Unexpected "${ch}"`);
+            }
+
+            return tokens;
+        }
+
+        // Parse + evaluate a token list. Nodes carry { v, pct } where pct marks a bare
+        // percent literal (e.g. "10%") so binary operators can apply calculator-style
+        // semantics: 200+10% = 220, 80-15% = 68, 200*10% = 20.
+        function parseExpression(tokens) {
+            let pos = 0;
+
+            const peek = () => tokens[pos]?.type;
+            const eat = (type) => {
+                if (peek() !== type) return false;
+                pos++;
+                return true;
+            };
+
+            // Collapse a percent node that has no left-hand operand: 50% -> 0.5
+            const plain = (node) => node.pct ? node.v / 100 : node.v;
+
+            function expr() {
+                let left = term();
+                for (;;) {
+                    if (eat('+')) {
+                        const right = term();
+                        const base = plain(left);
+                        left = { v: right.pct ? base + base * right.v / 100 : base + plain(right), pct: false };
+                    } else if (eat('-')) {
+                        const right = term();
+                        const base = plain(left);
+                        left = { v: right.pct ? base - base * right.v / 100 : base - plain(right), pct: false };
+                    } else {
+                        return left;
+                    }
+                }
+            }
+
+            function term() {
+                let left = factor();
+                for (;;) {
+                    if (eat('*')) {
+                        const right = factor();
+                        left = { v: plain(left) * plain(right), pct: false };
+                    } else if (eat('/')) {
+                        const right = factor();
+                        left = { v: plain(left) / plain(right), pct: false };
+                    } else {
+                        return left;
+                    }
+                }
+            }
+
+            function factor() {
+                const base = unary();
+                if (eat('^')) {
+                    const exponent = factor(); // right-associative: 2^3^2 = 512
+                    return { v: Math.pow(plain(base), plain(exponent)), pct: false };
+                }
+                return base;
+            }
+
+            function unary() {
+                if (eat('-')) {
+                    const operand = unary();
+                    return { v: -operand.v, pct: operand.pct };
+                }
+                if (eat('+')) return unary();
+                return postfix();
+            }
+
+            function postfix() {
+                let node = primary();
+                // Note: '%' binds tighter than '+', so in "200 + 10%*2" the percent is
+                // resolved inside the term (0.1*2) rather than against the 200.
+                while (eat('%')) {
+                    node = { v: node.pct ? node.v / 100 : node.v, pct: true };
+                }
+                return node;
+            }
+
+            function primary() {
+                const token = tokens[pos];
+                if (!token) throw new Error('Unexpected end of expression');
+
+                if (token.type === 'number') {
+                    pos++;
+                    return { v: token.value, pct: false };
+                }
+
+                if (eat('(')) {
+                    const inner = expr();
+                    if (!eat(')')) throw new Error('Missing closing bracket');
+                    return { v: plain(inner), pct: false }; // brackets always resolve a percent
+                }
+
+                throw new Error(`Unexpected "${token.type}"`);
+            }
+
+            const result = expr();
+            if (pos < tokens.length) throw new Error(`Unexpected "${tokens[pos].type}"`);
+            return plain(result);
+        }
+
+        // Evaluate an arithmetic expression string. Throws on anything malformed.
+        function evaluateExpression(input) {
+            const tokens = tokenizeExpression(input);
+            if (tokens.length === 0) throw new Error('Empty expression');
+            const value = parseExpression(tokens);
+            if (typeof value !== 'number' || Number.isNaN(value)) throw new Error('Not a number');
+            // Snap floating-point noise so 0.1+0.2 reads as 0.3.
+            return Number.isFinite(value) ? parseFloat(value.toPrecision(12)) : value;
+        }
+        // --- expression evaluator (end) ---
+
         // API Configuration
         const API_BASE = 'https://api.frankfurter.dev/v1';
         
@@ -300,6 +494,7 @@
 
         // DOM Elements
         const fromAmount = document.getElementById('fromAmount');
+        const amountHint = document.getElementById('amountHint');
         const fromCurrency = document.getElementById('fromCurrency');
         const toCurrency = document.getElementById('toCurrency');
         const swapButton = document.getElementById('swapButton');
@@ -317,6 +512,7 @@
                     btn.classList.toggle('active', parseInt(btn.dataset.period) === currentPeriod);
                 });
             }
+            updateAmountHint();
             await convert();
             await updateChart();
         }
@@ -362,8 +558,22 @@
         function setupEventListeners() {
             // Debounce so fast typing doesn't fire a request per keystroke
             fromAmount.addEventListener('input', () => {
+                updateAmountHint(); // instant feedback, even though the request is throttled
                 clearTimeout(convertDebounce);
                 convertDebounce = setTimeout(convert, 250);
+                saveState();
+            });
+
+            // Enter commits: collapse the expression to its plain numeric result
+            fromAmount.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const parsed = readAmount();
+                if (!parsed.ok) return; // invalid: never overwrite what the user typed
+                if (parsed.isExpression) fromAmount.value = String(parsed.value);
+                clearTimeout(convertDebounce); // don't let a stale debounce re-fire
+                updateAmountHint();
+                convert();
                 saveState();
             });
             fromCurrency.addEventListener('change', () => {
@@ -397,17 +607,60 @@
             });
         }
 
+        // Read the Amount field, evaluating it as an arithmetic expression.
+        // Returns { ok, value, isExpression } or { ok: false, message }.
+        function readAmount() {
+            const raw = fromAmount.value.trim();
+            if (!raw) return { ok: false, message: '' }; // empty: no error styling
+
+            let value;
+            try {
+                value = evaluateExpression(raw);
+            } catch {
+                return { ok: false, message: 'Invalid expression' };
+            }
+
+            if (!Number.isFinite(value)) return { ok: false, message: 'Invalid expression' };
+            if (value < 0) return { ok: false, message: 'Amount must be positive' };
+            if (value === 0) return { ok: false, message: '' };
+
+            return { ok: true, value, isExpression: /[^0-9.,\s]/.test(raw) };
+        }
+
+        // Update the hint line under the Amount field
+        function updateAmountHint() {
+            const parsed = readAmount();
+            amountHint.className = 'amount-hint';
+            fromAmount.classList.remove('invalid');
+
+            if (parsed.ok && parsed.isExpression) {
+                amountHint.classList.add('value');
+                amountHint.textContent = `= ${parsed.value.toLocaleString('en-US', { maximumFractionDigits: 4 })}`;
+            } else if (!parsed.ok && parsed.message) {
+                amountHint.classList.add('error');
+                fromAmount.classList.add('invalid');
+                amountHint.textContent = parsed.message;
+            } else {
+                // Plain number or empty: advertise that sums are accepted
+                amountHint.textContent = 'Tip: try sums like 250*4 or 200+10%';
+            }
+        }
+
         // Convert currency
         async function convert() {
-            const amount = parseFloat(fromAmount.value);
+            const parsed = readAmount();
             const from = fromCurrency.value;
             const to = toCurrency.value;
-            
-            if (!amount || amount <= 0 || !from || !to) {
+
+            // Invalid expression: keep the last good result on screen and make no request
+            if (!parsed.ok && parsed.message) return;
+
+            const amount = parsed.value;
+            if (!parsed.ok || !from || !to) {
                 result.textContent = 'Enter a positive amount and select currencies';
                 return;
             }
-            
+
             if (from === to) {
                 const formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 result.innerHTML = `<span class="result-amount">${formattedAmount} ${to}</span>`;

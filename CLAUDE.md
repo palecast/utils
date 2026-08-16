@@ -67,7 +67,7 @@ Four tools persist user state to `localStorage`:
 | Tool | Key | What is saved |
 |------|-----|---------------|
 | `ccy-tracker.html` | `currencyTrackerState` | Selected currencies, time period, base currency |
-| `currency-converter.html` | `currencyConverterState` | From/to currencies, amount, selected period |
+| `currency-converter.html` | `currencyConverterState` | From/to currencies, amount, selected period. The amount is stored as the raw field text, so it may be an uncommitted arithmetic expression (e.g. `(45+55)*3`), not just a number |
 | `timezone-compare-app.html` | `world-timeboard-state-v1` | City rows, home timezone, start hour |
 | `loan-calculator.html` | `loanCalculatorState` | Loan inputs (amount, rate, term, start month, extra payment, currency symbol) |
 | `coastal-conditions.html` | `coastalConditionsState` | Selected location (lat/lon/name), favourite spots. A `?lat=&lon=&name=` deep link overrides the saved location |
