@@ -2214,6 +2214,8 @@
     <script src="https://cdn.jsdelivr.net/npm/orgchart@5.0.0/dist/js/jquery.orgchart.min.js" integrity="sha384-gH0HlYRMbylc1gzzV9u2f8oTmgxfFj/gF07PRaFcQdut9xO+OhFG+kBRGnVYFU7U" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+    <!-- Repacks the .xlsx zip so exports carry a real Excel table (see aoaToTableXlsxBlob). -->
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.3/umd/index.js" integrity="sha384-ETfVLWAUsU3zp3SpnQsPDbAyrF6jYv2w8aNYo6KtY2JuyxXhzYLOL7e0ATbLSIHP" crossorigin="anonymous"></script>
     <script>
         // --- Data model ---
         let roles = [];
@@ -6243,11 +6245,14 @@
         function exportPivotExcel() {
             const pivot = computePivotAoa();
             if (!pivot) { alert('No data to export.'); return; }
-            const ws = XLSX.utils.aoa_to_sheet(pivot.aoa);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Pivot');
-            const ab = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            const blob = new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            // Money aggregates get thousands separators; counts read fine unformatted.
+            const formats = {};
+            if (pivot.isCost) for (let c = 1; c < pivot.aoa[0].length; c++) formats[c] = '#,##0';
+            // The last row is the grand total, left outside the table range so a
+            // filter or a sort can't hide or reorder it.
+            const blob = aoaToTableXlsxBlob(pivot.aoa, {
+                sheetName: 'Pivot', tableName: 'Pivot', formats, tableRows: pivot.aoa.length - 2
+            });
             const url = URL.createObjectURL(blob);
             triggerDownload(url, 'org-chart-pivot.xlsx');
             URL.revokeObjectURL(url);
@@ -7231,22 +7236,131 @@
             return EXPORT_HEADERS[EXPORT_FIELDS.indexOf(f)];
         }
 
+        // --- Excel export ---
+        // SheetJS's community build writes values, column widths and number
+        // formats, but has no support for ListObjects (what Excel calls a table),
+        // frozen panes or header styling. Those are patched into the .xlsx zip
+        // afterwards with fflate: a table part, its relationship, a content-type
+        // override, the <tableParts> back-reference on the sheet, and a <pane>.
+        const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        const XLSX_NUM_FORMATS = { costToCompany: '#,##0' };
+
+        function xmlAttrEscape(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function xlsxColName(i) {
+            let s = '';
+            for (i += 1; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + ((i - 1) % 26)) + s;
+            return s;
+        }
+
+        // Excel requires table column names that are unique and non-empty, and each
+        // must match its header cell — so the sheet is written with these names too.
+        // Only the pivot can trip this (a value repeated across the header row, or a
+        // blank corner cell); the data export's headers are already distinct.
+        function uniqueTableHeaders(headers) {
+            const seen = new Set();
+            return headers.map((h, i) => {
+                let name = String(h == null ? '' : h).trim() || ('Column' + (i + 1));
+                if (seen.has(name.toLowerCase())) {
+                    let n = 2;
+                    while (seen.has((name + ' ' + n).toLowerCase())) n++;
+                    name += ' ' + n;
+                }
+                seen.add(name.toLowerCase());
+                return name;
+            });
+        }
+
+        // xlsx stores widths, not "autofit", so the fit is approximated from content
+        // length: the widest cell in the column, plus room for the header's filter
+        // dropdown, clamped so a long Comments column can't run off the screen.
+        function autoColumnWidths(aoa, min = 8, max = 50) {
+            const colCount = aoa.reduce((n, row) => Math.max(n, row.length), 0);
+            return Array.from({ length: colCount }, (_, c) => {
+                let w = 0;
+                aoa.forEach((row, r) => {
+                    const v = row[c];
+                    if (v === undefined || v === null || v === '') return;
+                    const len = String(v).length + (r === 0 ? 3 : 0);
+                    if (len > w) w = len;
+                });
+                return { wch: Math.min(Math.max(w + 2, min), max) };
+            });
+        }
+
+        function injectExcelTable(zipBytes, headers, dataRows, tableName) {
+            // A table needs at least one data row; without one, ship the plain sheet.
+            if (!window.fflate || !headers.length || dataRows < 1) return zipBytes;
+            try {
+                const files = window.fflate.unzipSync(zipBytes);
+                const SHEET = 'xl/worksheets/sheet1.xml';
+                if (!files[SHEET] || !files['[Content_Types].xml']) return zipBytes;
+                const dec = new TextDecoder(), enc = new TextEncoder();
+                const ref = 'A1:' + xlsxColName(headers.length - 1) + (dataRows + 1);
+                const cols = headers.map((h, i) => '<tableColumn id="' + (i + 1) + '" name="' + xmlAttrEscape(h) + '"/>').join('');
+                files['xl/tables/table1.xml'] = enc.encode(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="' + tableName +
+                    '" displayName="' + tableName + '" ref="' + ref + '" totalsRowShown="0">' +
+                    '<autoFilter ref="' + ref + '"/>' +
+                    '<tableColumns count="' + headers.length + '">' + cols + '</tableColumns>' +
+                    '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/>' +
+                    '</table>');
+                files['xl/worksheets/_rels/sheet1.xml.rels'] = enc.encode(
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table1.xml"/>' +
+                    '</Relationships>');
+                files['[Content_Types].xml'] = enc.encode(dec.decode(files['[Content_Types].xml']).replace('</Types>',
+                    '<Override PartName="/xl/tables/table1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/></Types>'));
+                files[SHEET] = enc.encode(dec.decode(files[SHEET])
+                    .replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,
+                        '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
+                        '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>')
+                    // tableParts is the sheet's back-reference to the table part and
+                    // must be the last element inside <worksheet>.
+                    .replace('</worksheet>', '<tableParts count="1"><tablePart r:id="rId1"/></tableParts></worksheet>'));
+                return window.fflate.zipSync(files);
+            } catch (e) {
+                // Never lose the export over cosmetics — fall back to the plain sheet.
+                console.warn('Excel table formatting skipped:', e);
+                return zipBytes;
+            }
+        }
+
+        // aoa row 0 is the header. `tableRows` limits how many data rows the table
+        // covers (the pivot passes one fewer, to leave its grand total outside);
+        // `formats` maps a column index to an Excel number format.
+        function aoaToTableXlsxBlob(aoa, opts = {}) {
+            const headers = uniqueTableHeaders(aoa[0] || []);
+            const rows = [headers, ...aoa.slice(1)];
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = autoColumnWidths(rows);
+            Object.keys(opts.formats || {}).forEach(ci => {
+                for (let r = 1; r < rows.length; r++) {
+                    const cell = ws[XLSX.utils.encode_cell({ r, c: Number(ci) })];
+                    if (cell && cell.t === 'n') cell.z = opts.formats[ci];
+                }
+            });
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, opts.sheetName || 'Sheet1');
+            const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const dataRows = opts.tableRows == null ? rows.length - 1 : opts.tableRows;
+            return new Blob([injectExcelTable(new Uint8Array(buf), headers, dataRows, opts.tableName || 'Table1')], { type: XLSX_MIME });
+        }
+
         function rolesToCsvBlob(rs, fields = EXPORT_FIELDS) {
             const aoa = [fields.map(headerForField), ...rs.map(r => fields.map(f => fieldToCellValue(r, f)))];
             return new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' });
         }
 
         function rolesToXlsxBlob(rs, fields = EXPORT_FIELDS) {
-            const data = rs.map(r => {
-                const row = {};
-                fields.forEach(f => row[headerForField(f)] = fieldToCellValue(r, f));
-                return row;
-            });
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Org Chart');
-            const ab = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            return new Blob([ab], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const aoa = [fields.map(headerForField), ...rs.map(r => fields.map(f => fieldToCellValue(r, f)))];
+            const formats = {};
+            fields.forEach((f, i) => { if (XLSX_NUM_FORMATS[f]) formats[i] = XLSX_NUM_FORMATS[f]; });
+            return aoaToTableXlsxBlob(aoa, { sheetName: 'Org Chart', tableName: 'OrgChart', formats });
         }
 
         // Rows the active tab currently shows. Table: rows passing Tabulator header
