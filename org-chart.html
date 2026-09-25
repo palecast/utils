@@ -1500,6 +1500,25 @@
         .pivot-table tbody tr:hover { background: #E8E5DF; }
         .pivot-table tfoot td { font-weight: 700; border-top: 2px solid #4A5D47; background: #F2F0EB; }
 
+        /* Pivot cell hover card — appended to <body>, so it can overhang the
+           scrolling pivot surface without being clipped. */
+        .pivot-hover-card { position: fixed; z-index: 2400; min-width: 260px; max-width: 460px; padding: 8px 10px; background: #3A2F28; color: #FAF8F5; border-radius: 8px; box-shadow: 0 6px 20px rgba(58,47,40,0.28); font-size: 0.75rem; line-height: 1.5; pointer-events: none; }
+        .pivot-hover-row { display: flex; align-items: baseline; gap: 16px; }
+        .pivot-hover-name { flex: 1; min-width: 140px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.8; }
+        .pivot-hover-pct { flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+        .pivot-hover-detail { flex-shrink: 0; min-width: 88px; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.6; font-size: 0.7rem; }
+        .pivot-hover-title { font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+        .pivot-hover-sub { opacity: 0.8; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Heading dwell: that row or column of the table as a bar chart. */
+        .pivot-hover-card.pivot-hist { min-width: 300px; max-width: 420px; }
+        .pivot-hist-row { display: grid; grid-template-columns: minmax(70px, 130px) 1fr auto; align-items: center; gap: 8px; line-height: 1.7; }
+        .pivot-hist-row.muted { opacity: 0.45; }
+        .pivot-hist-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
+        .pivot-hist-track { display: block; height: 9px; background: rgba(250,248,245,0.14); border-radius: 3px; overflow: hidden; min-width: 90px; }
+        .pivot-hist-bar { display: block; height: 100%; border-radius: 3px; }
+        .pivot-hist-value { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+        .pivot-note { margin: 10px 2px 0; font-size: 0.78rem; color: #6B5F54; }
+
         /* Pivot treemap */
         .pivot-treemap-section { margin-top: 24px; }
         .pivot-treemap-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -1975,10 +1994,13 @@
                             <div class="control-section-body">
                                 <div class="control-group">
                                     <label>Aggregate:</label>
-                                    <select id="pivot-value-field" onchange="renderPivotTable()">
-                                        <option value="count">Count of Headcount</option>
-                                        <option value="cost">Sum of Cost</option>
-                                    </select>
+                                    <!-- Options come from PIVOT_AGGREGATES in the script. -->
+                                    <select id="pivot-value-field" onchange="renderPivotTable()"></select>
+                                </div>
+                                <span class="control-divider"></span>
+                                <div class="control-group">
+                                    <label>Show as:</label>
+                                    <select id="pivot-show-as" onchange="renderPivotTable()" title="Show each cell as its share of the row, the column or the grand total"></select>
                                 </div>
                             </div>
                         </div>
@@ -2052,6 +2074,7 @@
                 </div>
                 <div class="pivot-surface" id="pivot-surface">
                     <div id="pivot-table-container"></div>
+                    <div id="pivot-notes"></div>
                     <div id="pivot-treemap-section" class="pivot-treemap-section" hidden>
                         <div class="pivot-treemap-header">
                             <span class="pivot-treemap-title" id="pivot-treemap-title"></span>
@@ -6379,52 +6402,154 @@
             return { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' }[field] || field;
         }
 
-        // Cross-tab as an array-of-arrays with raw (unformatted) values — shared by
-        // the HTML renderer and the pivot CSV/Excel exports. Null when nothing passes
-        // the filters. Row 0 is the header; the last row and column are totals.
+        // --- Pivot aggregates ---
+        // One entry per Value option: adding an aggregate is one row here. Every
+        // cell keeps a small accumulator (heads, summed cost and the recorded cost
+        // values) and an aggregate is a formula over it — which is what lets a row,
+        // column or grand total be recomputed from the MERGED accumulators rather
+        // than from the cell results. A total of averages is not the average of the
+        // totals; a total of medians is not a median of anything.
+        //
+        // `additive` marks the figures that can be shown as a share, tiled as a
+        // treemap and read as "x of y" — sums and counts. Averages and medians are
+        // neither, so for them the hover card compares against the row/column/
+        // overall figure instead and the treemap stands aside. Medians ignore blank
+        // (zero) costs: a median of recorded costs is the useful one, whereas the
+        // per-head average deliberately counts every head, blanks included.
+        function pivotMedian(vals) {
+            if (!vals.length) return null;
+            const s = vals.slice().sort((a, b) => a - b);
+            const m = s.length >> 1;
+            return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+        }
+        const PIVOT_AGGREGATES = [
+            { key: 'count',      label: 'Count of Headcount',    additive: true,  decimals: 0, value: a => a.n },
+            { key: 'cost',       label: 'Sum of Cost',           additive: true,  decimals: 0, money: true, value: a => a.cost },
+            { key: 'avgCost',    label: 'Average Cost per head', additive: false, decimals: 0, money: true, noun: 'average', value: a => a.n ? a.cost / a.n : null },
+            { key: 'medianCost', label: 'Median Cost',           additive: false, decimals: 0, money: true, noun: 'median', value: a => pivotMedian(a.costVals) }
+        ];
+        const PIVOT_SHOW_AS = { value: 'Value', row: '% of row', col: '% of column', total: '% of grand total' };
+
+        function pivotAggregate(key) {
+            return PIVOT_AGGREGATES.find(d => d.key === key) || PIVOT_AGGREGATES[0];
+        }
+        function newPivotAcc() {
+            return { n: 0, cost: 0, costVals: [] };
+        }
+        function pivotAccAdd(acc, r) {
+            const cost = Number(r.costToCompany) || 0;
+            acc.n += 1;
+            acc.cost += cost;
+            if (cost > 0) acc.costVals.push(cost);
+        }
+        function pivotAccMerge(into, acc) {
+            into.n += acc.n; into.cost += acc.cost;
+            for (const v of acc.costVals) into.costVals.push(v);
+        }
+
+        // Display formatting shared by the table, the hover card and the histogram.
+        // Null (an average over no heads) renders as a dash, never as 0.
+        function fmtPivotValue(v, format, decimals) {
+            if (v == null || v === '') return '—';
+            const n = Number(v);
+            if (!isFinite(n)) return '—';
+            if (format === 'percent') return (n * 100).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + '%';
+            return n.toLocaleString(undefined, { maximumFractionDigits: decimals });
+        }
+        function pivotExcelFormat(format, decimals) {
+            if (format === 'percent') return decimals > 0 ? '0.' + '0'.repeat(decimals) + '%' : '0%';
+            return decimals > 0 ? '#,##0.' + '#'.repeat(decimals) : '#,##0';
+        }
+
+        (function populatePivotAggregateSelect() {
+            const sel = document.getElementById('pivot-value-field');
+            if (!sel) return;
+            sel.innerHTML = PIVOT_AGGREGATES.map(d => '<option value="' + d.key + '">' + escapeHtml(d.label) + '</option>').join('');
+            const show = document.getElementById('pivot-show-as');
+            if (show) show.innerHTML = Object.keys(PIVOT_SHOW_AS).map(k => '<option value="' + k + '">' + escapeHtml(PIVOT_SHOW_AS[k]) + '</option>').join('');
+        })();
+
+        // Cross-tab as an array-of-arrays — shared by the HTML renderer and the pivot
+        // CSV/Excel exports. Null when nothing passes the filters. Row 0 is the
+        // header; the last row and column are totals. `aoa` holds what is shown and
+        // exported (fractions under a "% of …" mode, '' for an undefined average);
+        // `raw` holds the aggregate itself in the same shape, which is what the hover
+        // card, the histogram and the treemap read — a share of a share is nonsense.
         function computePivotAoa() {
             const filtered = getFilteredRoles();
             if (!filtered.length) return null;
 
             const rowField = document.getElementById('pivot-row-field').value;
             const colField = document.getElementById('pivot-col-field').value;
-            const valueField = document.getElementById('pivot-value-field').value;
-            const isCost = valueField === 'cost';
+            const def = pivotAggregate(document.getElementById('pivot-value-field').value);
+            const showSel = document.getElementById('pivot-show-as');
+            const showAs = def.additive && showSel && PIVOT_SHOW_AS[showSel.value] ? showSel.value : 'value';
 
             const rowVals = [...new Set(filtered.map(r => String(r[rowField] || '') || '(blank)'))].sort();
             const colVals = [...new Set(filtered.map(r => String(r[colField] || '') || '(blank)'))].sort();
 
-            const agg = {};
+            const accs = {};
             filtered.forEach(r => {
                 const rv = String(r[rowField] || '') || '(blank)';
                 const cv = String(r[colField] || '') || '(blank)';
                 const key = rv + '|' + cv;
-                agg[key] = (agg[key] || 0) + (isCost ? (r.costToCompany || 0) : 1);
+                pivotAccAdd(accs[key] || (accs[key] = newPivotAcc()), r);
             });
 
-            const aoa = [[fieldLabel(rowField) + ' \\ ' + fieldLabel(colField), ...colVals, 'Total']];
-            const colTotals = colVals.map(() => 0);
-            let grandTotal = 0;
+            const empty = newPivotAcc();
+            const colAccs = colVals.map(newPivotAcc);
+            const grandAcc = newPivotAcc();
+            const raw = [[fieldLabel(rowField) + ' \\ ' + fieldLabel(colField), ...colVals, 'Total']];
+            const agg = {};
             rowVals.forEach(rv => {
-                let rowTotal = 0;
+                const rowAcc = newPivotAcc();
                 const row = [rv];
                 colVals.forEach((cv, ci) => {
-                    const v = agg[rv + '|' + cv] || 0;
-                    rowTotal += v;
-                    colTotals[ci] += v;
+                    const acc = accs[rv + '|' + cv] || empty;
+                    const v = def.value(acc);
+                    agg[rv + '|' + cv] = v;
                     row.push(v);
+                    pivotAccMerge(rowAcc, acc);
+                    pivotAccMerge(colAccs[ci], acc);
                 });
-                grandTotal += rowTotal;
-                row.push(rowTotal);
-                aoa.push(row);
+                pivotAccMerge(grandAcc, rowAcc);
+                row.push(def.value(rowAcc));
+                raw.push(row);
             });
-            aoa.push(['Total', ...colTotals, grandTotal]);
-            return { aoa, isCost, rowVals, colVals, agg };
+            raw.push(['Total', ...colAccs.map(a => def.value(a)), def.value(grandAcc)]);
+
+            // "Show as" turns each cell into its share, Excel-style: the totals row
+            // and column follow (a row total under "% of row" is 100%; under
+            // "% of column" it is the row's share of the grand total).
+            const lastR = raw.length - 1, lastC = raw[0].length - 1;
+            const grand = Number(raw[lastR][lastC]) || 0;
+            const share = (v, whole) => (whole ? (Number(v) || 0) / whole : null);
+            const aoa = raw.map((row, r) => {
+                if (r === 0) return row.slice();
+                return row.map((v, c) => {
+                    if (c === 0) return v;
+                    if (showAs === 'value') return v == null ? '' : v;
+                    const rowTotal = Number(row[lastC]) || 0, colTotal = Number(raw[lastR][c]) || 0;
+                    let s;
+                    if (showAs === 'row') s = share(v, c === lastC ? (r === lastR ? grand : rowTotal) : rowTotal);
+                    else if (showAs === 'col') s = share(v, r === lastR ? (c === lastC ? grand : colTotal) : colTotal);
+                    else s = share(v, grand);
+                    return s == null ? '' : s;
+                });
+            });
+            const format = showAs !== 'value' ? 'percent' : (def.format || 'number');
+            const decimals = showAs !== 'value' ? 1 : def.decimals;
+            return {
+                aoa, raw, agg, rowVals, colVals, def, showAs, format, decimals,
+                additive: def.additive, isSum: def.key !== 'count', money: !!def.money,
+                rowField, colField
+            };
         }
 
         function renderPivotTable() {
             const filtered = getFilteredRoles();
             const container = document.getElementById('pivot-table-container');
+            const notes = document.getElementById('pivot-notes');
             const pivotSurface = document.getElementById('pivot-surface');
             if (pivotSurface) {
                 pivotSurface.querySelectorAll('.focus-breadcrumb, .focus-warning').forEach(n => n.remove());
@@ -6436,34 +6561,276 @@
                 }
             }
             const pivot = computePivotAoa();
+            // "Show as" only means something for an additive figure.
+            const showSel = document.getElementById('pivot-show-as');
+            if (showSel) showSel.disabled = !!pivot && !pivot.additive;
             if (!pivot) {
                 container.innerHTML = '<p style="padding:40px;color:#888">No data. Import or add rows in the Table tab.</p>';
+                if (notes) notes.innerHTML = '';
+                hidePivotHoverCard();
+                pivotHoverState = null;
                 renderPivotTreemap(null);
                 updateSummaryPanel(filtered);
                 return;
             }
-            const { aoa, isCost } = pivot;
-            // Data cells are numeric today, but escape defensively — this is the one
-            // innerHTML sink that would otherwise trust imported values verbatim.
-            function fmt(v) { return isCost ? Number(v).toLocaleString() : escapeHtml(String(v)); }
+            const { aoa, format, decimals } = pivot;
+            const fmt = v => fmtPivotValue(v, format, decimals);
+            // r/c index back into the pivot so the hover card can read the cell's own
+            // value plus its row, column and grand totals without re-aggregating.
+            // Data cells are numeric, but the formatter never returns raw input, so
+            // this innerHTML sink sees nothing imported verbatim.
+            function cell(v, r, c) {
+                return '<td data-pr="' + r + '" data-pc="' + c + '">' + fmt(v) + '</td>';
+            }
 
             let html = '<table class="pivot-table"><thead><tr>';
-            aoa[0].forEach(h => { html += '<th>' + escapeHtml(String(h)) + '</th>'; });
+            // Headings carry their index too — hovering one shows the histogram.
+            aoa[0].forEach((h, j) => { html += '<th' + (j ? ' data-hc="' + j + '"' : '') + '>' + escapeHtml(String(h)) + '</th>'; });
             html += '</tr></thead><tbody>';
             for (let i = 1; i < aoa.length - 1; i++) {
-                html += '<tr><td>' + escapeHtml(String(aoa[i][0])) + '</td>';
-                for (let j = 1; j < aoa[i].length; j++) html += '<td>' + fmt(aoa[i][j]) + '</td>';
+                html += '<tr><td data-hr="' + i + '">' + escapeHtml(String(aoa[i][0])) + '</td>';
+                for (let j = 1; j < aoa[i].length; j++) html += cell(aoa[i][j], i, j);
                 html += '</tr>';
             }
             const totalRow = aoa[aoa.length - 1];
-            html += '</tbody><tfoot><tr><td>' + escapeHtml(String(totalRow[0])) + '</td>';
-            for (let j = 1; j < totalRow.length; j++) html += '<td>' + fmt(totalRow[j]) + '</td>';
+            const ti = aoa.length - 1;
+            html += '</tbody><tfoot><tr><td data-hr="' + ti + '">' + escapeHtml(String(totalRow[0])) + '</td>';
+            for (let j = 1; j < totalRow.length; j++) html += cell(totalRow[j], ti, j);
             html += '</tr></tfoot></table>';
 
             container.innerHTML = html;
+            if (notes) {
+                const lines = [];
+                if (!pivot.additive) {
+                    lines.push('The treemap is not shown for ' + pivot.def.label.toLowerCase() + ': an area can only stand for a figure that adds up.');
+                }
+                notes.innerHTML = lines.map(t => '<p class="pivot-note">' + escapeHtml(t) + '</p>').join('');
+            }
+            // The old cells are gone; a card left over from them would show figures
+            // that no longer match anything on screen.
+            hidePivotHoverCard();
+            pivotHoverState = pivot;
             renderPivotTreemap(pivot);
             updateSummaryPanel(filtered);
         }
+
+        // --- Pivot hover cards ---
+        // A number in isolation doesn't say how big it is. Dwelling on a cell shows
+        // its share of the row, of the column and of the grand total, each grounded
+        // as "x of y" (or, for an average, how far it sits from the row, column and
+        // overall figure). Dwelling on a row or column heading shows that line of the
+        // table as a bar chart. The dwell delay keeps the cards out of the way while
+        // scanning across a wide table.
+        const PIVOT_HOVER_DELAY_MS = 250;
+        const PIVOT_HIST_MAX_BARS = 25;
+        const PIVOT_HIST_NEUTRAL = '#A89E94';
+        let pivotHoverState = null;
+        let pivotHoverTimer = null;
+        let pivotHoverCard = null;
+        let pivotHoverEl = null;
+        let pivotHoverPoint = { x: 0, y: 0 };
+
+        function pivotPct(part, whole) {
+            if (part == null || !isFinite(whole) || whole === 0) return '—';
+            return (part / whole * 100).toFixed(1) + '%';
+        }
+        // Signed difference from a reference figure: +12.4% above, −3.1% below.
+        function pivotDelta(v, ref) {
+            if (v == null || ref == null || !isFinite(ref) || ref === 0) return '—';
+            const d = (v / ref - 1) * 100;
+            return (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d).toFixed(1) + '%';
+        }
+
+        function hidePivotHoverCard() {
+            if (pivotHoverTimer) { clearTimeout(pivotHoverTimer); pivotHoverTimer = null; }
+            if (pivotHoverCard) { pivotHoverCard.remove(); pivotHoverCard = null; }
+            pivotHoverEl = null;
+        }
+
+        // Prefer below-right of the cursor, flipping when that would overhang.
+        function placePivotCard(card) {
+            document.body.appendChild(card);
+            pivotHoverCard = card;
+            const rect = card.getBoundingClientRect();
+            let x = pivotHoverPoint.x + 14, y = pivotHoverPoint.y + 16;
+            if (x + rect.width > window.innerWidth - 8) x = Math.max(8, pivotHoverPoint.x - rect.width - 14);
+            if (y + rect.height > window.innerHeight - 8) y = Math.max(8, pivotHoverPoint.y - rect.height - 16);
+            card.style.left = x + 'px';
+            card.style.top = y + 'px';
+        }
+
+        function pivotCardHeader(card, title, sub) {
+            const t = document.createElement('div');
+            t.className = 'pivot-hover-title';
+            t.textContent = title;
+            card.appendChild(t);
+            if (sub) {
+                const s = document.createElement('div');
+                s.className = 'pivot-hover-sub';
+                s.textContent = sub;
+                card.appendChild(s);
+            }
+        }
+
+        function showPivotHoverCard(td) {
+            const p = pivotHoverState;
+            if (!p) return;
+            const raw = p.raw, aoa = p.aoa;
+            const r = Number(td.dataset.pr), c = Number(td.dataset.pc);
+            const lastR = raw.length - 1, lastC = raw[0].length - 1;
+            const row = raw[r], totalRow = raw[lastR];
+            if (!row || !totalRow) return;
+            const fmt = v => fmtPivotValue(v, p.def.format || 'number', p.def.decimals);
+            const v = row[c], rowTotal = row[lastC], colTotal = totalRow[c], grand = totalRow[lastC];
+            const rowName = String(aoa[r][0]), colName = String(aoa[0][c]);
+            const isTotalRow = r === lastR, isTotalCol = c === lastC;
+            const noun = p.def.noun || 'figure';
+
+            const cellName = isTotalRow && isTotalCol ? 'Grand total'
+                : isTotalCol ? rowName + ' total'
+                : isTotalRow ? colName + ' total'
+                : rowName + ' · ' + colName;
+            const lines = [];
+            if (p.additive) {
+                const n = Number(v) || 0;
+                if (isTotalRow && isTotalCol) {
+                    // Nothing to compare the grand total against.
+                } else if (isTotalCol) {
+                    lines.push([rowName + ' of Grand Total', pivotPct(n, grand), fmt(n) + ' of ' + fmt(grand)]);
+                } else if (isTotalRow) {
+                    lines.push([colName + ' of Grand Total', pivotPct(n, grand), fmt(n) + ' of ' + fmt(grand)]);
+                } else {
+                    lines.push(['Share of ' + rowName, pivotPct(n, rowTotal), fmt(n) + ' of ' + fmt(rowTotal)]);
+                    lines.push([rowName + ' of ' + colName, pivotPct(n, colTotal), fmt(n) + ' of ' + fmt(colTotal)]);
+                    lines.push([rowName + ' · ' + colName + ' of Grand Total', pivotPct(n, grand), fmt(n) + ' of ' + fmt(grand)]);
+                }
+            } else {
+                if (!isTotalCol && !isTotalRow) {
+                    lines.push(['vs ' + rowName + ' ' + noun, pivotDelta(v, rowTotal), fmt(v) + ' vs ' + fmt(rowTotal)]);
+                    lines.push(['vs ' + colName + ' ' + noun, pivotDelta(v, colTotal), fmt(v) + ' vs ' + fmt(colTotal)]);
+                }
+                if (!(isTotalRow && isTotalCol)) {
+                    lines.push(['vs overall ' + noun, pivotDelta(v, grand), fmt(v) + ' vs ' + fmt(grand)]);
+                }
+            }
+            if (!lines.length) return;
+
+            const card = document.createElement('div');
+            card.className = 'pivot-hover-card';
+            pivotCardHeader(card, p.additive ? 'Percentage share' : 'Compared with the ' + noun + 's', cellName + ': ' + fmt(v));
+            lines.forEach(([name, pct, detail]) => {
+                const line = document.createElement('div');
+                line.className = 'pivot-hover-row';
+                const n = document.createElement('span');
+                n.className = 'pivot-hover-name';
+                n.textContent = name;
+                const pc = document.createElement('span');
+                pc.className = 'pivot-hover-pct';
+                pc.textContent = pct;
+                const d = document.createElement('span');
+                d.className = 'pivot-hover-detail';
+                d.textContent = detail;
+                line.appendChild(n);
+                line.appendChild(pc);
+                line.appendChild(d);
+                card.appendChild(line);
+            });
+            placePivotCard(card);
+        }
+
+        // Heading hover: one bar per column for a row heading (including the footer
+        // "Total"), one bar per row for a column heading (including the "Total"
+        // column). Bars stay in table order so they mirror the line being pointed
+        // at; length already shows the ranking. Bars that stand for columns take the
+        // column colours the treemap legend uses; rows are not coloured anywhere in
+        // the app, so those bars are neutral. Zero and undefined bars are kept,
+        // muted — "no vacancies in Berlin" is information.
+        function showPivotHistogram(el) {
+            const p = pivotHoverState;
+            if (!p) return;
+            const raw = p.raw, aoa = p.aoa;
+            const lastR = raw.length - 1, lastC = raw[0].length - 1;
+            const fmt = v => fmtPivotValue(v, p.def.format || 'number', p.def.decimals);
+            let heading, items, whole, axis;
+            if (el.dataset.hr != null) {
+                const r = Number(el.dataset.hr);
+                if (!raw[r]) return;
+                const colors = buildPivotColorKey(p.colField);
+                heading = String(aoa[r][0]);
+                items = p.colVals.map((cv, i) => ({ label: cv, value: raw[r][i + 1], color: colors.get(cv) || PIVOT_HIST_NEUTRAL }));
+                whole = raw[r][lastC];
+                axis = fieldLabel(p.colField);
+            } else {
+                const c = Number(el.dataset.hc);
+                if (!(c >= 1 && c <= lastC)) return;
+                heading = String(aoa[0][c]);
+                items = p.rowVals.map((rv, i) => ({ label: rv, value: raw[i + 1][c], color: PIVOT_HIST_NEUTRAL }));
+                whole = raw[lastR][c];
+                axis = fieldLabel(p.rowField);
+            }
+            if (!items.length) return;
+            const max = items.reduce((m, it) => Math.max(m, Number(it.value) || 0), 0);
+            const shown = items.slice(0, PIVOT_HIST_MAX_BARS);
+
+            const card = document.createElement('div');
+            card.className = 'pivot-hover-card pivot-hist';
+            pivotCardHeader(card, heading + ' — ' + p.def.label,
+                'by ' + axis + (p.additive && whole != null ? ' · total ' + fmt(whole) : ''));
+            shown.forEach(it => {
+                const n = Number(it.value);
+                const has = it.value != null && isFinite(n) && n !== 0;
+                const line = document.createElement('div');
+                line.className = 'pivot-hist-row' + (has ? '' : ' muted');
+                const label = document.createElement('span');
+                label.className = 'pivot-hist-label';
+                label.textContent = it.label;
+                label.title = it.label;
+                const track = document.createElement('span');
+                track.className = 'pivot-hist-track';
+                const bar = document.createElement('span');
+                bar.className = 'pivot-hist-bar';
+                bar.style.width = (max > 0 && has ? Math.max(0, n / max * 100) : 0) + '%';
+                bar.style.background = it.color;
+                track.appendChild(bar);
+                const val = document.createElement('span');
+                val.className = 'pivot-hist-value';
+                val.textContent = fmt(it.value) + (p.additive && has && whole ? ' (' + pivotPct(n, whole) + ')' : '');
+                line.appendChild(label);
+                line.appendChild(track);
+                line.appendChild(val);
+                card.appendChild(line);
+            });
+            if (items.length > shown.length) {
+                const more = document.createElement('div');
+                more.className = 'pivot-hover-sub';
+                more.textContent = 'and ' + (items.length - shown.length) + ' more';
+                card.appendChild(more);
+            }
+            placePivotCard(card);
+        }
+
+        (function wirePivotHoverCard() {
+            const surface = document.getElementById('pivot-surface');
+            if (!surface) return;
+            surface.addEventListener('mousemove', e => {
+                pivotHoverPoint = { x: e.clientX, y: e.clientY };
+                const el = e.target.closest ? e.target.closest('td[data-pr], td[data-hr], th[data-hc]') : null;
+                if (!el) { hidePivotHoverCard(); return; }
+                // Moving within the same cell must not restart the dwell; moving to a
+                // new one must, or the card would keep the previous cell's figures.
+                if (el === pivotHoverEl) return;
+                hidePivotHoverCard();
+                pivotHoverEl = el;
+                pivotHoverTimer = setTimeout(() => {
+                    pivotHoverTimer = null;
+                    if (el.dataset.pr != null) showPivotHoverCard(el);
+                    else showPivotHistogram(el);
+                }, PIVOT_HOVER_DELAY_MS);
+            });
+            surface.addEventListener('mouseleave', hidePivotHoverCard);
+            surface.addEventListener('scroll', hidePivotHoverCard, true);
+            window.addEventListener('blur', hidePivotHoverCard);
+        })();
 
         // --- Pivot treemap ---
         // Squarified treemap layout (Bruls et al.). `values` must be positive and
@@ -6551,7 +6918,8 @@
             const section = document.getElementById('pivot-treemap-section');
             const el = document.getElementById('pivot-treemap');
             _lastPivotForTreemap = pivot;
-            if (!pivot) { section.hidden = true; el.innerHTML = ''; return; }
+            // Area can only stand for a figure that adds up; renderPivotTable says so.
+            if (!pivot || !pivot.additive) { section.hidden = true; el.innerHTML = ''; return; }
 
             const groups = [];
             pivot.rowVals.forEach(rv => {
@@ -6585,7 +6953,10 @@
 
             const LABEL_H = 20, GAP = 2, PAD = GAP / 2;
             const fmtFull = v => Number(v).toLocaleString();
-            const fmtShort = v => pivot.isCost ? fmtCompactCost(v) : String(v);
+            // Compact "12k" money style only suits whole-unit sums; decimal figures render plain.
+            const fmtShort = v => pivot.isSum
+                ? (pivot.decimals > 0 ? (Number(v) || 0).toLocaleString(undefined, { maximumFractionDigits: pivot.decimals }) : fmtCompactCost(v))
+                : String(v);
 
             // Positions are percentages of the parent box so the treemap keeps its
             // proportions during the sidebar width transition, between debounced
@@ -6654,9 +7025,10 @@
         function exportPivotExcel() {
             const pivot = computePivotAoa();
             if (!pivot) { alert('No data to export.'); return; }
-            // Money aggregates get thousands separators; counts read fine unformatted.
+            // Thousands separators for sums and counts, a percent format under a
+            // "% of …" mode or for the bonus ratio — the same hint the table renders by.
             const formats = {};
-            if (pivot.isCost) for (let c = 1; c < pivot.aoa[0].length; c++) formats[c] = '#,##0';
+            for (let c = 1; c < pivot.aoa[0].length; c++) formats[c] = pivotExcelFormat(pivot.format, pivot.decimals);
             // The last row is the grand total, left outside the table range so a
             // filter or a sort can't hide or reorder it.
             const blob = aoaToTableXlsxBlob(pivot.aoa, {
