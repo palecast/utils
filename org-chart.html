@@ -776,6 +776,90 @@
             100% { box-shadow: 0 0 0 12px rgba(74, 93, 71, 0); }
         }
 
+        /* Compare on the chart (diff view). The ring is a border on an absolutely
+           positioned child of .node (.node-diff-ring): html2canvas paints neither
+           outlines nor these box-shadows, so either would vanish from PNG exports,
+           and a border on .node itself would shift the layout (some nodes carry a
+           bottom margin that a compensating margin would clobber). Ring and badge
+           hang off .node rather than .node-card, which clips. Colours avoid the
+           sage accent, which already means dotted lines and search hits. */
+        .node-diff-ring {
+            position: absolute;
+            inset: -3px;
+            border: 3px solid #e8a200;
+            border-radius: 9px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .orgchart .node.diff-moved .node-diff-ring { border-color: #1a73e8; }
+        .orgchart .node.diff-added .node-diff-ring { border-color: #1e8e3e; }
+        .orgchart.diff-dim .node:not(.diff-any) { opacity: 0.35; }
+        .node-diff-badge {
+            position: absolute;
+            top: -9px;
+            right: 8px;
+            z-index: 2;
+            display: inline-flex;
+            gap: 6px;
+            padding: 0 7px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            line-height: 16px;
+            white-space: nowrap;
+            background: #FFFFFF;
+            border: 1px solid rgba(74,93,71,0.2);
+            border-radius: 999px;
+            cursor: help;
+        }
+        .diff-sym-added { color: #1e8e3e; }
+        .diff-sym-moved { color: #1a73e8; }
+        .diff-sym-changed { color: #b37a00; }
+        /* A collapsed branch hiding changes: amber dot on its hidden-children badge */
+        .node-collapse-badge.has-hidden-changes::after {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #e8a200;
+        }
+        .diff-banner {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            padding: 8px 16px;
+            background: rgba(232,229,223,0.6);
+            border-bottom: 1px solid rgba(74,93,71,0.12);
+            font-size: 0.8rem;
+            color: #6B5F54;
+            flex-shrink: 0;
+        }
+        .diff-banner-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+        .diff-banner-file { color: #3A2F28; font-weight: 600; }
+        .diff-banner-chip {
+            background: #FFFFFF;
+            border: 1px solid rgba(74,93,71,0.2);
+            border-radius: 12px;
+            padding: 2px 9px;
+            font-weight: 600;
+            font-family: inherit;
+            font-size: 0.75rem;
+            color: #3A2F28;
+        }
+        button.diff-banner-chip { cursor: pointer; }
+        button.diff-banner-chip:hover { border-color: #4A5D47; color: #4A5D47; }
+        .diff-banner label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+        .diff-banner-nav { display: inline-flex; align-items: center; gap: 4px; }
+        .diff-banner-pos { min-width: 44px; text-align: center; white-space: nowrap; }
+        .diff-banner-actions { margin-left: auto; display: inline-flex; gap: 6px; }
+        .legend-sep { width: 1px; align-self: stretch; background: rgba(74,93,71,0.15); }
+
         /* Toasts — transient, non-blocking notices (bottom-right) */
         .toast-container {
             position: fixed;
@@ -2286,6 +2370,7 @@
         <div class="cmp-chips" id="cmp-chips"></div>
         <div id="cmp-sections"></div>
         <menu>
+            <button type="button" class="btn-secondary" id="cmp-show-chart-btn" title="Highlight these changes on the org chart">Show on chart</button>
             <button type="button" class="btn-secondary" id="cmp-export-btn">Export diff CSV</button>
             <button type="button" class="btn-primary" onclick="document.getElementById('compare-dialog').close()">Close</button>
         </menu>
@@ -4160,12 +4245,22 @@
         function renderLegend() {
             const el = document.getElementById('legend');
             setupLegendDrag(el);
-            if (!colorField) { el.innerHTML = ''; return; }
             const fieldLabels = { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' };
-            let html = '<div class="legend-title">' + escapeHtml(fieldLabels[colorField] || colorField) + '</div>';
-            Object.entries(colorMap).forEach(([label, color]) => {
-                html += '<div class="legend-item"><span class="legend-swatch" style="background:' + color + '"></span>' + escapeHtml(label || '(empty)') + '</div>';
-            });
+            let html = '';
+            if (colorField) {
+                html += '<div class="legend-title">' + escapeHtml(fieldLabels[colorField] || colorField) + '</div>';
+                Object.entries(colorMap).forEach(([label, color]) => {
+                    html += '<div class="legend-item"><span class="legend-swatch" style="background:' + color + '"></span>' + escapeHtml(label || '(empty)') + '</div>';
+                });
+            }
+            const diffItems = diffLegendItems();
+            if (diffItems.length) {
+                if (html) html += '<span class="legend-sep"></span>';
+                html += '<div class="legend-title">' + escapeHtml(diffLegendTitle()) + '</div>';
+                diffItems.forEach(it => {
+                    html += '<div class="legend-item">' + (it.color ? '<span class="legend-swatch" style="background:' + it.color + '"></span>' : '') + escapeHtml(it.text) + '</div>';
+                });
+            }
             el.innerHTML = html;
         }
 
@@ -5002,7 +5097,7 @@
             // Double-click → form editor; same guard list as dragstart so collapse
             // toggles, edges and dotted pills keep their own behavior.
             el.addEventListener('dblclick', function(e) {
-                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag, .node-collapse-badge')) return;
+                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag, .node-collapse-badge, .node-diff-badge')) return;
                 e.stopPropagation();
                 openRoleEditor(data.roleId);
             });
@@ -5011,7 +5106,7 @@
 
             el.addEventListener('dragstart', function(e) {
                 // Skip drags initiated on the collapse toggle / edges / pills / badge so those keep working.
-                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag, .node-collapse-badge')) {
+                if (e.target.closest && e.target.closest('.toggleBtn, .edge, .topEdge, .rightEdge, .bottomEdge, .leftEdge, .node-dotted-tag, .node-collapse-badge, .node-diff-badge')) {
                     e.preventDefault();
                     return;
                 }
@@ -5470,7 +5565,7 @@
             // chart container itself, so they don't fight the chart's pan/zoom layer.
             const surface = document.getElementById('design-surface');
             if (surface) {
-                surface.querySelectorAll('.focus-breadcrumb, .focus-warning').forEach(n => n.remove());
+                surface.querySelectorAll('.focus-breadcrumb, .focus-warning, .diff-banner').forEach(n => n.remove());
             }
 
             // Wheel zoom — wired once on the container; survives re-renders since container itself isn't replaced
@@ -5517,7 +5612,15 @@
                 });
             }
 
-            const filtered = getFilteredRoles();
+            let filtered = getFilteredRoles();
+            // Diff view (Compare on the chart): recomputed on every render so edits
+            // made while it is on update the highlights.
+            _diffState = computeDiffState();
+            if (_diffState && diffView.changesOnly) filtered = diffKeepChangedAndAncestors(filtered, _diffState.map);
+            // After the chart is in the DOM, since the banner counts what is on it.
+            const mountDiffBanner = function() {
+                if (surface && _diffState) surface.insertBefore(buildDiffBanner(_diffState), container);
+            };
 
             // Mount focus chrome above #chart-container, after getFilteredRoles() has
             // had a chance to set focusFellBack.
@@ -5531,8 +5634,10 @@
             }
 
             if (!filtered.length) {
-                container.appendChild(emptyMsg('No roles to display. Add data in the Table tab.'));
+                container.appendChild(emptyMsg(_diffState && diffView.changesOnly && roles.length
+                    ? 'No changes to show.' : 'No roles to display. Add data in the Table tab.'));
                 updateSummaryPanel(filtered);
+                mountDiffBanner();
                 return;
             }
 
@@ -5540,6 +5645,7 @@
             if (!tree) {
                 container.appendChild(emptyMsg('Unable to build tree. Check your data.'));
                 updateSummaryPanel(filtered);
+                mountDiffBanner();
                 return;
             }
 
@@ -5564,10 +5670,12 @@
             });
 
             applyTwoColMarkers(container, tree);
+            applyDiffMarkers(container, _diffState); // before updateCollapseBadges, which counts the markers
 
             if (maxLevel > 0) applyDepthLimit(container, maxLevel);
             reapplyManualCollapse(container);
             updateCollapseBadges(container);
+            mountDiffBanner();
 
             renderLegend();
             updateZoomBadge();
@@ -5705,6 +5813,7 @@
         function updateCollapseBadges(container) {
             container.querySelectorAll('.node-collapse-badge').forEach(function(b) {
                 b.hidden = true;
+                b.classList.remove('has-hidden-changes');
                 const card = b.closest('.node-card');
                 if (card) card.classList.remove('has-collapse-badge');
             });
@@ -5724,6 +5833,13 @@
                 const total = childUl.querySelectorAll('.node').length;
                 if (!direct) return;
                 fillCollapseBadge(node, direct, total, 'hidden — click to view');
+                // Diff view: a collapsed branch must not hide a change silently.
+                const hiddenChanges = diffView ? childUl.querySelectorAll('.node.diff-any').length : 0;
+                if (hiddenChanges) {
+                    const badge = node.querySelector('.node-collapse-badge');
+                    badge.classList.add('has-hidden-changes');
+                    badge.title += ' · ' + hiddenChanges + ' with changes';
+                }
             });
         }
 
@@ -5828,6 +5944,7 @@
                 createNode: function($node, data) { wireSubtreeNode($node, data); }
             });
             applyTwoColMarkers(container, tree);
+            applyDiffMarkers(container, computeDiffState());
             // Scale to fit the dialog. Cap at 100% so small subtrees keep their
             // natural card size — the fit button offers the uncapped fit.
             fitChartToViewFor(subtreeZoomCtx(), { maxScale: 1 });
@@ -6050,6 +6167,7 @@
                 removeAutosaveEntry(entry);
                 roles = snap.roles;
                 baselineRoles = Array.isArray(snap.baseline) ? snap.baseline : snapshotRoles();
+                diffView = null; // compared against the data this restore replaces
                 restoreTagColors(snap.tagColors); // absent in pre-tag-colour snapshots
                 baselineTagColors = sanitizeTagColors(snap.baselineTagColors);
                 recomputeNextId();
@@ -7223,6 +7341,7 @@
             redoStack = [];
             updateUndoRedoButtonState();
             manuallyCollapsed.clear();
+            diffView = null; // compared against the previous dataset
             filters.forEach(f => { if (f.field) f.values = new Set(getUniqueValues(f.field)); });
             const liveTags = new Set(getAllTags());
             [...tagFilter].forEach(t => { if (!liveTags.has(t)) tagFilter.delete(t); });
@@ -7406,7 +7525,7 @@
                 return;
             }
             if (!fileRoles.length) { alert('No data found in the comparison file.'); return; }
-            openCompareDialog(diffRoles(roles, fileRoles), fileName);
+            openCompareDialog(diffRoles(roles, fileRoles), fileName, { fileRoles: fileRoles });
         }
 
         // Field value for diffing — arrays compare order-insensitively.
@@ -7459,12 +7578,24 @@
             return i >= 0 ? EXPORT_HEADERS[i] : field;
         }
 
+        // "ID — Title" for a manager on either side of a diff. A file-side manager
+        // absent from the current data is, by definition, in the removed list.
+        function diffManagerLabel(id, diff) {
+            if (!id) return '(root)';
+            const m = roles.find(r => r.roleId === id) || diff.removed.find(r => r.roleId === id);
+            return id + (m && m.roleTitle ? ' — ' + m.roleTitle : '');
+        }
+
         let _lastDiff = null; // kept for the Export diff CSV button
 
         function openCompareDialog(diff, fileName, opts) {
             const unsaved = opts && opts.mode === 'unsaved';
             _lastDiff = { diff, fileName, exportName: unsaved ? 'org-chart-unsaved-changes.csv' : 'org-chart-diff.csv' };
             const dlg = document.getElementById('compare-dialog');
+            document.getElementById('cmp-show-chart-btn').onclick = function() {
+                dlg.close();
+                showDiffOnChart(unsaved ? { mode: 'unsaved', fileName: fileName } : { mode: 'file', fileName: fileName, fileRoles: opts && opts.fileRoles });
+            };
             if (unsaved) {
                 document.getElementById('cmp-title').textContent = 'Unsaved changes — ' + fileName;
                 document.getElementById('cmp-direction').textContent =
@@ -7500,13 +7631,7 @@
                 '<td>' + escapeHtml(r.roleId) + '</td><td>' + escapeHtml(r.roleTitle || '') + '</td>';
             const locateAttr = roleId =>
                 roles.some(r => r.roleId === roleId) ? ' data-locate-id="' + escapeHtml(roleId) + '" title="Show in chart"' : '';
-            const managerLabel = id => {
-                if (!id) return '(root)';
-                // A file-side manager absent from the current data is, by definition,
-                // in the removed list.
-                const m = roles.find(r => r.roleId === id) || diff.removed.find(r => r.roleId === id);
-                return id + (m && m.roleTitle ? ' — ' + m.roleTitle : '');
-            };
+            const managerLabel = id => diffManagerLabel(id, diff);
 
             const section = (title, rows, headHtml) => {
                 let html = '<div class="cmp-section"><div class="cmp-section-title">' + title +
@@ -7563,6 +7688,252 @@
             const url = URL.createObjectURL(new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' }));
             triggerDownload(url, _lastDiff.exportName || 'org-chart-diff.csv');
             URL.revokeObjectURL(url);
+        }
+
+        // --- Compare on the chart (diff view) ---
+        // The Compare report drawn onto the chart: coloured rings and a badge on
+        // added / moved / changed cards, a banner with counts and navigation, and a
+        // legend block. It is view state, never document data — not in undo, the
+        // autosave or the baseline — and it is recomputed on every chart render, so
+        // edits made while it is on update the highlights (track changes). Removed
+        // roles are not on the current chart; the banner and legend count them.
+        // Marking is a post-render DOM pass (applyDiffMarkers), which keeps the
+        // toFlatChartData whitelist untouched and lets the PNG/SVG exports, which
+        // clone the rendered DOM, carry the markers for free.
+        let diffView = null;   // { mode: 'file'|'unsaved', fileName, fileRoles, dim, changesOnly, idx }
+        let _diffState = null; // { diff, map: Map(roleId → {added, moved, fields}) } from the last chart render
+
+        function showDiffOnChart(opts) {
+            diffView = {
+                mode: opts.mode,
+                fileName: opts.fileName || '',
+                fileRoles: opts.fileRoles || null,
+                dim: !!(diffView && diffView.dim),
+                changesOnly: false,
+                idx: -1
+            };
+            switchTab('chart'); // renders
+        }
+
+        function exitDiffView() {
+            diffView = null;
+            _diffState = null;
+            if (activeTab === 'chart') renderChart();
+        }
+
+        // "Unsaved" reads baselineRoles live: captureBaseline reassigns it on every
+        // save, so a stored reference would go stale.
+        function computeDiffState() {
+            if (!diffView) return null;
+            const diff = diffRoles(roles, diffView.mode === 'unsaved' ? baselineRoles : (diffView.fileRoles || []));
+            const map = new Map();
+            const entry = id => {
+                let s = map.get(id);
+                if (!s) { s = { added: false, moved: null, fields: [] }; map.set(id, s); }
+                return s;
+            };
+            diff.added.forEach(r => { entry(r.roleId).added = true; });
+            diff.moved.forEach(m => { entry(m.role.roleId).moved = { from: m.from, to: m.to }; });
+            diff.changed.forEach(c => { entry(c.role.roleId).fields = c.fields; });
+            return { diff: diff, map: map };
+        }
+
+        // "Changes only": the changed roles plus their manager chain, so every
+        // change is still shown in place in the hierarchy.
+        function diffKeepChangedAndAncestors(filtered, map) {
+            const byId = new Map(filtered.map(r => [r.roleId, r]));
+            const keep = new Set();
+            filtered.forEach(r => {
+                if (!map.has(r.roleId)) return;
+                let cur = r;
+                while (cur && !keep.has(cur.roleId)) { // keep doubles as the cycle guard
+                    keep.add(cur.roleId);
+                    cur = byId.get(cur.managerRoleId);
+                }
+            });
+            return filtered.filter(r => keep.has(r.roleId));
+        }
+
+        const DIFF_TOOLTIP_MAX_FIELDS = 12;
+        function diffTooltip(s, diff) {
+            const empty = v => v === '' ? '(empty)' : v;
+            const lines = [];
+            if (s.added) lines.push(diffView.mode === 'unsaved' ? 'Added since the last save' : 'Added — not in ' + diffView.fileName);
+            if (s.moved) lines.push('Manager: ' + diffManagerLabel(s.moved.from, diff) + ' → ' + diffManagerLabel(s.moved.to, diff));
+            s.fields.slice(0, DIFF_TOOLTIP_MAX_FIELDS).forEach(f => {
+                lines.push(diffFieldLabel(f.field) + ': ' + empty(f.file) + ' → ' + empty(f.current));
+            });
+            if (s.fields.length > DIFF_TOOLTIP_MAX_FIELDS) lines.push('…and ' + (s.fields.length - DIFF_TOOLTIP_MAX_FIELDS) + ' more (see the report)');
+            return lines.join('\n');
+        }
+
+        // Shared by the main chart and the subtree popup. Symbols as well as
+        // colours, so the markers survive colour blindness and greyscale printing.
+        function applyDiffMarkers(container, state) {
+            const oc = container.querySelector('.orgchart');
+            if (oc) oc.classList.toggle('diff-dim', !!(diffView && diffView.dim));
+            if (!diffView || !state) return;
+            container.querySelectorAll('.node[data-role-id]').forEach(function(nodeEl) {
+                const s = state.map.get(nodeEl.dataset.roleId);
+                if (!s) return;
+                nodeEl.classList.add('diff-any');
+                const ring = document.createElement('span');
+                ring.className = 'node-diff-ring';
+                nodeEl.appendChild(ring);
+                const badge = document.createElement('span');
+                badge.className = 'node-diff-badge';
+                badge.title = diffTooltip(s, state.diff);
+                const part = (cls, text) => {
+                    const sp = document.createElement('span');
+                    sp.className = 'diff-sym-' + cls;
+                    sp.textContent = text;
+                    badge.appendChild(sp);
+                };
+                if (s.added) { nodeEl.classList.add('diff-added'); part('added', '+ Added'); }
+                if (s.moved) { nodeEl.classList.add('diff-moved'); part('moved', '↪ Moved'); }
+                if (s.fields.length) {
+                    nodeEl.classList.add('diff-changed');
+                    part('changed', '✎ ' + s.fields.length + (s.fields.length === 1 ? ' change' : ' changes'));
+                }
+                nodeEl.appendChild(badge);
+            });
+        }
+
+        function diffOnChartIds() {
+            const container = document.getElementById('chart-container');
+            return Array.from(container.querySelectorAll('.node.diff-any[data-role-id]'), n => n.dataset.roleId);
+        }
+
+        function diffStep(delta) {
+            if (!diffView) return;
+            const ids = diffOnChartIds();
+            if (!ids.length) return;
+            const n = ids.length;
+            diffView.idx = diffView.idx < 0 || diffView.idx >= n
+                ? (delta > 0 ? 0 : n - 1)
+                : ((diffView.idx + delta) % n + n) % n;
+            locateRoleInChart(ids[diffView.idx]);
+            const pos = document.getElementById('diff-banner-pos');
+            if (pos) pos.textContent = (diffView.idx + 1) + ' of ' + n;
+        }
+
+        function reopenDiffReport() {
+            if (!diffView) return;
+            const fileRoles = diffView.mode === 'unsaved' ? baselineRoles : diffView.fileRoles;
+            openCompareDialog(diffRoles(roles, fileRoles), diffView.fileName,
+                diffView.mode === 'unsaved' ? { mode: 'unsaved' } : { fileRoles: fileRoles });
+        }
+
+        function buildDiffBanner(state) {
+            const d = state.diff;
+            const bar = document.createElement('div');
+            bar.className = 'diff-banner';
+            const add = (tag, cls, text) => {
+                const e = document.createElement(tag);
+                if (cls) e.className = cls;
+                if (text != null) e.textContent = text;
+                bar.appendChild(e);
+                return e;
+            };
+            add('span', 'diff-banner-label', diffView.mode === 'unsaved' ? 'Unsaved changes' : 'Comparing with');
+            if (diffView.mode !== 'unsaved') add('span', 'diff-banner-file', diffView.fileName);
+
+            const total = d.added.length + d.moved.length + d.changed.length + d.removed.length;
+            if (!total) {
+                add('span', null, diffView.mode === 'unsaved' ? 'No changes since the last save.' : 'No differences.');
+            } else {
+                // Moved and changed can be the same role, so count the categories, not roles.
+                const chip = (sym, cls, n, noun) => {
+                    if (!n) return;
+                    const c = add('span', 'diff-banner-chip');
+                    const s = document.createElement('span');
+                    s.className = 'diff-sym-' + cls;
+                    s.textContent = sym;
+                    c.appendChild(s);
+                    c.appendChild(document.createTextNode(' ' + n + ' ' + noun));
+                };
+                chip('+', 'added', d.added.length, 'added');
+                chip('↪', 'moved', d.moved.length, 'moved');
+                chip('✎', 'changed', d.changed.length, 'changed');
+                if (d.removed.length) {
+                    const b = add('button', 'diff-banner-chip', d.removed.length + ' removed…');
+                    b.type = 'button';
+                    b.title = 'Removed roles are not on the current chart — open the report to see them';
+                    b.onclick = reopenDiffReport;
+                }
+            }
+
+            const onChart = diffOnChartIds().length;
+            const notShown = state.map.size - onChart;
+            if (notShown > 0) {
+                add('span', null, notShown + ' hidden by filters/focus').title = 'Changed roles that the current filters or focus leave off the chart';
+            }
+
+            const toggle = (label, key, title, onChange) => {
+                const l = add('label');
+                l.title = title;
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = !!diffView[key];
+                cb.onchange = function() { diffView[key] = cb.checked; onChange(); };
+                l.appendChild(cb);
+                l.appendChild(document.createTextNode(label));
+            };
+            toggle('Dim unchanged', 'dim', 'Fade the cards that did not change', function() {
+                // A class toggle, not a re-render, so pan and zoom stay put.
+                const oc = getOrgchartEl();
+                if (oc) oc.classList.toggle('diff-dim', diffView.dim);
+            });
+            toggle('Changes only', 'changesOnly', 'Show only the changed roles and the managers above them. The summary panel then describes this reduced set.', renderChart);
+
+            const nav = add('span', 'diff-banner-nav');
+            const navBtn = (text, title, delta) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'btn-secondary';
+                b.innerHTML = text;
+                b.title = title;
+                b.disabled = !onChart;
+                b.onclick = function() { diffStep(delta); };
+                nav.appendChild(b);
+            };
+            navBtn('&#9650;', 'Previous change', -1);
+            const pos = document.createElement('span');
+            pos.className = 'diff-banner-pos';
+            pos.id = 'diff-banner-pos';
+            pos.textContent = onChart ? (diffView.idx >= 0 && diffView.idx < onChart ? (diffView.idx + 1) + ' of ' + onChart : onChart + ' on chart') : '';
+            nav.appendChild(pos);
+            navBtn('&#9660;', 'Next change', 1);
+
+            const actions = add('span', 'diff-banner-actions');
+            const actBtn = (text, title, fn) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'btn-secondary';
+                b.textContent = text;
+                b.title = title;
+                b.onclick = fn;
+                actions.appendChild(b);
+            };
+            actBtn('Report…', 'Open the full comparison table', reopenDiffReport);
+            actBtn('Exit', 'Stop highlighting changes', exitDiffView);
+            return bar;
+        }
+
+        // Legend block, shared by the floating legend and the export legend.
+        function diffLegendItems() {
+            if (!diffView || !_diffState) return [];
+            const d = _diffState.diff;
+            const items = [
+                { color: '#1e8e3e', text: '+ Added (' + d.added.length + ')' },
+                { color: '#1a73e8', text: '↪ Moved (' + d.moved.length + ')' },
+                { color: '#e8a200', text: '✎ Changed (' + d.changed.length + ')' }
+            ];
+            if (d.removed.length) items.push({ color: null, text: d.removed.length + ' removed — not shown' });
+            return items;
+        }
+        function diffLegendTitle() {
+            return diffView.mode === 'unsaved' ? 'Changes since last save' : 'Changes vs ' + diffView.fileName;
         }
 
         // --- Merge (apply changes from a previously exported subset file) ---
@@ -8434,9 +8805,7 @@
             ocClone.style.transform = '';
             wrapper.appendChild(ocClone);
 
-            if (colorField && colorMap && Object.keys(colorMap).length) {
-                wrapper.appendChild(buildExportLegend());
-            }
+            if (hasExportLegend()) wrapper.appendChild(buildExportLegend());
 
             document.body.appendChild(wrapper);
 
@@ -8512,9 +8881,7 @@
             // the dotted overlay's absolute coordinates depend on.
             ocClone.style.position = 'relative';
             wrapper.appendChild(ocClone);
-            if (colorField && colorMap && Object.keys(colorMap).length) {
-                wrapper.appendChild(buildExportLegend());
-            }
+            if (hasExportLegend()) wrapper.appendChild(buildExportLegend());
 
             document.body.appendChild(wrapper);
             const width = wrapper.offsetWidth;
@@ -8537,27 +8904,51 @@
             URL.revokeObjectURL(url);
         }
 
+        function hasColorLegend() {
+            return !!(colorField && colorMap && Object.keys(colorMap).length);
+        }
+        function hasExportLegend() {
+            return hasColorLegend() || diffLegendItems().length > 0;
+        }
+
         function buildExportLegend() {
             const fieldLabels = { status: 'Status', department: 'Department', location: 'Location', incumbentGender: 'Gender', employmentType: 'Employment Type', workingPattern: 'Working Pattern' };
             const root = document.createElement('div');
             root.className = 'chart-export-legend';
-            const title = document.createElement('div');
-            title.className = 'legend-title';
-            title.textContent = fieldLabels[colorField] || colorField;
-            root.appendChild(title);
-            Object.entries(colorMap).forEach(function(entry) {
-                const label = entry[0], color = entry[1];
+            const addTitle = function(text) {
+                const title = document.createElement('div');
+                title.className = 'legend-title';
+                title.textContent = text;
+                root.appendChild(title);
+            };
+            const addItem = function(color, text) {
                 const item = document.createElement('div');
                 item.className = 'legend-item';
-                const sw = document.createElement('span');
-                sw.className = 'legend-swatch';
-                sw.style.background = color;
+                if (color) {
+                    const sw = document.createElement('span');
+                    sw.className = 'legend-swatch';
+                    sw.style.background = color;
+                    item.appendChild(sw);
+                }
                 const tx = document.createElement('span');
-                tx.textContent = label || '(empty)';
-                item.appendChild(sw);
+                tx.textContent = text;
                 item.appendChild(tx);
                 root.appendChild(item);
-            });
+            };
+            if (hasColorLegend()) {
+                addTitle(fieldLabels[colorField] || colorField);
+                Object.entries(colorMap).forEach(function(entry) { addItem(entry[1], entry[0] || '(empty)'); });
+            }
+            const diffItems = diffLegendItems();
+            if (diffItems.length) {
+                if (root.childNodes.length) {
+                    const sep = document.createElement('span');
+                    sep.className = 'legend-sep';
+                    root.appendChild(sep);
+                }
+                addTitle(diffLegendTitle());
+                diffItems.forEach(function(it) { addItem(it.color, it.text); });
+            }
             return root;
         }
 
