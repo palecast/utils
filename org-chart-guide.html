@@ -323,7 +323,8 @@
             <div class="h2-sub">Cut a big org down to the exact slice you need — the three mechanisms compose.</div>
             <ul>
                 <li><strong>Filters</strong>: two field filters in the sidebar (Status, Department, Location, Gender, Employment Type, Working Pattern) are ANDed together — e.g. Department = Engineering AND Status = vacant.</li>
-                <li><strong>Tags</strong>: a free-form tags field on every role (space- or comma-separated, shown as chips on cards). The Tags filter matches any selected tag, and combines with the field filters.</li>
+                <li><strong>Tags</strong>: a free-form tags field on every role (space- or comma-separated, shown as coloured pills on cards and in the Table's Tags column). The Tags filter matches any selected tag, and combines with the field filters.</li>
+                <li><strong>Tag colours</strong>: every tag is given a colour automatically, so no two tags in a file look alike. Click <span class="ui">Colours…</span> beside the Tags filter to override one — pick a swatch, or any colour you like. <span class="ui">Auto</span> puts a tag back to its automatic colour. Overrides are saved inside the Excel file, on an extra <strong>Tag colours</strong> worksheet you can also edit by hand (one row per tag, colours as <code>#RRGGBB</code>), and they are remembered in your browser as well. A CSV has nowhere to store them, so saving as CSV keeps the colours in this browser only — Save As will tell you. Because automatic colours are handed out in tag-name order, adding a new tag can shift the colours of others; override a tag to pin it.</li>
                 <li><strong>Colour</strong>: colour cards by any category field. The legend is draggable — park it anywhere; it snaps back when you change the colour dimension. Colours never repeat, however many values the field has.</li>
                 <li><strong>Visible Fields</strong>: choose which fields appear on cards, including computed roll-ups — subtree headcount, cumulative cost, and per-status counts.</li>
             </ul>
@@ -356,6 +357,19 @@
                 <li>Click <span class="ui">Export diff CSV</span> for an auditable change list to circulate for sign-off.</li>
             </ol>
             <p>Compare is read-only — it never modifies your data. Roles are matched by Role ID, so both files need consistent IDs.</p>
+            <h3>Seeing the changes on the chart</h3>
+            <p>Click <span class="ui">Show on chart</span> in the Compare report to highlight the changes on the org chart itself. Changed cards get a coloured ring and a small badge: green <strong>+ Added</strong>, blue <strong>↪ Moved</strong> and amber <strong>✎ changes</strong>. A role that moved and was edited shows both. Hover over the badge to see exactly what changed, e.g. the old and new manager or <em>Department: Operations → Finance</em>.</p>
+            <ul>
+                <li>The bar above the chart shows the counts. Use <span class="ui">▲</span> / <span class="ui">▼</span> to step from one change to the next; collapsed branches open as needed.</li>
+                <li><span class="ui">Dim unchanged</span> fades every card that did not change. <span class="ui">Changes only</span> shows just the changed roles plus the managers above them. The summary panel then describes that smaller set.</li>
+                <li><span class="ui">Fields…</span> chooses which fields count as a change, so minor edits (Comments, Tags…) do not light up the whole chart. Untick <span class="ui">Manager (moves)</span> to hide moves. The choice is remembered in this browser, and the legend says what is being ignored, in exports too. The report and its CSV always list every change.</li>
+                <li>A collapsed branch that hides changes shows an amber dot on its hidden-reports badge.</li>
+                <li><strong>Removed</strong> roles are not in your current data, so they cannot appear on the chart. The bar and the legend count them, and <span class="ui">removed…</span> opens the report.</li>
+                <li>The highlights follow your edits: change a role while the comparison is on and its badge updates straight away.</li>
+                <li>PNG and SVG exports include the highlights and the change legend, which is handy for presenting a proposed reorg.</li>
+                <li><span class="ui">Exit</span> returns to the normal chart. Opening another file also ends the comparison.</li>
+            </ul>
+            <p><span class="ui">Unsaved changes…</span> has the same button, which shows your edits since the last save on the chart.</p>
             <div class="callout tip"><strong>Also useful before a reorg lands:</strong> compare your planned-state file against production to verify it contains only the intended moves.</div>
             <a class="back-to-top" href="#top">↑ Back to top</a>
         </section>
@@ -410,7 +424,16 @@
         <section id="pivot">
             <h2>10. Analyse with Pivot</h2>
             <div class="h2-sub">Cross-tab headcount or cost by any two dimensions.</div>
-            <p>The <span class="ui">Pivot</span> tab builds a cross-tab from the same slice the chart shows (focus, filters and tags all apply). Choose the Rows and Columns dimensions, and aggregate either <strong>headcount</strong> (count) or <strong>cost</strong> (sum). Export CSV/Excel writes the rendered cross-tab — exactly the table you see — ready to paste into a monthly report.</p>
+            <p>The <span class="ui">Pivot</span> tab builds a cross-tab from the same slice the chart shows (focus, filters and tags all apply). Choose the Rows and Columns dimensions, then the <span class="ui">Aggregate</span>:</p>
+            <ul>
+                <li><strong>Sums and counts</strong>: headcount, or the sum of cost. These add up, so the treemap below the table tiles them by area.</li>
+                <li><strong>Average cost per head</strong>: counts every role in the cell, so a blank cost counts as a head with no cost.</li>
+                <li><strong>Median cost</strong>: the median over the <em>recorded</em> costs in the cell (blanks are left out), robust to a single outlier.</li>
+            </ul>
+            <p>Every row, column and grand total is worked out afresh from the roles it covers — a row total under an average is the average over the whole row, never the average of the cell averages. Cells with nothing to average show a dash. The treemap is hidden for averages and medians, because an area can only stand for a figure that adds up.</p>
+            <p><span class="ui">Show as</span> turns a sum or count into its share: <strong>% of row</strong>, <strong>% of column</strong> or <strong>% of grand total</strong>, Excel-style. Export CSV/Excel writes the rendered cross-tab — exactly the table you see — ready to paste into a monthly report. The Excel file is a real Excel table with filter buttons, with the grand-total row kept outside it so sorting cannot move it.</p>
+            <p>Money figures are shown as whole units — no decimals — so the grid stays readable. <strong>Rest the pointer on any number</strong> for a moment and a <span class="ui">Percentage share</span> card shows what share of its row, of its column and of the grand total that cell represents, each grounded as "12 of 40". For an average or median the card instead shows how far the cell sits above or below the row, column and overall figure. Percentages are worked out from the underlying figures, not the rounded ones on screen, so a column of shares still adds to 100%.</p>
+            <p><strong>Rest the pointer on a row or column heading</strong> to see that line of the table as a bar chart: a row heading shows one bar per column, a column heading one bar per row, and the two <span class="ui">Total</span> headings show the row or column totals. Bars stay in table order, and zero bars are kept, muted, because "none" is information too.</p>
             <div class="callout tip"><strong>Example:</strong> Rows = Department, Columns = Status, Aggregate = Count → a vacancy heat-map by department in three clicks.</div>
             <a class="back-to-top" href="#top">↑ Back to top</a>
         </section>
@@ -472,6 +495,9 @@
                 </tbody>
             </table>
             </div>
+
+            <h3>The "Tag colours" worksheet</h3>
+            <p>Role data always comes from the <strong>first</strong> worksheet. An Excel file may carry one extra sheet, <strong>Tag colours</strong>, holding the tag pill colours: a <code>Tag</code> column and a <code>Colour</code> column, one row per tag, colours written as <code>#RRGGBB</code>. Only tags you have overridden appear — the rest are coloured automatically and need no row. Anything that isn't a valid <code>#RRGGBB</code> value is ignored, and you are told how many rows were skipped. If the sheet gets renamed, it is still found as long as it has both a Tag and a Colour column and isn't the first sheet. Files saved with no overrides have a single sheet, exactly as before.</p>
             <a class="back-to-top" href="#top">↑ Back to top</a>
         </section>
     </main>
