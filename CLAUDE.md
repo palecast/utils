@@ -62,7 +62,7 @@ When adding or modifying a tool, follow DESIGN.md rather than copying styles fro
 
 ### State Persistence
 
-Four tools persist user state to `localStorage`:
+Several tools persist user state to `localStorage`:
 
 | Tool | Key | What is saved |
 |------|-----|---------------|
@@ -73,6 +73,7 @@ Four tools persist user state to `localStorage`:
 | `coastal-conditions.html` | `coastalConditionsState` | Selected location (lat/lon/name), favourite spots. A `?lat=&lon=&name=` deep link overrides the saved location |
 | `org-chart.html` | `orgChartUiState` | UI chrome only (sidebar/section collapse state) |
 | `org-chart.html` | `orgChartTagColors` | Browser-global mirror of per-tag colour overrides (the file's "Tag colours" sheet is the source of truth; this keeps colours across CSV round trips) |
+| `org-chart.html` | `orgChartDiffIgnoredFields` | Fields ignored by Compare's "Show on chart" view (stored as the ignored set, so new fields count by default) |
 | `org-chart.html` | `orgChartAutosave:<tabId>` | Per-tab crash-recovery snapshot of unsaved working data (debounced; cleared on save/open; restore offered on next visit for snapshots whose tab is dead, judged via the `orgChartAutosaveHb:<tabId>` heartbeat key; tab id lives in `sessionStorage` as `orgChartTabId`) |
 | `dc-room-viewer.html` | `dcRoomViewerUiState` | UI chrome only (sidebar/section collapse state) |
 | `dc-room-viewer.html` | `dcRoomAutosave:<tabId>` | Per-tab crash-recovery snapshot of the unsaved room document (same heartbeat scheme as org-chart, via `dcRoomAutosaveHb:<tabId>` and `sessionStorage` `dcRoomTabId`) |

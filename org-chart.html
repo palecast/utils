@@ -859,6 +859,10 @@
         .diff-banner-pos { min-width: 44px; text-align: center; white-space: nowrap; }
         .diff-banner-actions { margin-left: auto; display: inline-flex; gap: 6px; }
         .legend-sep { width: 1px; align-self: stretch; background: rgba(74,93,71,0.15); }
+        .diff-fields-head { display: flex; align-items: center; gap: 8px; padding: 2px 0 6px; margin-bottom: 4px; border-bottom: 1px solid rgba(74,93,71,0.12); font-size: 0.75rem; color: #6B5F54; }
+        .diff-fields-head button { background: none; border: none; padding: 0; font: inherit; color: #4A5D47; cursor: pointer; }
+        .diff-fields-head button:hover { text-decoration: underline; }
+        .diff-fields-head .diff-fields-title { flex: 1; font-weight: 600; }
 
         /* Toasts — transient, non-blocking notices (bottom-right) */
         .toast-container {
@@ -2028,6 +2032,8 @@
                 <div class="design-surface" id="design-surface">
                     <div id="chart-container"></div>
                     <div class="chart-legend" id="legend"></div>
+                    <!-- Compare on the chart: "which fields count" picker, opened from the diff banner -->
+                    <div class="filter-values" id="diff-fields-dropdown"></div>
                 </div>
             </div>
 
@@ -4142,6 +4148,7 @@
                 pairs.push(['tag-filter-btn' + sfx, 'tag-filter-dropdown' + sfx]);
             });
             pairs.push(['fields-btn', 'fields-dropdown']);
+            pairs.push(['diff-fields-btn', 'diff-fields-dropdown']);
             pairs.push(['image-export-btn', 'image-export-dropdown']);
             pairs.push(['data-export-btn', 'data-export-dropdown']);
             pairs.push(['focus-picker-btn', 'focus-picker-dropdown']);
@@ -7703,6 +7710,92 @@
         let diffView = null;   // { mode: 'file'|'unsaved', fileName, fileRoles, dim, changesOnly, idx }
         let _diffState = null; // { diff, map: Map(roleId → {added, moved, fields}) } from the last chart render
 
+        // "Which fields count" — the fields whose edits are ignored by the diff view.
+        // Stored as the ignored set, so a field added to the app later counts by
+        // default. Browser-level, like the picker sort: a preference, not document
+        // data. The Compare report and its CSV stay complete — they are the audit
+        // trail; only the chart view is filtered.
+        const DIFF_IGNORED_KEY = 'orgChartDiffIgnoredFields';
+        let diffIgnoredFields = readDiffIgnoredFields();
+        function readDiffIgnoredFields() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(DIFF_IGNORED_KEY) || 'null');
+                if (parsed && parsed.v === 1 && Array.isArray(parsed.fields)) return new Set(parsed.fields.filter(f => typeof f === 'string'));
+            } catch (e) { /* ignore */ }
+            return new Set();
+        }
+        function saveDiffIgnoredFields() {
+            try { localStorage.setItem(DIFF_IGNORED_KEY, JSON.stringify({ v: 1, fields: [...diffIgnoredFields] })); } catch (e) { /* ignore */ }
+        }
+        // Manager first (it is what "Moved" means), then the report's field order.
+        function diffPickableFields() {
+            return ['managerRoleId'].concat(EXPORT_FIELDS.filter(f => f !== 'roleId' && f !== 'managerRoleId'));
+        }
+        function diffPickerLabel(field) {
+            return field === 'managerRoleId' ? 'Manager (moves)' : diffFieldLabel(field);
+        }
+        function diffIgnoredCount() {
+            return diffPickableFields().filter(f => diffIgnoredFields.has(f)).length;
+        }
+
+        function renderDiffFieldsDropdown() {
+            const dd = document.getElementById('diff-fields-dropdown');
+            dd.innerHTML = '';
+            const head = document.createElement('div');
+            head.className = 'diff-fields-head';
+            const title = document.createElement('span');
+            title.className = 'diff-fields-title';
+            title.textContent = 'Count changes to:';
+            head.appendChild(title);
+            const setAll = (label, ignoreAll) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = label;
+                b.onclick = function() {
+                    diffPickableFields().forEach(f => { if (ignoreAll) diffIgnoredFields.add(f); else diffIgnoredFields.delete(f); });
+                    onDiffFieldsChanged();
+                };
+                head.appendChild(b);
+            };
+            setAll('All', false);
+            setAll('None', true);
+            dd.appendChild(head);
+            diffPickableFields().forEach(field => {
+                const l = document.createElement('label');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = !diffIgnoredFields.has(field);
+                cb.onchange = function() {
+                    if (cb.checked) diffIgnoredFields.delete(field); else diffIgnoredFields.add(field);
+                    onDiffFieldsChanged();
+                };
+                l.appendChild(cb);
+                l.appendChild(document.createTextNode(diffPickerLabel(field)));
+                dd.appendChild(l);
+            });
+        }
+
+        // The banner (and so the dropdown's trigger button) is rebuilt by the render,
+        // so re-anchor the open dropdown to the new button.
+        function onDiffFieldsChanged() {
+            saveDiffIgnoredFields();
+            if (diffView) diffView.idx = -1;
+            renderChart();
+            renderDiffFieldsDropdown();
+            const btn = document.getElementById('diff-fields-btn');
+            if (_activeFloating && _activeFloating.dd.id === 'diff-fields-dropdown') {
+                if (btn) { _activeFloating.btn = btn; positionFloatingDropdown(_activeFloating.dd, btn); }
+                else closeFloatingDropdown(_activeFloating.dd);
+            }
+        }
+
+        function toggleDiffFieldsDropdown(btn) {
+            const dd = document.getElementById('diff-fields-dropdown');
+            if (dd.classList.contains('open')) { closeFloatingDropdown(dd); return; }
+            renderDiffFieldsDropdown();
+            openFloatingDropdown(dd, btn);
+        }
+
         function showDiffOnChart(opts) {
             diffView = {
                 mode: opts.mode,
@@ -7716,6 +7809,7 @@
         }
 
         function exitDiffView() {
+            closeFloatingDropdown(document.getElementById('diff-fields-dropdown'));
             diffView = null;
             _diffState = null;
             if (activeTab === 'chart') renderChart();
@@ -7725,7 +7819,17 @@
         // save, so a stored reference would go stale.
         function computeDiffState() {
             if (!diffView) return null;
-            const diff = diffRoles(roles, diffView.mode === 'unsaved' ? baselineRoles : (diffView.fileRoles || []));
+            const raw = diffRoles(roles, diffView.mode === 'unsaved' ? baselineRoles : (diffView.fileRoles || []));
+            // "Which fields count": an ignored field drops out of a role's changes, and
+            // a role whose only changes were ignored is not marked at all. Ignoring the
+            // manager drops moves. Added/removed always count — they are not edits.
+            const ignored = diffIgnoredFields;
+            const diff = Object.assign({}, raw, {
+                moved: ignored.has('managerRoleId') ? [] : raw.moved,
+                changed: raw.changed
+                    .map(c => ({ role: c.role, fields: c.fields.filter(f => !ignored.has(f.field)) }))
+                    .filter(c => c.fields.length)
+            });
             const map = new Map();
             const entry = id => {
                 let s = map.get(id);
@@ -7840,7 +7944,8 @@
 
             const total = d.added.length + d.moved.length + d.changed.length + d.removed.length;
             if (!total) {
-                add('span', null, diffView.mode === 'unsaved' ? 'No changes since the last save.' : 'No differences.');
+                add('span', null, (diffView.mode === 'unsaved' ? 'No changes since the last save' : 'No differences') +
+                    (diffIgnoredCount() ? ' in the fields that count.' : '.'));
             } else {
                 // Moved and changed can be the same role, so count the categories, not roles.
                 const chip = (sym, cls, n, noun) => {
@@ -7915,6 +8020,15 @@
                 b.onclick = fn;
                 actions.appendChild(b);
             };
+            const ignoredN = diffIgnoredCount();
+            const fieldsBtn = document.createElement('button');
+            fieldsBtn.type = 'button';
+            fieldsBtn.className = 'btn-secondary';
+            fieldsBtn.id = 'diff-fields-btn';
+            fieldsBtn.textContent = ignoredN ? 'Fields (' + ignoredN + ' ignored)…' : 'Fields…';
+            fieldsBtn.title = 'Choose which fields count as a change on the chart, so minor edits do not light it up. The report always lists everything.';
+            fieldsBtn.onclick = function() { toggleDiffFieldsDropdown(fieldsBtn); };
+            actions.appendChild(fieldsBtn);
             actBtn('Report…', 'Open the full comparison table', reopenDiffReport);
             actBtn('Exit', 'Stop highlighting changes', exitDiffView);
             return bar;
@@ -7930,6 +8044,14 @@
                 { color: '#e8a200', text: '✎ Changed (' + d.changed.length + ')' }
             ];
             if (d.removed.length) items.push({ color: null, text: d.removed.length + ' removed — not shown' });
+            // Say so on the chart (and so in exports) when edits are being ignored,
+            // or a filtered picture reads as the whole story.
+            const ignored = diffPickableFields().filter(f => diffIgnoredFields.has(f)).map(diffPickerLabel);
+            if (ignored.length) {
+                items.push({ color: null, text: 'Ignoring ' + (ignored.length > 3
+                    ? ignored.slice(0, 3).join(', ') + ' +' + (ignored.length - 3) + ' more'
+                    : ignored.join(', ')) });
+            }
             return items;
         }
         function diffLegendTitle() {
