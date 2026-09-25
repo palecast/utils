@@ -303,6 +303,10 @@
             gap: 3px;
             margin-top: 4px;
         }
+        /* Colour comes from an inline style per pill (see tagPillStyle). The greys here
+           are only the fallback for a pill rendered without a resolved colour — and
+           inline is deliberate: the SVG exporter embeds the first <style> element only,
+           so a dynamically-added stylesheet would be missing from SVG exports. */
         .node-tag {
             display: inline-block;
             background: rgba(74,93,71,0.12);
@@ -312,6 +316,29 @@
             border-radius: 8px;
             font-weight: 500;
             line-height: 1.4;
+        }
+        /* Tag pills in the Table grid's Tags column. Same shape as .node-tag at the
+           grid's font size; the cell clips rather than growing the row. */
+        .grid-tag {
+            display: inline-block;
+            background: rgba(74,93,71,0.12);
+            color: #4A5D47;
+            font-size: 0.7rem;
+            padding: 0 6px;
+            border-radius: 8px;
+            font-weight: 500;
+            line-height: 1.6;
+            margin-right: 3px;
+        }
+        .tabulator .tabulator-cell.grid-tags-cell { white-space: nowrap; overflow: hidden; }
+        /* Swatch beside each tag in the "Select tags" filter dropdowns, so filtering and
+           reading the chart share one visual key. */
+        .tag-filter-swatch {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
         }
         /* Dotted-line manager pills — visually distinct from tags via dashed border
            and an arrow glyph, so they read as "secondary reporting" at a glance. */
@@ -347,6 +374,7 @@
         #merge-dialog,
         #export-fields-dialog,
         #subtree-dialog,
+        #tag-colors-dialog,
         #role-editor-dialog {
             border: 1px solid rgba(74,93,71,0.18);
             border-radius: 12px;
@@ -366,6 +394,7 @@
         #merge-dialog::backdrop,
         #export-fields-dialog::backdrop,
         #subtree-dialog::backdrop,
+        #tag-colors-dialog::backdrop,
         #role-editor-dialog::backdrop { background: rgba(58,47,40,0.35); }
         #saveas-dialog h3,
         #rename-dialog h3,
@@ -374,7 +403,45 @@
         #compare-dialog h3,
         #merge-dialog h3,
         #export-fields-dialog h3,
+        #tag-colors-dialog h3,
         #role-editor-dialog h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #3A2F28; }
+
+        /* Tag colour dialog — one row per canonical tag: preview pill, the curated
+           palette as swatch buttons, a free colour input, and a reset to automatic. */
+        #tag-colors-dialog { width: min(560px, 94vw); max-width: 560px; max-height: 85vh; overflow: auto; }
+        .tag-colors-hint { font-size: 0.8rem; color: #6B5F54; margin-bottom: 10px; }
+        .tag-colors-list { display: flex; flex-direction: column; gap: 6px; }
+        .tag-colors-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 0; border-bottom: 1px solid rgba(74,93,71,0.08);
+        }
+        .tag-colors-row.is-unused { opacity: 0.6; }
+        .tag-colors-name { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+        .tag-colors-name .grid-tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+        .tag-colors-unused { font-size: 0.7rem; color: #6B5F54; margin-left: 6px; }
+        .tag-colors-swatches { display: flex; gap: 3px; flex-shrink: 0; }
+        .tag-colors-swatch {
+            width: 16px; height: 16px; border-radius: 4px; padding: 0;
+            border: 1px solid rgba(74,93,71,0.2); cursor: pointer;
+        }
+        .tag-colors-swatch.is-current { box-shadow: 0 0 0 2px #3A2F28; }
+        .tag-colors-row input[type="color"] {
+            width: 26px; height: 22px; flex-shrink: 0; padding: 1px;
+            border: 1px solid rgba(74,93,71,0.2); border-radius: 4px;
+            background: none; cursor: pointer;
+        }
+        .tag-colors-auto {
+            background: none; border: none; padding: 0; font: inherit;
+            font-size: 0.75rem; color: #4A5D47; cursor: pointer; text-decoration: underline;
+            flex-shrink: 0;
+        }
+        .tag-colors-auto:disabled { color: #A89E94; cursor: default; text-decoration: none; }
+        .tag-colors-footer { display: flex; gap: 12px; margin-top: 10px; }
+        .tag-colors-footer button {
+            background: none; border: none; padding: 0; font: inherit;
+            font-size: 0.78rem; color: #4A5D47; cursor: pointer; text-decoration: underline;
+        }
+        #tag-colors-dialog menu { display: flex; gap: 8px; justify-content: flex-end; padding: 0; margin-top: 16px; list-style: none; }
 
         /* Export field-picker dialog */
         #export-fields-dialog { max-width: 480px; }
@@ -562,9 +629,19 @@
             border-radius: 6px;
             padding: 8px 12px;
             display: flex;
+            flex-wrap: wrap;
             gap: 14px;
         }
         #saveas-dialog fieldset legend { padding: 0 4px; font-size: 0.75rem; color: #6B5F54; font-weight: 600; }
+        /* Format caveat — full width under the radios (see warnIfCsvDropsTagColors) */
+        #saveas-dialog .saveas-note {
+            flex: 1 0 100%;
+            margin: 0;
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: #6B5F54;
+            line-height: 1.4;
+        }
         #saveas-dialog fieldset label { font-weight: 400; display: flex; align-items: center; gap: 4px; cursor: pointer; }
         #saveas-dialog menu,
         #rename-dialog menu,
@@ -1791,6 +1868,7 @@
                                         <button class="btn-secondary btn-small" id="tag-filter-btn" onclick="toggleTagFilterDropdown('chart')">Select tags</button>
                                         <div class="filter-values" id="tag-filter-dropdown"></div>
                                     </div>
+                                    <button class="btn-secondary btn-small" id="tag-colors-btn" onclick="openTagColorsDialog()" title="Set the pill colour for each tag">Colours…</button>
                                 </div>
                                 <span class="control-divider"></span>
                                 <div class="control-group">
@@ -1958,6 +2036,7 @@
                                         <button class="btn-secondary btn-small" id="tag-filter-btn-pivot" onclick="toggleTagFilterDropdown('pivot')">Select tags</button>
                                         <div class="filter-values" id="tag-filter-dropdown-pivot"></div>
                                     </div>
+                                    <button class="btn-secondary btn-small" id="tag-colors-btn-pivot" onclick="openTagColorsDialog()" title="Set the pill colour for each tag">Colours…</button>
                                 </div>
                             </div>
                         </div>
@@ -2005,6 +2084,7 @@
                     <legend>Format</legend>
                     <label><input type="radio" name="saveas-fmt" value="xlsx" checked> Excel (.xlsx)</label>
                     <label><input type="radio" name="saveas-fmt" value="csv"> CSV (.csv)</label>
+                    <p class="saveas-note" id="saveas-tag-note" style="display:none">A CSV can't carry tag colours — they stay in this browser only. Choose Excel to keep them in the file.</p>
                 </fieldset>
             </div>
             <menu>
@@ -2028,6 +2108,18 @@
                 <button type="submit" class="btn-primary">Export</button>
             </menu>
         </form>
+    </dialog>
+
+    <dialog id="tag-colors-dialog">
+        <h3>Tag colours</h3>
+        <p class="tag-colors-hint">Every tag gets a colour from its name. Pick a swatch to override it — overrides are saved in the Excel file (in a "Tag colours" sheet) and remembered in this browser.</p>
+        <div class="tag-colors-list" id="tag-colors-list"></div>
+        <div class="tag-colors-footer">
+            <button type="button" id="tag-colors-reset-all">Reset all to automatic</button>
+        </div>
+        <menu>
+            <button type="button" class="btn-primary" onclick="document.getElementById('tag-colors-dialog').close('done')">Done</button>
+        </menu>
     </dialog>
 
     <dialog id="rename-dialog">
@@ -2237,7 +2329,11 @@
         let openFileIsTestData = false;   // test data has no real source — Save acts as Save As
         let isDirty = false;              // unsaved data changes since last open / save
         let baselineRoles = [];           // deep snapshot of the data as last opened / saved — diffed for the unsaved-changes summary
-        function captureBaseline() { baselineRoles = snapshotRoles(); }
+        let baselineTagColors = {};       // same, for the tag colour overrides (document data, so they can be unsaved work)
+        function captureBaseline() {
+            baselineRoles = snapshotRoles();
+            baselineTagColors = { ...tagColors };
+        }
         function markDirty() {
             scheduleAutosave(); // every mutation refreshes the crash-recovery snapshot
             if (isDirty) return;
@@ -2280,7 +2376,7 @@
 
         // --- Undo / Redo (in-memory, structural mutations only) ---
         const UNDO_LIMIT = 20;
-        let undoStack = []; // [{ roles, focusRoleId, label }, …] newest last
+        let undoStack = []; // [{ roles, tagColors, focusRoleId, label }, …] newest last
         let redoStack = [];
         function snapshotRoles() {
             return roles.map(r => ({
@@ -2290,7 +2386,9 @@
             }));
         }
         function snapshotState(label) {
-            return { roles: snapshotRoles(), focusRoleId, label };
+            // tagColors is document data (it is written to the file), so it rides along
+            // with roles through undo/redo.
+            return { roles: snapshotRoles(), tagColors: { ...tagColors }, focusRoleId, label };
         }
         function pushUndo(label) {
             undoStack.push(snapshotState(label));
@@ -2305,8 +2403,10 @@
             redoStack.push(snapshotState(snap.label));
             if (redoStack.length > UNDO_LIMIT) redoStack.shift();
             roles = snap.roles;
+            restoreTagColors(snap.tagColors);
             focusRoleId = snap.focusRoleId;
             validateRoles();
+            syncFilterUI(); // tags (and their colours) may have changed
             render();
             markDirty();
             updateUndoRedoButtonState();
@@ -2317,8 +2417,10 @@
             undoStack.push(snapshotState(snap.label));
             if (undoStack.length > UNDO_LIMIT) undoStack.shift();
             roles = snap.roles;
+            restoreTagColors(snap.tagColors);
             focusRoleId = snap.focusRoleId;
             validateRoles();
+            syncFilterUI(); // tags (and their colours) may have changed
             render();
             markDirty();
             updateUndoRedoButtonState();
@@ -2360,6 +2462,159 @@
             const sat = 60 + ((i % 2) * 12);
             const light = 52 + ((i % 3) * 6);
             return 'hsl(' + hue.toFixed(1) + ',' + sat + '%,' + light + '%)';
+        }
+
+        // --- Tag colours ---
+        // Every tag has a colour. Resolution order: an explicit override (loaded from
+        // the workbook's "Tag colours" sheet, or from the localStorage mirror when the
+        // file was a CSV) then a colour derived from the tag name itself. The derived
+        // colour means tags are legible with zero user effort, and because it is a pure
+        // function of the name it is the same for every colleague opening the same file.
+        //
+        // Overrides are keyed by tagKey(), not by the tag as typed: tags stay
+        // case-sensitive everywhere else in the app, but "Urgent" and "urgent" must not
+        // end up with two different pill colours.
+        let tagColors = {};
+
+        function tagKey(t) { return String(t == null ? '' : t).trim().toLowerCase(); }
+
+        // Only #rrggbb is ever accepted or stored. Tag colours land in inline `style`
+        // attributes built by string concatenation, and escapeHtml does NOT stop
+        // `red;position:fixed;top:0` from a hand-edited spreadsheet escaping the
+        // attribute's intent — so the shape is validated on the way in, not on render.
+        // Uniform hex also lets pillTextColor and <input type="color"> share one format.
+        function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
+
+        function hslToHex(h, s, l) {
+            const sN = s / 100, lN = l / 100;
+            const k = n => (n + h / 30) % 12;
+            const a = sN * Math.min(lN, 1 - lN);
+            const f = n => lN - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+            const to255 = x => Math.round(255 * x).toString(16).padStart(2, '0');
+            return '#' + to255(f(0)) + to255(f(8)) + to255(f(4));
+        }
+
+        // getCategoryColor returns hsl() strings past the curated palette; tag colours
+        // must all be hex (see isHexColor), so normalise.
+        function categoryColorHex(i) {
+            const c = getCategoryColor(i);
+            if (isHexColor(c)) return c;
+            const m = /^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/.exec(c);
+            return m ? hslToHex(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3])) : '#bab0ac';
+        }
+
+        // Automatic colours are assigned by position in the canonically-sorted tag
+        // vocabulary, exactly as buildColorMap does for the colour-by-field legend: the
+        // curated palette first, then golden-angle hues. Hashing the name instead was
+        // tried and is worse in practice — over any slot count small enough to stay
+        // visually distinct, 14 tags collide on a hue often enough to read as a bug, and
+        // the golden-angle tail hands out four near-identical greens.
+        //
+        // Sorting by canonical key (not role order) keeps the assignment identical for
+        // everyone opening the same file. The trade-off is that adding or renaming a tag
+        // shifts the ones after it; pin a colour with an override if that matters.
+        //
+        // Cached because this runs per pill. Every pill producer invalidates first, which
+        // keeps it to one vocabulary walk per render pass rather than one per pill.
+        let autoTagColorCache = null;
+        function invalidateAutoTagColors() { autoTagColorCache = null; }
+        // Cheap identity for the tag vocabulary — used to tell whether an edit actually
+        // reshuffled the automatic colours, since only then do already-drawn pills go stale.
+        function tagVocabSignature() {
+            return [...new Set(getAllTags().map(tagKey))].filter(Boolean).sort().join(' ');
+        }
+        function autoTagColorMap() {
+            if (autoTagColorCache) return autoTagColorCache;
+            const map = {};
+            [...new Set(getAllTags().map(tagKey))].filter(Boolean).sort()
+                .forEach((k, i) => { map[k] = categoryColorHex(i); });
+            autoTagColorCache = map;
+            return map;
+        }
+
+        function autoTagColor(tag) {
+            const key = tagKey(tag);
+            // A key outside the vocabulary (an override for a tag no longer used, shown in
+            // the Tag colours dialog) has no position, so it takes the first palette entry.
+            return autoTagColorMap()[key] || categoryColorHex(0);
+        }
+
+        function resolveTagColor(tag) {
+            const own = tagColors[tagKey(tag)];
+            return isHexColor(own) ? own : autoTagColor(tag);
+        }
+
+        // Pills are 0.65rem, so a dark user-picked colour with dark text is unreadable.
+        // Relative luminance (WCAG) rather than a naive average, which mis-ranks blues.
+        // The threshold is where white and #3A2F28 give equal contrast ratios, not the
+        // midpoint: pick 0.5 and mid golds and greens get white text at ~2:1.
+        const PILL_TEXT_FLIP_L = 0.2414;
+        function pillTextColor(hex) {
+            const lin = c => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+            const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+            const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+            return L > PILL_TEXT_FLIP_L ? '#3A2F28' : '#FFFFFF';
+        }
+
+        // Browser-global mirror of the overrides. Deliberately not keyed per file: tag
+        // vocabularies are shared across scenario files, and a per-file key breaks the
+        // moment the file is renamed. The trade-off is that two unrelated files reusing
+        // a tag name share its colour, which is the lesser surprise. This is also what
+        // makes a CSV round trip keep the user's choices — CSV has nowhere to store them.
+        const TAG_COLORS_KEY = 'orgChartTagColors';
+        const TAG_COLORS_VERSION = 1;
+
+        function readTagColorMirror() {
+            try {
+                const raw = localStorage.getItem(TAG_COLORS_KEY);
+                if (!raw) return {};
+                const parsed = JSON.parse(raw);
+                if (!parsed || parsed.v !== TAG_COLORS_VERSION || !parsed.colors) return {};
+                return sanitizeTagColors(parsed.colors);
+            } catch (e) { return {}; }
+        }
+
+        function saveTagColorMirror() {
+            try {
+                localStorage.setItem(TAG_COLORS_KEY, JSON.stringify({ v: TAG_COLORS_VERSION, colors: tagColors }));
+            } catch (e) { /* private mode / quota — colours simply aren't remembered */ }
+        }
+
+        // Every path into tagColors goes through here: keys canonicalised, anything that
+        // isn't #rrggbb dropped.
+        function sanitizeTagColors(src) {
+            const out = {};
+            Object.keys(src || {}).forEach(k => {
+                const key = tagKey(k);
+                if (key && isHexColor(src[k])) out[key] = String(src[k]).toLowerCase();
+            });
+            return out;
+        }
+
+        function restoreTagColors(src) { tagColors = sanitizeTagColors(src); }
+
+        // Overrides added, removed or repointed since the file was opened / last saved.
+        function tagColorDiffCount() {
+            const keys = new Set([...Object.keys(tagColors), ...Object.keys(baselineTagColors)]);
+            let n = 0;
+            keys.forEach(k => { if (tagColors[k] !== baselineTagColors[k]) n++; });
+            return n;
+        }
+
+        // Called on open: the file's own overrides win, and the browser mirror fills in
+        // tags the file said nothing about. Callers must capture the baseline *after*
+        // this, so a colour arriving from the mirror is not reported as unsaved work.
+        function seedTagColors(fromFile) {
+            tagColors = sanitizeTagColors(fromFile);
+            const mirror = readTagColorMirror();
+            Object.keys(mirror).forEach(k => { if (!tagColors[k]) tagColors[k] = mirror[k]; });
+        }
+
+        // Inline `style` body for a tag pill. Both values come from validated hex, so
+        // there is nothing here for a crafted file to break out of.
+        function tagPillStyle(tag) {
+            const bg = resolveTagColor(tag);
+            return 'background:' + bg + ';color:' + pillTextColor(bg);
         }
 
         function escapeHtml(str) {
@@ -2594,6 +2849,7 @@
 
         // --- Table rendering ---
         function renderTable() {
+            invalidateAutoTagColors(); // the tag vocabulary may have changed since the last pass
             if (!tabulatorGrid) {
                 tabulatorGrid = new Tabulator('#tabulator-grid', {
                     data: roles.slice(),
@@ -2655,7 +2911,16 @@
                                 return input;
                             },
                             headerFilter: 'input', headerFilterPlaceholder: 'Filter tags...',
-                            formatter: function(cell) { return escapeHtml(tagsToString(cell.getValue())); },
+                            // Coloured pills, matching the chart cards. The editor stays
+                            // free text, so editing a cell still shows the raw words.
+                            formatter: function(cell) {
+                                const arr = cell.getValue();
+                                if (!Array.isArray(arr) || !arr.length) return '';
+                                cell.getElement().classList.add('grid-tags-cell');
+                                cell.getElement().title = tagsToString(arr);
+                                return arr.map(t => '<span class="grid-tag" style="' + tagPillStyle(t) + '">'
+                                    + escapeHtml(String(t)) + '</span>').join('');
+                            },
                             mutator: function(val) { return Array.isArray(val) ? val : parseTagString(val); },
                             headerFilterFunc: function(term, cellVal) {
                                 if (!term) return true;
@@ -2753,6 +3018,8 @@
                     // collides with an existing ID.
                     const edited = roles.includes(rowData) ? rowData : roles.find(r => r.roleId === rowData.roleId);
                     if (edited) edited[field] = oldValue;
+                    // Captured after the restore above, so this is the true before-state.
+                    const tagVocabBefore = field === 'tags' ? tagVocabSignature() : null;
                     updateRoleField(roleId, field, newValue);
                     if (field === 'roleId' || field === 'managerRoleId' || field === 'roleTitle' || field === 'dottedManagerIds') {
                         tabulatorGrid.replaceData(roles.slice());
@@ -2761,6 +3028,14 @@
                         const live = new Set(getAllTags());
                         [...tagFilter].forEach(t => { if (!live.has(t)) tagFilter.delete(t); });
                         syncFilterUI();
+                        // Automatic tag colours are positional, so introducing or dropping a
+                        // tag reshuffles the others — every already-drawn pill in the grid
+                        // needs its formatter to run again. Only when the vocabulary really
+                        // changed: re-tagging with existing tags must not jolt the grid.
+                        if (tagVocabSignature() !== tagVocabBefore) {
+                            invalidateAutoTagColors();
+                            tabulatorGrid.redraw(true);
+                        }
                     }
                     if (activeTab === 'chart') renderChart();
                 });
@@ -3566,6 +3841,7 @@
         }
 
         function rebuildTagCheckboxes(dropdown, tags) {
+            invalidateAutoTagColors();
             while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
             if (!tags.length) {
                 const empty = document.createElement('div');
@@ -3580,10 +3856,135 @@
                 cb.type = 'checkbox';
                 cb.checked = tagFilter.has(t);
                 cb.addEventListener('change', () => toggleTagFilterValue(t, cb.checked));
+                const swatch = document.createElement('span');
+                swatch.className = 'tag-filter-swatch';
+                swatch.style.background = resolveTagColor(t); // property, not markup — no injection surface
                 label.appendChild(cb);
+                label.appendChild(swatch);
                 label.appendChild(document.createTextNode(' ' + t));
                 dropdown.appendChild(label);
             });
+        }
+
+        // --- Tag colour dialog ---
+        // One row per canonical tag key, so "Urgent" and "urgent" share a row (they
+        // share a colour — see tagKey). Keys with an override but no longer used by any
+        // role still get a row, flagged unused: dropping them would lose the colour of a
+        // tag someone is about to re-add.
+        function tagColorRows() {
+            const rows = new Map(); // key -> { key, label, used }
+            getAllTags().forEach(t => {
+                const key = tagKey(t);
+                if (!rows.has(key)) rows.set(key, { key, label: t, used: true });
+            });
+            Object.keys(tagColors).forEach(key => {
+                if (!rows.has(key)) rows.set(key, { key, label: key, used: false });
+            });
+            return [...rows.values()].sort((a, b) => a.key.localeCompare(b.key));
+        }
+
+        // Single commit point for a colour change: one undo entry, the file is dirty,
+        // and the browser mirror is refreshed so a CSV round trip keeps the choice.
+        function setTagColor(key, hex) {
+            pushUndo('Tag colours');
+            if (hex && isHexColor(hex)) tagColors[key] = hex.toLowerCase();
+            else delete tagColors[key];
+            markDirty();
+            saveTagColorMirror();
+            renderTagColorRows();
+            syncFilterUI();
+            if (activeTab === 'chart') renderChart();
+            else if (activeTab === 'table' && tabulatorGrid) tabulatorGrid.redraw(true);
+        }
+
+        function renderTagColorRows() {
+            invalidateAutoTagColors();
+            const list = document.getElementById('tag-colors-list');
+            if (!list) return;
+            while (list.firstChild) list.removeChild(list.firstChild);
+            const rows = tagColorRows();
+            if (!rows.length) {
+                const empty = document.createElement('div');
+                empty.className = 'tag-colors-hint';
+                empty.textContent = 'No tags yet — add tags to a role first.';
+                list.appendChild(empty);
+                return;
+            }
+            rows.forEach(r => {
+                const current = resolveTagColor(r.label);
+                const explicit = isHexColor(tagColors[r.key]);
+
+                const row = document.createElement('div');
+                row.className = 'tag-colors-row' + (r.used ? '' : ' is-unused');
+
+                const name = document.createElement('div');
+                name.className = 'tag-colors-name';
+                const pill = document.createElement('span');
+                pill.className = 'grid-tag';
+                pill.style.background = current;
+                pill.style.color = pillTextColor(current);
+                pill.textContent = r.label;
+                name.appendChild(pill);
+                if (!r.used) {
+                    const note = document.createElement('span');
+                    note.className = 'tag-colors-unused';
+                    note.textContent = 'unused';
+                    name.appendChild(note);
+                }
+
+                const swatches = document.createElement('div');
+                swatches.className = 'tag-colors-swatches';
+                PALETTE.forEach(hex => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'tag-colors-swatch' + (explicit && tagColors[r.key] === hex.toLowerCase() ? ' is-current' : '');
+                    b.style.background = hex;
+                    b.title = hex;
+                    b.addEventListener('click', () => setTagColor(r.key, hex));
+                    swatches.appendChild(b);
+                });
+
+                // `change`, not `input`: dragging around the OS colour picker would
+                // otherwise push an undo entry per pixel.
+                const picker = document.createElement('input');
+                picker.type = 'color';
+                picker.value = current;
+                picker.title = 'Custom colour';
+                picker.addEventListener('change', () => setTagColor(r.key, picker.value));
+
+                const auto = document.createElement('button');
+                auto.type = 'button';
+                auto.className = 'tag-colors-auto';
+                auto.textContent = 'Auto';
+                auto.disabled = !explicit;
+                auto.title = explicit ? 'Go back to the colour derived from the tag name' : 'Already automatic';
+                auto.addEventListener('click', () => setTagColor(r.key, null));
+
+                row.appendChild(name);
+                row.appendChild(swatches);
+                row.appendChild(picker);
+                row.appendChild(auto);
+                list.appendChild(row);
+            });
+        }
+
+        function openTagColorsDialog() {
+            const dlg = document.getElementById('tag-colors-dialog');
+            if (!dlg) return;
+            renderTagColorRows();
+            try { dlg.showModal(); } catch (err) { alert('Tag colours dialog unavailable in this browser.'); }
+        }
+
+        function resetAllTagColors() {
+            if (!Object.keys(tagColors).length) return;
+            pushUndo('Tag colours');
+            tagColors = {};
+            markDirty();
+            saveTagColorMirror();
+            renderTagColorRows();
+            syncFilterUI();
+            if (activeTab === 'chart') renderChart();
+            else if (activeTab === 'table' && tabulatorGrid) tabulatorGrid.redraw(true);
         }
 
         function toggleFilterDropdown(idx, scope) {
@@ -4031,7 +4432,7 @@
             if (chartFields.tagPills && Array.isArray(role.tags) && role.tags.length) {
                 html += '<div class="node-tags">';
                 role.tags.forEach(t => {
-                    html += '<span class="node-tag">#' + escapeHtml(String(t)) + '</span>';
+                    html += '<span class="node-tag" style="' + tagPillStyle(t) + '">#' + escapeHtml(String(t)) + '</span>';
                 });
                 html += '</div>';
             }
@@ -5035,6 +5436,7 @@
 
         // --- Chart rendering ---
         function renderChart() {
+            invalidateAutoTagColors(); // the tag vocabulary may have changed since the last pass
             const container = document.getElementById('chart-container');
             while (container.firstChild) container.removeChild(container.firstChild);
             // The legend lives in #design-surface (a stable layer right of the sidebar and
@@ -5527,7 +5929,12 @@
                 format: openFileFormat,
                 isTestData: openFileIsTestData,
                 roles: roles,
-                baseline: baselineRoles
+                baseline: baselineRoles,
+                // Additive: snapshots written before tag colours existed simply lack
+                // these, which is why AUTOSAVE_VERSION is deliberately not bumped —
+                // bumping would silently discard a user's pending recovery snapshot.
+                tagColors: tagColors,
+                baselineTagColors: baselineTagColors
             };
             try {
                 localStorage.setItem(AUTOSAVE_PREFIX + TAB_ID, JSON.stringify(snapshot));
@@ -5620,6 +6027,8 @@
                 removeAutosaveEntry(entry);
                 roles = snap.roles;
                 baselineRoles = Array.isArray(snap.baseline) ? snap.baseline : snapshotRoles();
+                restoreTagColors(snap.tagColors); // absent in pre-tag-colour snapshots
+                baselineTagColors = sanitizeTagColors(snap.baselineTagColors);
                 recomputeNextId();
                 undoStack = [];
                 redoStack = [];
@@ -6322,16 +6731,66 @@
             return role;
         }
 
-        // Pure parser: first sheet of a CSV/XLSX ArrayBuffer → roles array. No global
-        // state is touched, so it serves both real imports and the Compare feature.
-        function parseRolesFromArrayBuffer(arrayBuffer) {
-            const data = new Uint8Array(arrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
+        function rolesFromWorkbook(workbook) {
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
             if (!jsonData.length) return [];
             const headerMap = mapHeaders(Object.keys(jsonData[0]));
             return jsonData.map((row, i) => rowToRole(row, headerMap, i));
+        }
+
+        // Pure parser: first sheet of a CSV/XLSX ArrayBuffer → roles array. No global
+        // state is touched, so it serves both real imports and the Compare feature.
+        // Compare stays colour-blind on purpose — a palette difference is not a data
+        // difference, so it never shows up as a diff row.
+        function parseRolesFromArrayBuffer(arrayBuffer) {
+            return rolesFromWorkbook(XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' }));
+        }
+
+        // The tag-colour sidecar sheet (see tagColorsAoa). Located by name, then — for a
+        // workbook someone renamed the sheet in — by any non-first sheet carrying both a
+        // Tag and a Colour column. Rows whose colour isn't #rrggbb are counted and
+        // dropped: a hand-edited sheet is the expected source of bad values, and these
+        // land in an inline `style` attribute.
+        function parseTagColorsFromWorkbook(workbook) {
+            const names = workbook.SheetNames || [];
+            const headerOf = name => {
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: '' });
+                return rows.length ? rows[0].map(h => String(h).trim().toLowerCase()) : [];
+            };
+            let target = names.find(n => /^tag colou?rs$/i.test(String(n).trim()));
+            if (!target) {
+                target = names.slice(1).find(n => {
+                    const h = headerOf(n);
+                    return h.indexOf('tag') !== -1 && (h.indexOf('colour') !== -1 || h.indexOf('color') !== -1);
+                });
+            }
+            if (!target) return { colors: {}, skipped: 0 };
+
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[target], { defval: '' });
+            const colors = {};
+            let skipped = 0;
+            rows.forEach(row => {
+                let tag = '', color = '';
+                Object.keys(row).forEach(col => {
+                    const h = String(col).trim().toLowerCase();
+                    if (h === 'tag' || h === 'tags') tag = row[col];
+                    else if (h === 'colour' || h === 'color') color = row[col];
+                });
+                const key = tagKey(tag);
+                const hex = String(color).trim();
+                if (!key) return;
+                if (!isHexColor(hex)) { skipped++; return; }
+                colors[key] = hex.toLowerCase();
+            });
+            return { colors, skipped };
+        }
+
+        // Real imports need both halves of the workbook, and must not read it twice.
+        function parseWorkbook(arrayBuffer) {
+            const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+            const tags = parseTagColorsFromWorkbook(workbook);
+            return { roles: rolesFromWorkbook(workbook), tagColors: tags.colors, tagColorsSkipped: tags.skipped };
         }
 
         // Merge parser: like parseRolesFromArrayBuffer, but additionally reports which
@@ -6369,12 +6828,19 @@
         }
 
         function processImportData(arrayBuffer) {
-            const parsed = parseRolesFromArrayBuffer(arrayBuffer);
-            if (!parsed.length) {
+            const parsed = parseWorkbook(arrayBuffer);
+            if (!parsed.roles.length) {
                 alert('No data found in the file.');
                 return;
             }
-            roles = parsed;
+            roles = parsed.roles;
+            // The file's overrides win; the browser mirror fills in the rest. Callers run
+            // setOpenFile (and so captureBaseline) after this, so a colour that arrived
+            // from the mirror is not reported as unsaved work.
+            seedTagColors(parsed.tagColors);
+            if (parsed.tagColorsSkipped) {
+                showToast(parsed.tagColorsSkipped + ' tag colour row(s) ignored — a colour must look like #RRGGBB.');
+            }
             recomputeNextId();
 
             // New dataset — undo history, manual collapse state and filter value
@@ -6650,7 +7116,11 @@
             document.getElementById('cmp-chips').innerHTML =
                 '<span class="cmp-chip">Headcount: ' + num(s.headcountFile) + ' → ' + num(s.headcountCurrent) + ' (' + deltaSpan(hcDelta, num) + ')</span>' +
                 '<span class="cmp-chip">Cost: ' + num(s.costFile) + ' → ' + num(s.costCurrent) + ' (' + deltaSpan(costDelta, num) + ')</span>' +
-                '<span class="cmp-chip">' + diff.added.length + ' added · ' + diff.removed.length + ' removed · ' + diff.moved.length + ' moved · ' + diff.changed.length + ' changed</span>';
+                '<span class="cmp-chip">' + diff.added.length + ' added · ' + diff.removed.length + ' removed · ' + diff.moved.length + ' moved · ' + diff.changed.length + ' changed</span>' +
+                // Tag colours are document data but not role data, so they never appear in
+                // the row sections. Without this chip a colour-only edit would show as
+                // "unsaved changes" over an empty report.
+                (unsaved && tagColorDiffCount() ? '<span class="cmp-chip">Tag colours: ' + tagColorDiffCount() + ' changed</span>' : '');
 
             // Rows for roles that exist in the current data are clickable and jump
             // to the chart node; removed-only roles have nothing to jump to.
@@ -7078,6 +7548,7 @@
                     captureBaseline();
                     clearAutosave();
                     flashSaveIndicator('Saved');
+                    warnIfCsvDropsTagColors(openFileFormat);
                 } catch (err) {
                     alert('Error saving file: ' + (err && err.message || err));
                 }
@@ -7090,6 +7561,7 @@
                 captureBaseline();
                 clearAutosave();
                 flashSaveIndicator('Downloaded');
+                warnIfCsvDropsTagColors(openFileFormat);
             } else {
                 return saveFileAs();
             }
@@ -7114,6 +7586,9 @@
                     const writable = await handle.createWritable();
                     await writable.write(blob);
                     await writable.close();
+                    // Note before setOpenFile recaptures the baseline — it reads tagColors,
+                    // which is unchanged either way, but keep the order obvious.
+                    warnIfCsvDropsTagColors(fmt);
                     setOpenFile({ name: chosenName, format: fmt, handle: handle, isTestData: false });
                     flashSaveIndicator('Saved');
                 } catch (err) {
@@ -7134,6 +7609,15 @@
             const initialFmt = openFileFormat === 'csv' ? 'csv' : 'xlsx';
             fmtRadios.forEach(r => { r.checked = (r.value === initialFmt); });
 
+            // Only surfaced when there is actually something to lose.
+            const tagNote = document.getElementById('saveas-tag-note');
+            const syncTagNote = () => {
+                const fmt = form.querySelector('input[name="saveas-fmt"]:checked').value;
+                tagNote.style.display = (fmt === 'csv' && tagColorsLostInCsv()) ? '' : 'none';
+            };
+            fmtRadios.forEach(r => { r.onchange = syncTagNote; });
+            syncTagNote();
+
             dlg.onclose = function() {
                 // Only proceed when the user clicked Save. Escape / Cancel close with
                 // a different (or empty) returnValue.
@@ -7145,6 +7629,7 @@
                     name = name.replace(/\.(csv|xlsx|xls)$/i, '') + '.' + fmt;
                 }
                 const blob = fmt === 'csv' ? rolesToCsvBlob(roles) : rolesToXlsxBlob(roles);
+                warnIfCsvDropsTagColors(fmt);
                 const url = URL.createObjectURL(blob);
                 triggerDownload(url, name);
                 URL.revokeObjectURL(url);
@@ -7290,65 +7775,90 @@
             });
         }
 
-        function injectExcelTable(zipBytes, headers, dataRows, tableName) {
-            // A table needs at least one data row; without one, ship the plain sheet.
-            if (!window.fflate || !headers.length || dataRows < 1) return zipBytes;
+        // Table spec `i` applies to worksheet `i` — so a caller adding a sheet must add
+        // a matching entry here, in workbook order, or the tables land on the wrong
+        // sheets. (Same contract as dc-room-viewer.html's injectExcelTables, which this
+        // is a deliberate copy of — the self-contained-file rule.)
+        function injectExcelTables(zipBytes, tables) {
+            if (!window.fflate || !tables.length) return zipBytes;
             try {
                 const files = window.fflate.unzipSync(zipBytes);
-                const SHEET = 'xl/worksheets/sheet1.xml';
-                if (!files[SHEET] || !files['[Content_Types].xml']) return zipBytes;
+                if (!files['[Content_Types].xml']) return zipBytes;
                 const dec = new TextDecoder(), enc = new TextEncoder();
-                const ref = 'A1:' + xlsxColName(headers.length - 1) + (dataRows + 1);
-                const cols = headers.map((h, i) => '<tableColumn id="' + (i + 1) + '" name="' + xmlAttrEscape(h) + '"/>').join('');
-                files['xl/tables/table1.xml'] = enc.encode(
-                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                    '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="' + tableName +
-                    '" displayName="' + tableName + '" ref="' + ref + '" totalsRowShown="0">' +
-                    '<autoFilter ref="' + ref + '"/>' +
-                    '<tableColumns count="' + headers.length + '">' + cols + '</tableColumns>' +
-                    '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/>' +
-                    '</table>');
-                files['xl/worksheets/_rels/sheet1.xml.rels'] = enc.encode(
-                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table1.xml"/>' +
-                    '</Relationships>');
-                files['[Content_Types].xml'] = enc.encode(dec.decode(files['[Content_Types].xml']).replace('</Types>',
-                    '<Override PartName="/xl/tables/table1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/></Types>'));
-                files[SHEET] = enc.encode(dec.decode(files[SHEET])
-                    .replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,
-                        '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
-                        '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>')
-                    // tableParts is the sheet's back-reference to the table part and
-                    // must be the last element inside <worksheet>.
-                    .replace('</worksheet>', '<tableParts count="1"><tablePart r:id="rId1"/></tableParts></worksheet>'));
+                let overrides = '';
+                tables.forEach(function(t, i) {
+                    const sheetPath = 'xl/worksheets/sheet' + (i + 1) + '.xml';
+                    // A table needs at least one data row; a sheet without one keeps its
+                    // plain grid.
+                    if (!files[sheetPath] || !t.headers.length || t.dataRows < 1) return;
+                    const n = i + 1;
+                    const ref = 'A1:' + xlsxColName(t.headers.length - 1) + (t.dataRows + 1);
+                    const cols = t.headers.map((h, ci) => '<tableColumn id="' + (ci + 1) + '" name="' + xmlAttrEscape(h) + '"/>').join('');
+                    files['xl/tables/table' + n + '.xml'] = enc.encode(
+                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="' + n +
+                        '" name="' + t.name + '" displayName="' + t.name + '" ref="' + ref + '" totalsRowShown="0">' +
+                        '<autoFilter ref="' + ref + '"/>' +
+                        '<tableColumns count="' + t.headers.length + '">' + cols + '</tableColumns>' +
+                        '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/>' +
+                        '</table>');
+                    files['xl/worksheets/_rels/sheet' + n + '.xml.rels'] = enc.encode(
+                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table' + n + '.xml"/>' +
+                        '</Relationships>');
+                    overrides += '<Override PartName="/xl/tables/table' + n +
+                        '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>';
+                    files[sheetPath] = enc.encode(dec.decode(files[sheetPath])
+                        .replace(/<sheetViews>[\s\S]*?<\/sheetViews>/,
+                            '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
+                            '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>')
+                        // tableParts is the sheet's back-reference to the table part and
+                        // must be the last element inside <worksheet>.
+                        .replace('</worksheet>', '<tableParts count="1"><tablePart r:id="rId1"/></tableParts></worksheet>'));
+                });
+                if (!overrides) return zipBytes;
+                files['[Content_Types].xml'] = enc.encode(
+                    dec.decode(files['[Content_Types].xml']).replace('</Types>', overrides + '</Types>'));
                 return window.fflate.zipSync(files);
             } catch (e) {
-                // Never lose the export over cosmetics — fall back to the plain sheet.
+                // Never lose the export over cosmetics — fall back to the plain sheets.
                 console.warn('Excel table formatting skipped:', e);
                 return zipBytes;
             }
         }
 
-        // aoa row 0 is the header. `tableRows` limits how many data rows the table
-        // covers (the pivot passes one fewer, to leave its grand total outside);
-        // `formats` maps a column index to an Excel number format.
-        function aoaToTableXlsxBlob(aoa, opts = {}) {
-            const headers = uniqueTableHeaders(aoa[0] || []);
-            const rows = [headers, ...aoa.slice(1)];
-            const ws = XLSX.utils.aoa_to_sheet(rows);
-            ws['!cols'] = autoColumnWidths(rows);
-            Object.keys(opts.formats || {}).forEach(ci => {
-                for (let r = 1; r < rows.length; r++) {
-                    const cell = ws[XLSX.utils.encode_cell({ r, c: Number(ci) })];
-                    if (cell && cell.t === 'n') cell.z = opts.formats[ci];
-                }
-            });
+        // Each sheet: { aoa, sheetName, tableName, formats, tableRows }. Row 0 of every
+        // aoa is the header. `tableRows` limits how many data rows the table covers (the
+        // pivot passes one fewer, to leave its grand total outside); `formats` maps a
+        // column index to an Excel number format.
+        function sheetsToTableXlsxBlob(sheets) {
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, opts.sheetName || 'Sheet1');
+            const tables = [];
+            sheets.forEach((s, i) => {
+                const headers = uniqueTableHeaders(s.aoa[0] || []);
+                const rows = [headers, ...s.aoa.slice(1)];
+                const ws = XLSX.utils.aoa_to_sheet(rows);
+                ws['!cols'] = autoColumnWidths(rows);
+                Object.keys(s.formats || {}).forEach(ci => {
+                    for (let r = 1; r < rows.length; r++) {
+                        const cell = ws[XLSX.utils.encode_cell({ r, c: Number(ci) })];
+                        if (cell && cell.t === 'n') cell.z = s.formats[ci];
+                    }
+                });
+                XLSX.utils.book_append_sheet(wb, ws, s.sheetName || ('Sheet' + (i + 1)));
+                tables.push({
+                    name: s.tableName || ('Table' + (i + 1)),
+                    headers,
+                    dataRows: s.tableRows == null ? rows.length - 1 : s.tableRows
+                });
+            });
             const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            const dataRows = opts.tableRows == null ? rows.length - 1 : opts.tableRows;
-            return new Blob([injectExcelTable(new Uint8Array(buf), headers, dataRows, opts.tableName || 'Table1')], { type: XLSX_MIME });
+            return new Blob([injectExcelTables(new Uint8Array(buf), tables)], { type: XLSX_MIME });
+        }
+
+        function aoaToTableXlsxBlob(aoa, opts = {}) {
+            return sheetsToTableXlsxBlob([{ aoa, ...opts }]);
         }
 
         function rolesToCsvBlob(rs, fields = EXPORT_FIELDS) {
@@ -7356,11 +7866,37 @@
             return new Blob([serializeAoaToCsv(aoa)], { type: 'text/csv;charset=utf-8;' });
         }
 
+        // A CSV is one table, so it has nowhere to put the palette. Say so rather than
+        // dropping it silently — the colours survive in this browser (see
+        // TAG_COLORS_KEY), just not in the file.
+        function tagColorsLostInCsv() { return Object.keys(tagColors).length > 0; }
+        function warnIfCsvDropsTagColors(fmt) {
+            if (fmt !== 'csv' || !tagColorsLostInCsv()) return;
+            showToast('Saved as CSV — tag colours are not stored in a CSV. They are remembered in this browser; save as .xlsx to keep them in the file.');
+        }
+
+        // The tag-colour sidecar sheet. Only explicit overrides go in: writing the
+        // automatic colours too would freeze them into the file and defeat the point of
+        // deriving them from the name. Tags are written in the casing the data uses, so
+        // the sheet is readable; reading canonicalises again (see tagKey).
+        const TAG_COLORS_SHEET = 'Tag colours';
+        function tagColorsAoa() {
+            const display = new Map();
+            getAllTags().forEach(t => { if (!display.has(tagKey(t))) display.set(tagKey(t), t); });
+            const rows = Object.keys(tagColors).sort().map(k => [display.get(k) || k, tagColors[k].toUpperCase()]);
+            return rows.length ? [['Tag', 'Colour'], ...rows] : null;
+        }
+
         function rolesToXlsxBlob(rs, fields = EXPORT_FIELDS) {
             const aoa = [fields.map(headerForField), ...rs.map(r => fields.map(f => fieldToCellValue(r, f)))];
             const formats = {};
             fields.forEach((f, i) => { if (XLSX_NUM_FORMATS[f]) formats[i] = XLSX_NUM_FORMATS[f]; });
-            return aoaToTableXlsxBlob(aoa, { sheetName: 'Org Chart', tableName: 'OrgChart', formats });
+            const sheets = [{ aoa, sheetName: 'Org Chart', tableName: 'OrgChart', formats }];
+            // No overrides (or no Tags column) → a single-sheet file, byte-identical in
+            // shape to what earlier builds wrote.
+            const tagAoa = fields.indexOf('tags') !== -1 ? tagColorsAoa() : null;
+            if (tagAoa) sheets.push({ aoa: tagAoa, sheetName: TAG_COLORS_SHEET, tableName: 'TagColours' });
+            return sheetsToTableXlsxBlob(sheets);
         }
 
         // Rows the active tab currently shows. Table: rows passing Tabulator header
@@ -7664,6 +8200,11 @@
 
         // --- Init ---
         restoreUiState();
+        // Remembered tag colours apply to roles typed from scratch too, not just to an
+        // opened file. captureBaseline runs later (setOpenFile / autosave restore), so
+        // this does not present as unsaved work.
+        seedTagColors({});
+        captureBaseline();
         renderFieldsDropdown();
         enhanceControlSections();
         render();
@@ -7682,6 +8223,9 @@
         });
         document.getElementById('zoom-pct').addEventListener('click', function() { setZoom(1); });
         document.getElementById('zoom-fit').addEventListener('click', fitChartToView);
+
+        // Tag colour dialog (static element — wire once)
+        document.getElementById('tag-colors-reset-all').addEventListener('click', resetAllTagColors);
 
         // Chart search box
         (function() {
