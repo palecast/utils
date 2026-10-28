@@ -161,6 +161,7 @@
         }
         .btn.danger-outline:hover:not(:disabled) { background: #fef2f2; transform: none; }
         .btn:disabled { opacity: 0.45; cursor: default; }
+        .btn.sm { padding: 6px 12px; font-size: 13px; }
 
         /* ------- Source legend ------- */
         .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
@@ -262,6 +263,14 @@
         }
         body.drag-active .tile-handle { cursor: grabbing; }
         .tile-pos { font-weight: 600; color: var(--text); }
+        .tile-flag {
+            padding: 1px 6px;
+            border-radius: 8px;
+            background: var(--text);
+            color: #FFFFFF;
+            font-size: 10px; font-weight: 600;
+            white-space: nowrap;
+        }
         .tile-src {
             margin-left: auto;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -281,6 +290,69 @@
         }
         #drop-strip.dragover { border-color: var(--accent); background: var(--tint); }
 
+        /* ------- Redaction editor ------- */
+        .redact-overlay {
+            position: fixed; inset: 0; z-index: 100;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(58, 47, 40, 0.45);
+            padding: 24px;
+        }
+        .redact-overlay.show { display: flex; }
+        .redact-dialog {
+            width: 100%; max-width: 960px;
+            height: 100%; max-height: 900px;
+            display: flex; flex-direction: column;
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(58, 47, 40, 0.12);
+            overflow: hidden;
+            outline: none;
+        }
+        .redact-head, .redact-foot {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+            padding: 12px 16px;
+        }
+        .redact-head { border-bottom: 1px solid var(--border); }
+        .redact-foot { border-top: 1px solid var(--border); }
+        .redact-title { font-weight: 600; font-size: 15px; }
+        .redact-sub {
+            flex: 1; min-width: 0;
+            font-size: 12px; color: var(--text-muted);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .redact-note { flex: 1; min-width: 220px; font-size: 12px; color: var(--text-muted); }
+        .redact-stage {
+            flex: 1; min-height: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--tint);
+            padding: 16px;
+            overflow: hidden;
+        }
+        .redact-page {
+            position: relative;
+            background: #FFFFFF;
+            box-shadow: 0 1px 4px rgba(58, 47, 40, 0.15);
+            cursor: crosshair;
+            touch-action: none;
+            user-select: none;
+            transition: opacity 0.2s;
+        }
+        .redact-page.loading { opacity: 0.4; }
+        .redact-page canvas { display: block; width: 100%; height: 100%; }
+        .redact-box { position: absolute; background: #000000; cursor: move; }
+        .redact-box.selected { opacity: 0.7; outline: 2px solid var(--accent); outline-offset: 1px; }
+        .redact-handle {
+            position: absolute;
+            width: 14px; height: 14px;
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            background: #FFFFFF;
+        }
+        .redact-handle[data-h="nw"] { left: -8px;  top: -8px;    cursor: nwse-resize; }
+        .redact-handle[data-h="ne"] { right: -8px; top: -8px;    cursor: nesw-resize; }
+        .redact-handle[data-h="sw"] { left: -8px;  bottom: -8px; cursor: nesw-resize; }
+        .redact-handle[data-h="se"] { right: -8px; bottom: -8px; cursor: nwse-resize; }
+
         footer {
             padding: 32px 24px;
             text-align: center;
@@ -297,6 +369,9 @@
             .header-note { display: none; }
             .grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
             .tile-thumb { height: 150px; }
+            .redact-overlay { padding: 0; }
+            .redact-dialog { max-height: none; border-radius: 0; }
+            .redact-stage { padding: 8px; }
         }
     </style>
 </head>
@@ -306,7 +381,7 @@
             <div class="logo-box">PDF</div>
             <div>
                 <div class="brand-title">PDF Toolbox</div>
-                <div class="brand-sub">Merge, split, reorder &amp; rotate PDF pages</div>
+                <div class="brand-sub">Merge, split, reorder, rotate &amp; redact PDF pages</div>
             </div>
         </div>
         <div class="header-note">Everything runs locally in your browser — files are never uploaded.</div>
@@ -326,7 +401,7 @@
         <div id="empty-drop">
             <h2>Drop PDF files here</h2>
             <div class="sub">or click to browse</div>
-            <div class="privacy">Merging, splitting, reordering and rotating all happen in your browser — files are never uploaded.</div>
+            <div class="privacy">Merging, splitting, reordering, rotating and redacting all happen in your browser — files are never uploaded.</div>
         </div>
         <input type="file" id="file-input" accept=".pdf,application/pdf" multiple hidden>
 
@@ -338,6 +413,7 @@
                 <span class="spacer"></span>
                 <button class="btn outline" id="btn-rotate-left" disabled title="Rotate selected pages 90° counter-clockwise">⟲ Rotate left</button>
                 <button class="btn outline" id="btn-rotate-right" disabled title="Rotate selected pages 90° clockwise">⟳ Rotate right</button>
+                <button class="btn outline" id="btn-redact" disabled title="Black out areas of pages (opens the first selected page)">■ Redact</button>
                 <button class="btn danger-outline" id="btn-delete" disabled title="Remove selected pages">Delete</button>
                 <span class="spacer"></span>
                 <button class="btn outline" id="btn-extract" disabled title="Save the selected pages as a new PDF">Extract selected</button>
@@ -350,6 +426,27 @@
             <div id="drop-strip">＋ Add more PDFs — drop files anywhere or click</div>
         </div>
     </main>
+
+    <div class="redact-overlay" id="redact-overlay">
+        <div class="redact-dialog" role="dialog" aria-modal="true" aria-labelledby="redact-title" tabindex="-1">
+            <div class="redact-head">
+                <span class="redact-title" id="redact-title">Redact page</span>
+                <span class="redact-sub" id="redact-sub"></span>
+                <button class="btn outline sm" id="redact-prev" title="Previous page (←)">‹ Prev</button>
+                <button class="btn outline sm" id="redact-next" title="Next page (→)">Next ›</button>
+            </div>
+            <div class="redact-stage" id="redact-stage">
+                <div class="redact-page loading" id="redact-page"></div>
+            </div>
+            <div class="redact-foot">
+                <span class="redact-note">Drag on the page to black out an area. Redacted pages are flattened to images when saved — the covered content is permanently removed, and the page's text is no longer selectable.</span>
+                <button class="btn outline sm" id="redact-whole">Redact whole page</button>
+                <button class="btn outline sm" id="redact-remove" disabled title="Remove the selected box (Delete)">Remove box</button>
+                <button class="btn danger-outline sm" id="redact-clear" disabled title="Remove every box on this page">Clear page</button>
+                <button class="btn sm" id="redact-done">Done</button>
+            </div>
+        </div>
+    </div>
 
     <footer>
         No ads, no tracking, no data leaves your browser.
@@ -384,7 +481,7 @@
         // ------- State -------
         const state = {
             sources: [],   // { id, name, bytes, pdfjsDoc, pageCount, colorIndex }
-            pages: [],     // { id, sourceId, pageIndex, rotationDelta, selected, canvas } — array order = workspace order
+            pages: [],     // { id, sourceId, pageIndex, rotationDelta, redactions, selected, canvas } — array order = workspace order
         };
         let nextSourceId = 1;
         let nextPageId = 1;
@@ -397,6 +494,8 @@
         const THUMB_WIDTH = 160;          // CSS px target for thumbnail canvases
         const THUMB_WIDTH_MANY = 120;     // used once the workspace exceeds MANY_PAGES
         const MANY_PAGES = 200;
+        const REDACT_DPI = 200;               // raster resolution of a redacted page in the export
+        const REDACT_MAX_PIXELS = 16e6;       // stays under Safari's canvas area cap
 
         const emptyDrop = document.getElementById('empty-drop');
         const workspace = document.getElementById('workspace');
@@ -410,6 +509,7 @@
         const btnRotateLeft = document.getElementById('btn-rotate-left');
         const btnRotateRight = document.getElementById('btn-rotate-right');
         const btnDelete = document.getElementById('btn-delete');
+        const btnRedact = document.getElementById('btn-redact');
         const btnExtract = document.getElementById('btn-extract');
         const btnSplit = document.getElementById('btn-split');
         const btnDownload = document.getElementById('btn-download');
@@ -509,6 +609,7 @@
                     sourceId: source.id,
                     pageIndex: i,
                     rotationDelta: 0,
+                    redactions: [],
                     selected: false,
                     canvas: null,
                 });
@@ -588,8 +689,17 @@
                 pending.textContent = 'p.' + (p.pageIndex + 1);
                 return pending;
             }
-            if (!p.rotationDelta) return p.canvas;
-            const src = p.canvas;
+            if (!p.rotationDelta && !p.redactions.length) return p.canvas;
+            let src = p.canvas;
+            if (p.redactions.length) {
+                src = document.createElement('canvas');
+                src.width = p.canvas.width;
+                src.height = p.canvas.height;
+                const ctx = src.getContext('2d');
+                ctx.drawImage(p.canvas, 0, 0);
+                paintRedactions(ctx, p.redactions, src.width, src.height);
+            }
+            if (!p.rotationDelta) return src;
             const rotated = document.createElement('canvas');
             const swap = p.rotationDelta === 90 || p.rotationDelta === 270;
             rotated.width = swap ? src.height : src.width;
@@ -647,12 +757,17 @@
             rotateBtn.textContent = '⟳';
             rotateBtn.title = 'Rotate this page 90° clockwise';
             rotateBtn.addEventListener('click', e => { e.stopPropagation(); rotatePages([p], 90); });
+            const redactBtn = document.createElement('button');
+            redactBtn.className = 'tile-btn';
+            redactBtn.textContent = '■';
+            redactBtn.title = 'Redact this page';
+            redactBtn.addEventListener('click', e => { e.stopPropagation(); openRedactor(p); });
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'tile-btn';
             deleteBtn.textContent = '✕';
             deleteBtn.title = 'Remove this page';
             deleteBtn.addEventListener('click', e => { e.stopPropagation(); deletePages([p]); });
-            actions.append(rotateBtn, deleteBtn);
+            actions.append(rotateBtn, redactBtn, deleteBtn);
             tile.appendChild(actions);
 
             const thumb = document.createElement('div');
@@ -673,7 +788,15 @@
             srcEl.className = 'tile-src';
             srcEl.textContent = `${src.name} · p.${p.pageIndex + 1}`;
             srcEl.title = srcEl.textContent;
-            meta.append(handle, posEl, srcEl);
+            meta.append(handle, posEl);
+            if (p.redactions.length) {
+                const flag = document.createElement('span');
+                flag.className = 'tile-flag';
+                flag.textContent = '■ ' + p.redactions.length;
+                flag.title = `${p.redactions.length} redaction${p.redactions.length === 1 ? '' : 's'} — this page is flattened to an image when saved`;
+                meta.appendChild(flag);
+            }
+            meta.appendChild(srcEl);
             tile.appendChild(meta);
 
             tile.addEventListener('click', e => onTileClick(p, e));
@@ -716,6 +839,7 @@
             [btnRotateLeft, btnRotateRight, btnDelete, btnExtract].forEach(b => { b.disabled = sel === 0 || exporting; });
             btnDownload.disabled = total === 0 || exporting;
             btnSplit.disabled = total === 0 || exporting;
+            btnRedact.disabled = total === 0 || exporting;
             btnAdd.disabled = exporting;
         }
 
@@ -747,6 +871,7 @@
         });
 
         document.addEventListener('keydown', e => {
+            if (redactor.open) return;   // the editor has its own keys
             if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPages().length) {
                 e.preventDefault();
@@ -780,6 +905,301 @@
         btnRotateLeft.addEventListener('click', () => rotatePages(selectedPages(), 270));
         btnRotateRight.addEventListener('click', () => rotatePages(selectedPages(), 90));
         btnDelete.addEventListener('click', () => deletePages(selectedPages()));
+        btnRedact.addEventListener('click', () => openRedactor(selectedPages()[0] || state.pages[0]));
+
+        // ------- Redaction -------
+        // Boxes are stored on page.redactions as fractions (0–1) of the upright
+        // page — as pdf.js draws it with the source's own /Rotate, before the
+        // user's rotationDelta — so they survive rotation and any render size.
+        // The editor shows the page as it will be saved (rotated) and converts.
+        function rotateBox(b, delta) {
+            switch (delta) {
+                case 90:  return { x: 1 - b.y - b.h, y: b.x, w: b.h, h: b.w };
+                case 180: return { x: 1 - b.x - b.w, y: 1 - b.y - b.h, w: b.w, h: b.h };
+                case 270: return { x: b.y, y: 1 - b.x - b.w, w: b.h, h: b.w };
+                default:  return { ...b };
+            }
+        }
+        const toDisplay = (b, p) => rotateBox(b, p.rotationDelta);
+        const toUpright = (b, p) => rotateBox(b, (360 - p.rotationDelta) % 360);
+
+        function paintRedactions(ctx, boxes, width, height) {
+            ctx.fillStyle = '#000000';
+            // round outward so a box never leaves a sliver of a covered glyph
+            boxes.forEach(b => {
+                const x0 = Math.floor(b.x * width), y0 = Math.floor(b.y * height);
+                ctx.fillRect(x0, y0, Math.ceil((b.x + b.w) * width) - x0, Math.ceil((b.y + b.h) * height) - y0);
+            });
+        }
+
+        const redactOverlay = document.getElementById('redact-overlay');
+        const redactDialog = redactOverlay.querySelector('.redact-dialog');
+        const redactStage = document.getElementById('redact-stage');
+        const redactPageEl = document.getElementById('redact-page');
+        const redactTitle = document.getElementById('redact-title');
+        const redactSub = document.getElementById('redact-sub');
+        const redactPrev = document.getElementById('redact-prev');
+        const redactNext = document.getElementById('redact-next');
+        const redactWhole = document.getElementById('redact-whole');
+        const redactRemove = document.getElementById('redact-remove');
+        const redactClear = document.getElementById('redact-clear');
+        const redactDone = document.getElementById('redact-done');
+
+        const MIN_BOX_PX = 4;   // smaller drags are treated as clicks, not boxes
+        const redactor = { open: false, page: null, selected: -1, undo: [], gesture: null, renderToken: 0, returnFocus: null };
+
+        function openRedactor(p) {
+            if (!p || !libsOk || exporting) return;
+            redactor.open = true;
+            redactor.returnFocus = document.activeElement;
+            redactOverlay.classList.add('show');
+            redactDialog.focus();
+            showRedactPage(p);
+        }
+
+        function closeRedactor() {
+            redactor.open = false;
+            redactor.page = null;
+            redactor.gesture = null;
+            redactor.renderToken++;   // drop any render still in flight
+            redactOverlay.classList.remove('show');
+            redactPageEl.textContent = '';
+            if (redactor.returnFocus && redactor.returnFocus.isConnected) redactor.returnFocus.focus();
+        }
+
+        function showRedactPage(p) {
+            redactor.page = p;
+            redactor.selected = -1;
+            redactor.undo = [];
+            redactor.gesture = null;
+            const idx = state.pages.indexOf(p);
+            redactTitle.textContent = `Redact page ${idx + 1} of ${state.pages.length}`;
+            redactSub.textContent = `${sourceById(p.sourceId).name} · p.${p.pageIndex + 1}`;
+            redactSub.title = redactSub.textContent;
+            redactPrev.disabled = idx <= 0;
+            redactNext.disabled = idx >= state.pages.length - 1;
+            renderRedactPage();
+        }
+
+        async function renderRedactPage() {
+            const p = redactor.page;
+            if (!p) return;
+            const token = ++redactor.renderToken;
+            redactPageEl.classList.add('loading');
+            const pdfPage = await sourceById(p.sourceId).pdfjsDoc.getPage(p.pageIndex + 1);
+            if (token !== redactor.renderToken) return;
+            const rotation = (pdfPage.rotate + p.rotationDelta) % 360;
+            const base = pdfPage.getViewport({ scale: 1, rotation });
+            const cs = getComputedStyle(redactStage);
+            const availW = redactStage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            const availH = redactStage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            const fit = Math.max(0.05, Math.min(availW / base.width, availH / base.height));
+            const viewport = pdfPage.getViewport({ scale: fit * Math.min(window.devicePixelRatio || 1, 2), rotation });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(viewport.width);
+            canvas.height = Math.ceil(viewport.height);
+            await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            if (token !== redactor.renderToken) return;
+            redactPageEl.style.width = Math.floor(base.width * fit) + 'px';
+            redactPageEl.style.height = Math.floor(base.height * fit) + 'px';
+            redactPageEl.textContent = '';
+            redactPageEl.appendChild(canvas);
+            redactPageEl.classList.remove('loading');
+            drawBoxes();
+        }
+
+        function drawBoxes() {
+            const p = redactor.page;
+            redactPageEl.querySelectorAll('.redact-box').forEach(el => el.remove());
+            p.redactions.forEach((b, i) => {
+                const d = toDisplay(b, p);
+                const el = document.createElement('div');
+                el.className = 'redact-box' + (i === redactor.selected ? ' selected' : '');
+                el.dataset.index = i;
+                el.style.left = d.x * 100 + '%';
+                el.style.top = d.y * 100 + '%';
+                el.style.width = d.w * 100 + '%';
+                el.style.height = d.h * 100 + '%';
+                if (i === redactor.selected) {
+                    for (const h of ['nw', 'ne', 'sw', 'se']) {
+                        const handle = document.createElement('div');
+                        handle.className = 'redact-handle';
+                        handle.dataset.h = h;
+                        el.appendChild(handle);
+                    }
+                }
+                redactPageEl.appendChild(el);
+            });
+            redactRemove.disabled = redactor.selected < 0;
+            redactClear.disabled = !p.redactions.length;
+        }
+
+        // Swap in the page's tile so its thumbnail and redaction count follow edits
+        function refreshTile(p) {
+            const tile = gridEl.querySelector(`[data-page-id="${p.id}"]`);
+            if (tile) tile.replaceWith(createTile(p, state.pages.indexOf(p) + 1));
+        }
+
+        const copyBoxes = boxes => boxes.map(b => ({ ...b }));
+
+        // Record `before` for undo when it differs from the page's current boxes
+        function commitRedactions(before) {
+            const p = redactor.page;
+            if (JSON.stringify(before) === JSON.stringify(p.redactions)) return;
+            redactor.undo.push(before);
+            refreshTile(p);
+        }
+
+        function setRedactions(boxes, selected = -1) {
+            const p = redactor.page;
+            const before = copyBoxes(p.redactions);
+            p.redactions = boxes;
+            redactor.selected = selected;
+            drawBoxes();
+            commitRedactions(before);
+        }
+
+        function removeSelectedBox() {
+            if (redactor.selected < 0) return;
+            setRedactions(redactor.page.redactions.filter((_, i) => i !== redactor.selected));
+        }
+
+        function undoRedaction() {
+            if (!redactor.undo.length) return;
+            redactor.page.redactions = redactor.undo.pop();
+            redactor.selected = -1;
+            drawBoxes();
+            refreshTile(redactor.page);
+        }
+
+        function stepRedactPage(dir) {
+            const idx = state.pages.indexOf(redactor.page) + dir;
+            if (idx >= 0 && idx < state.pages.length) showRedactPage(state.pages[idx]);
+        }
+
+        const clamp01 = v => Math.min(1, Math.max(0, v));
+        function pagePoint(e) {
+            const r = redactPageEl.getBoundingClientRect();
+            return { x: clamp01((e.clientX - r.left) / r.width), y: clamp01((e.clientY - r.top) / r.height) };
+        }
+
+        redactPageEl.addEventListener('pointerdown', e => {
+            const p = redactor.page;
+            if (!p || redactor.gesture || !e.isPrimary || e.button !== 0) return;
+            if (redactPageEl.classList.contains('loading')) return;
+            e.preventDefault();
+            try { redactPageEl.setPointerCapture(e.pointerId); } catch (_) { return; }
+            const origin = pagePoint(e);
+            const before = copyBoxes(p.redactions);
+            const boxEl = e.target.closest('.redact-box');
+            if (boxEl) {
+                const index = +boxEl.dataset.index;
+                const handle = e.target.closest('.redact-handle');
+                redactor.gesture = {
+                    kind: handle ? 'resize' : 'move', handle: handle && handle.dataset.h,
+                    index, origin, before, start: toDisplay(p.redactions[index], p),
+                };
+                if (index !== redactor.selected) {
+                    redactor.selected = index;
+                    drawBoxes();
+                }
+            } else {
+                redactor.gesture = { kind: 'draw', index: -1, origin, before };
+                if (redactor.selected >= 0) {
+                    redactor.selected = -1;
+                    drawBoxes();
+                }
+            }
+            redactor.gesture.pointerId = e.pointerId;
+        });
+
+        redactPageEl.addEventListener('pointermove', e => {
+            const g = redactor.gesture;
+            if (!g || e.pointerId !== g.pointerId) return;
+            const p = redactor.page;
+            const pt = pagePoint(e);
+            let d;
+            if (g.kind === 'draw') {
+                d = { x: Math.min(g.origin.x, pt.x), y: Math.min(g.origin.y, pt.y),
+                      w: Math.abs(pt.x - g.origin.x), h: Math.abs(pt.y - g.origin.y) };
+                if (g.index < 0) {
+                    const r = redactPageEl.getBoundingClientRect();
+                    if (d.w * r.width < MIN_BOX_PX && d.h * r.height < MIN_BOX_PX) return;
+                    p.redactions.push(toUpright(d, p));
+                    g.index = redactor.selected = p.redactions.length - 1;
+                }
+            } else if (g.kind === 'move') {
+                const s = g.start;
+                const dx = Math.min(Math.max(pt.x - g.origin.x, -s.x), 1 - s.x - s.w);
+                const dy = Math.min(Math.max(pt.y - g.origin.y, -s.y), 1 - s.y - s.h);
+                d = { ...s, x: s.x + dx, y: s.y + dy };
+            } else {
+                // resize: the corner opposite the dragged handle stays put
+                const s = g.start;
+                const ax = g.handle.includes('w') ? s.x + s.w : s.x;
+                const ay = g.handle.includes('n') ? s.y + s.h : s.y;
+                d = { x: Math.min(ax, pt.x), y: Math.min(ay, pt.y), w: Math.abs(pt.x - ax), h: Math.abs(pt.y - ay) };
+            }
+            p.redactions[g.index] = toUpright(d, p);
+            drawBoxes();
+        });
+
+        function endRedactGesture(e) {
+            const g = redactor.gesture;
+            if (!g || e.pointerId !== g.pointerId) return;
+            redactor.gesture = null;
+            const p = redactor.page;
+            if (g.index >= 0) {
+                // a box squashed below the click threshold is discarded
+                const r = redactPageEl.getBoundingClientRect();
+                const d = toDisplay(p.redactions[g.index], p);
+                if (d.w * r.width < MIN_BOX_PX || d.h * r.height < MIN_BOX_PX) {
+                    p.redactions.splice(g.index, 1);
+                    redactor.selected = -1;
+                }
+            }
+            drawBoxes();
+            commitRedactions(g.before);
+        }
+        redactPageEl.addEventListener('pointerup', endRedactGesture);
+        redactPageEl.addEventListener('pointercancel', endRedactGesture);
+        redactPageEl.addEventListener('lostpointercapture', endRedactGesture);
+
+        redactPrev.addEventListener('click', () => stepRedactPage(-1));
+        redactNext.addEventListener('click', () => stepRedactPage(1));
+        redactWhole.addEventListener('click', () => setRedactions([{ x: 0, y: 0, w: 1, h: 1 }]));
+        redactRemove.addEventListener('click', removeSelectedBox);
+        redactClear.addEventListener('click', () => setRedactions([]));
+        redactDone.addEventListener('click', closeRedactor);
+        redactOverlay.addEventListener('click', e => { if (e.target === redactOverlay) closeRedactor(); });
+
+        document.addEventListener('keydown', e => {
+            if (!redactor.open || redactor.gesture) return;
+            if (e.key === 'Escape') {
+                if (redactor.selected >= 0) {
+                    redactor.selected = -1;
+                    drawBoxes();
+                } else {
+                    closeRedactor();
+                }
+            } else if ((e.key === 'Delete' || e.key === 'Backspace') && redactor.selected >= 0) {
+                removeSelectedBox();
+            } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+                undoRedaction();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                stepRedactPage(e.key === 'ArrowLeft' ? -1 : 1);
+            } else {
+                return;
+            }
+            e.preventDefault();
+        });
+
+        let redactResizeTimer = 0;
+        window.addEventListener('resize', () => {
+            if (!redactor.open) return;
+            clearTimeout(redactResizeTimer);
+            redactResizeTimer = setTimeout(renderRedactPage, 150);
+        });
 
         // ------- Drag to reorder -------
         // Same pointer-capture pattern as timezone-compare's row drag: never
@@ -850,29 +1270,158 @@
         }
 
         // ------- Export -------
+        const toBlob = (canvas, type, quality) => new Promise((resolve, reject) => {
+            canvas.toBlob(b => b ? resolve(b) : reject(new Error('could not encode a redacted page')), type, quality);
+        });
+
+        // A redacted page is re-rendered and saved as a picture: drawing a box
+        // over the original would leave the text underneath extractable.
+        async function rasterizeRedacted(p) {
+            const pdfPage = await sourceById(p.sourceId).pdfjsDoc.getPage(p.pageIndex + 1);
+            const base = pdfPage.getViewport({ scale: 1 });
+            const scale = Math.min(REDACT_DPI / 72, Math.sqrt(REDACT_MAX_PIXELS / (base.width * base.height)));
+            const viewport = pdfPage.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(viewport.width);
+            canvas.height = Math.ceil(viewport.height);
+            const ctx = canvas.getContext('2d');
+            await pdfPage.render({ canvasContext: ctx, viewport, annotationMode: pdfjsLib.AnnotationMode.ENABLE }).promise;
+            pdfPage.cleanup();
+            paintRedactions(ctx, p.redactions, canvas.width, canvas.height);
+            // PNG keeps text crisp; scans and photos are far smaller as JPEG
+            const [png, jpg] = await Promise.all([toBlob(canvas, 'image/png'), toBlob(canvas, 'image/jpeg', 0.9)]);
+            canvas.width = canvas.height = 0;
+            const blob = png.size <= jpg.size * 2 ? png : jpg;
+            return { bytes: new Uint8Array(await blob.arrayBuffer()), isPng: blob === png, width: base.width, height: base.height };
+        }
+
+        // pdf-lib's copyPages follows every reference on a page, so a link
+        // annotation pointing at a page that is not being exported — deleted,
+        // left out of an extract/split, or redacted — drags that page and its
+        // original content into the output, unseen but readable. Strip such
+        // stray pages down to their geometry, then drop every object nothing
+        // reaches any more (pdf-lib writes all objects it holds, referenced or not).
+        // Links to a stray page are first pointed at its replacement (`retarget`:
+        // stray ref → output page ref, for redacted pages) or else removed, so
+        // they never jump somewhere arbitrary.
+        const KEEP_PAGE_KEYS = ['Type', 'MediaBox', 'CropBox', 'BleedBox', 'TrimBox', 'ArtBox', 'Rotate'];
+        function pruneStrayPages(doc, retarget) {
+            const { PDFName, PDFRef, PDFDict, PDFArray, PDFStream } = PDFLib;
+            const ctx = doc.context;
+            const treePages = doc.getPages();
+            const inTree = new Set(treePages.map(p => p.ref));
+            for (const page of treePages) {
+                const annots = page.node.Annots();
+                if (!annots) continue;
+                const kept = annots.asArray().filter(a => {
+                    const dest = linkDest(ctx, ctx.lookup(a));
+                    const target = dest && dest.get(0);
+                    if (!(target instanceof PDFRef) || inTree.has(target)) return true;
+                    if (!retarget.has(target)) return false;
+                    dest.set(0, retarget.get(target));
+                    return true;
+                });
+                if (kept.length !== annots.size()) page.node.set(PDFName.of('Annots'), ctx.obj(kept));
+            }
+            const keep = KEEP_PAGE_KEYS.map(k => PDFName.of(k));
+            for (const [ref, obj] of ctx.enumerateIndirectObjects()) {
+                if (inTree.has(ref) || !(obj instanceof PDFDict)) continue;
+                if (obj.get(PDFName.of('Type')) !== PDFName.of('Page')) continue;
+                obj.keys().forEach(key => { if (!keep.includes(key)) obj.delete(key); });
+            }
+            const reached = new Set();   // PDFRef instances are interned, so identity works
+            const stack = [ctx.trailerInfo.Root, ctx.trailerInfo.Info].filter(Boolean);
+            while (stack.length) {
+                const obj = stack.pop();
+                if (obj instanceof PDFRef) {
+                    if (reached.has(obj)) continue;
+                    reached.add(obj);
+                    const target = ctx.lookup(obj);
+                    if (target) stack.push(target);
+                } else if (obj instanceof PDFDict) {
+                    obj.entries().forEach(([, v]) => stack.push(v));
+                } else if (obj instanceof PDFArray) {
+                    obj.asArray().forEach(v => stack.push(v));
+                } else if (obj instanceof PDFStream) {
+                    stack.push(obj.dict);
+                }
+            }
+            for (const [ref] of ctx.enumerateIndirectObjects()) {
+                if (!reached.has(ref)) ctx.delete(ref);
+            }
+        }
+
+        // The explicit destination array of a link (direct /Dest or a GoTo action), if any
+        function linkDest(ctx, annot) {
+            const N = PDFLib.PDFName.of;
+            if (!(annot instanceof PDFLib.PDFDict)) return null;
+            let dest = ctx.lookup(annot.get(N('Dest')));
+            const action = ctx.lookup(annot.get(N('A')));
+            if (!dest && action instanceof PDFLib.PDFDict && action.get(N('S')) === N('GoTo')) {
+                dest = ctx.lookup(action.get(N('D')));
+            }
+            return dest instanceof PDFLib.PDFArray ? dest : null;
+        }
+
         async function buildPdfFromPages(pages, docCache) {
             const out = await PDFLib.PDFDocument.create();
             const cache = docCache || new Map();
-            const sourceIds = [...new Set(pages.map(p => p.sourceId))];
+            const plain = pages.filter(p => !p.redactions.length);
+            const sourceIds = [...new Set(plain.map(p => p.sourceId))];
             for (const sid of sourceIds) {
                 if (!cache.has(sid)) {
                     cache.set(sid, await PDFLib.PDFDocument.load(sourceById(sid).bytes));
                 }
             }
+            // Copy pages by reference through one copier per source rather than
+            // with copyPages (which copies the page object, so a link to another
+            // exported page would land on a hidden duplicate). The copier maps
+            // source refs to output refs, so links resolve to the real page.
             const copied = new Map();
+            const copiers = new Map();
             for (const sid of sourceIds) {
-                const indices = pages.filter(p => p.sourceId === sid).map(p => p.pageIndex);
-                const copies = await out.copyPages(cache.get(sid), indices);
-                indices.forEach((idx, i) => copied.set(sid + ':' + idx, copies[i]));
+                const src = cache.get(sid);
+                const srcPages = src.getPages();
+                const copier = PDFLib.PDFObjectCopier.for(src.context, out.context);
+                copiers.set(sid, copier);
+                const usedRefs = new Set();
+                for (const p of plain.filter(p => p.sourceId === sid)) {
+                    const srcPage = srcPages[p.pageIndex];
+                    let ref;
+                    if (usedRefs.has(srcPage.ref)) {
+                        // a malformed page tree listing one page object twice gets a separate copy
+                        ref = out.context.register(copier.copy(srcPage.node));
+                    } else {
+                        ref = copier.copy(srcPage.ref);
+                        usedRefs.add(srcPage.ref);
+                    }
+                    copied.set(p.id, PDFLib.PDFPage.of(out.context.lookup(ref, PDFLib.PDFPageLeaf), ref, out));
+                }
             }
+            const retarget = new Map();
             for (const p of pages) {
-                const page = copied.get(p.sourceId + ':' + p.pageIndex);
+                if (p.redactions.length) {
+                    const r = await rasterizeRedacted(p);
+                    const img = r.isPng ? await out.embedPng(r.bytes) : await out.embedJpg(r.bytes);
+                    const page = out.addPage([r.width, r.height]);
+                    page.drawImage(img, { x: 0, y: 0, width: r.width, height: r.height });
+                    // the source's own /Rotate is baked into the image
+                    if (p.rotationDelta) page.setRotation(PDFLib.degrees(p.rotationDelta));
+                    // links from other pages copied the original as a stray; send them here
+                    // (traversedObjects: the copier's source ref → output ref map, pdf-lib 1.17.1)
+                    const copier = copiers.get(p.sourceId);
+                    const stray = copier && copier.traversedObjects.get(cache.get(p.sourceId).getPages()[p.pageIndex].ref);
+                    if (stray) retarget.set(stray, page.ref);
+                    continue;
+                }
+                const page = copied.get(p.id);
                 if (p.rotationDelta) {
                     const base = page.getRotation().angle;   // can be negative in the source
                     page.setRotation(PDFLib.degrees((((base + p.rotationDelta) % 360) + 360) % 360));
                 }
                 out.addPage(page);
             }
+            pruneStrayPages(out, retarget);
             return await out.save();
         }
 
@@ -897,7 +1446,8 @@
 
         btnDownload.addEventListener('click', () => withBusy(async () => {
             const bytes = await buildPdfFromPages(state.pages);
-            const name = baseName() ? `${baseName()}-edited.pdf` : 'merged.pdf';
+            const suffix = state.pages.some(p => p.redactions.length) ? 'redacted' : 'edited';
+            const name = baseName() ? `${baseName()}-${suffix}.pdf` : 'merged.pdf';
             downloadBlob(new Blob([bytes], { type: 'application/pdf' }), name);
         }));
 
@@ -961,7 +1511,7 @@
         });
 
         // Dev/test hook — used by the verification steps, not by the UI
-        window.__pdfToolbox = { state, buildPdfFromPages, addFiles };
+        window.__pdfToolbox = { state, buildPdfFromPages, addFiles, openRedactor };
     </script>
 </body>
 </html>
